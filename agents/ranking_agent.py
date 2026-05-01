@@ -3,6 +3,14 @@ from config import MAX_RESULTS
 
 
 def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list[CarListing]:
+    from agents.rag_agent import is_rag_available, query_market_data
+
+    market_context = ""
+    if is_rag_available():
+        docs = query_market_data(prefs.make, prefs.model, prefs.location, n_results=1)
+        if docs:
+            market_context = docs[0][:300]
+
     scored = []
     for listing in listings:
         breakdown = {}
@@ -52,6 +60,12 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
 
         total = price_pts + mileage_pts + ext_pts + int_pts
         listing.match_score = round(total, 1)
+        if market_context:
+            breakdown["market_insight"] = {
+                "points": 0,
+                "max": 0,
+                "reason": market_context,
+            }
         listing.score_breakdown = breakdown
         scored.append(listing)
 

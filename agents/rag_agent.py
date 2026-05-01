@@ -1,6 +1,11 @@
 import os
-import chromadb
-from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+
+try:
+    import chromadb
+    from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+    _CHROMADB_AVAILABLE = True
+except ImportError:
+    _CHROMADB_AVAILABLE = False
 
 CHROMA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge_base", "chroma_db")
 
@@ -18,6 +23,8 @@ def _get_client():
 
 
 def is_rag_available() -> bool:
+    if not _CHROMADB_AVAILABLE:
+        return False
     if not os.path.exists(CHROMA_PATH):
         return False
     try:

@@ -3,14 +3,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL")
-MARKETCHECK_API_KEY = os.getenv("MARKETCHECK_API_KEY")
-AUTODEV_API_KEY = os.getenv("AUTODEV_API_KEY")
+def _get(key: str) -> str:
+    val = os.getenv(key)
+    if val:
+        return val
+    try:
+        import streamlit as st
+        return st.secrets.get(key, "")
+    except Exception:
+        return ""
+
+OPENAI_API_KEY = _get("OPENAI_API_KEY")
+TWILIO_ACCOUNT_SID = _get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = _get("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = _get("TWILIO_PHONE_NUMBER")
+SENDGRID_API_KEY = _get("SENDGRID_API_KEY")
+SENDGRID_FROM_EMAIL = _get("SENDGRID_FROM_EMAIL")
+MARKETCHECK_API_KEY = _get("MARKETCHECK_API_KEY")
+AUTODEV_API_KEY = _get("AUTODEV_API_KEY")
 
 LLM_MODEL = "gpt-4o-mini"
 MAX_RESULTS = 20

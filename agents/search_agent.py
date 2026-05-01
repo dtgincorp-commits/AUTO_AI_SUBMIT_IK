@@ -2,8 +2,8 @@ import re
 import json
 import requests
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.output_parser import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
 from config import LLM_MODEL, MARKETCHECK_API_KEY, AUTODEV_API_KEY
 

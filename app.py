@@ -14,37 +14,112 @@ st.set_page_config(
 st.title("🚗 AUTO AI — Car Discovery Agent")
 st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
+# ── Session state defaults ──────────────────────────────────────────────────
+_SS_DEFAULTS = {
+    "p_make": "", "p_model": "", "p_trim": "",
+    "p_price_min": 20000, "p_price_max": 50000,
+    "p_condition": "Any", "p_exterior_color": "Any", "p_interior_color": "Any",
+    "p_max_mileage": 50000, "p_location": "", "p_radius_miles": 50,
+}
+for _k, _v in _SS_DEFAULTS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ── Natural Language Search ─────────────────────────────────────────────────
+st.markdown("### 💬 Describe the car you're looking for")
+_nl_col, _btn_col = st.columns([5, 1])
+with _nl_col:
+    _nl_query = st.text_input(
+        "nl",
+        placeholder='e.g. "Used Honda CR-V under $30k near Chicago, max 60k miles"',
+        label_visibility="collapsed",
+        key="nl_query_input",
+    )
+with _btn_col:
+    _nl_btn = st.button("Parse →", use_container_width=True)
+
+if "nl_parse_msg" in st.session_state:
+    _msg_type, _msg_text = st.session_state.pop("nl_parse_msg")
+    if _msg_type == "success":
+        st.success(_msg_text)
+    else:
+        st.warning(_msg_text)
+
+if _nl_btn:
+    if _nl_query.strip():
+        with st.spinner("Parsing your request..."):
+            from agents.nl_parser import parse_query as _parse_query
+            _parsed = _parse_query(_nl_query.strip())
+        _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
+        _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
+        _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
+        if _parsed.get("make"):         st.session_state["p_make"]          = _parsed["make"]
+        if _parsed.get("model"):        st.session_state["p_model"]         = _parsed["model"]
+        if _parsed.get("trim"):         st.session_state["p_trim"]          = _parsed["trim"]
+        if _parsed.get("price_min"):    st.session_state["p_price_min"]     = int(_parsed["price_min"])
+        if _parsed.get("price_max"):    st.session_state["p_price_max"]     = int(_parsed["price_max"])
+        if _parsed.get("condition") and _parsed["condition"] in _COND:
+            st.session_state["p_condition"] = _parsed["condition"]
+        if _parsed.get("exterior_color") and _parsed["exterior_color"] in _COLOR_EXT:
+            st.session_state["p_exterior_color"] = _parsed["exterior_color"]
+        if _parsed.get("interior_color") and _parsed["interior_color"] in _COLOR_INT:
+            st.session_state["p_interior_color"] = _parsed["interior_color"]
+        if _parsed.get("max_mileage"):
+            st.session_state["p_max_mileage"]   = int(_parsed["max_mileage"])
+        if _parsed.get("location"):
+            st.session_state["p_location"]      = _parsed["location"]
+        if _parsed.get("radius_miles"):
+            st.session_state["p_radius_miles"]  = max(10, min(100, int(_parsed["radius_miles"])))
+        if _parsed.get("make") or _parsed.get("model"):
+            st.session_state["nl_parse_msg"] = (
+                "success",
+                f"✓ Filled: **{_parsed.get('make','')} {_parsed.get('model','')}** — "
+                "review the form in the sidebar and click **Find Cars**.",
+            )
+        else:
+            st.session_state["nl_parse_msg"] = (
+                "warning",
+                "Couldn't extract car details. Try: \"Used Toyota Camry under $25k near Dallas, TX\"",
+            )
+        st.rerun()
+    else:
+        st.warning("Please type something first.")
+
+st.divider()
+
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
     st.header("Your Car Preferences")
 
-    make = st.text_input("Make", placeholder="e.g. BMW, Toyota")
-    model = st.text_input("Model", placeholder="e.g. X5, Camry")
-    trim = st.text_input("Trim (optional)", placeholder="e.g. Sport, Luxury, Prestige")
+    make = st.text_input("Make", placeholder="e.g. BMW, Toyota", key="p_make")
+    model = st.text_input("Model", placeholder="e.g. X5, Camry", key="p_model")
+    trim = st.text_input("Trim (optional)", placeholder="e.g. Sport, Luxury, Prestige", key="p_trim")
 
     st.subheader("Budget")
     col1, col2 = st.columns(2)
     with col1:
-        price_min = st.number_input("Min ($)", min_value=0, value=20000, step=1000)
+        price_min = st.number_input("Min ($)", min_value=0, step=1000, key="p_price_min")
     with col2:
-        price_max = st.number_input("Max ($)", min_value=0, value=50000, step=1000)
+        price_max = st.number_input("Max ($)", min_value=0, step=1000, key="p_price_max")
 
     st.subheader("Vehicle Details")
-    condition = st.selectbox("Condition", ["Any", "Used", "New", "Certified Pre-Owned (CPO)"])
+    condition = st.selectbox("Condition", ["Any", "Used", "New", "Certified Pre-Owned (CPO)"], key="p_condition")
     certified_only = condition == "Certified Pre-Owned (CPO)"
     exterior_color = st.selectbox(
         "Exterior Color",
         ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"],
+        key="p_exterior_color",
     )
     interior_color = st.selectbox(
         "Interior Color",
         ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"],
+        key="p_interior_color",
     )
-    max_mileage = st.number_input("Max Mileage", min_value=0, value=50000, step=5000)
+    max_mileage = st.number_input("Max Mileage", min_value=0, step=5000, key="p_max_mileage")
 
     st.subheader("Location")
-    location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701")
-    radius_miles = st.slider("Search Radius (miles)", 10, 100, 50)
+    location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
+    radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=100, key="p_radius_miles")
 
     st.subheader("Delivery Preference")
     delivery_email = st.checkbox("Email", value=True)

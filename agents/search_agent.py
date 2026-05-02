@@ -91,12 +91,10 @@ def _search_marketcheck(prefs: CarPreferences) -> list[CarListing]:
         # Ranking proxy when dealer hasn't published price — never stored as display price
         effective_price = price if price > 0 else (msrp_raw or int((prefs.price_min + prefs.price_max) / 2))
 
-        # Client-side condition enforcement
-        if prefs.certified_only and (miles == 0 or year >= current_year):
-            continue  # CPO must be a used car with actual mileage
-        if prefs.condition == "Used" and (miles == 0 or year >= current_year):
-            continue
-        if prefs.condition == "New" and miles > 0:
+        # Client-side: only drop obvious data errors (0-mile "used" cars)
+        # Marketcheck free tier does not reliably filter by inventory_type,
+        # so we trust the API param and avoid over-filtering here.
+        if prefs.condition == "Used" and miles == 0:
             continue
 
         raw_source = item.get("source", "")

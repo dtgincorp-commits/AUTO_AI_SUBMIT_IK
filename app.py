@@ -217,6 +217,8 @@ if find_btn:
     if not listings:
         st.warning(f"No results found — {search_warning}" if search_warning else "No results found.")
         st.info("Try widening your price range, increasing the search radius, or removing color/mileage filters.")
+        with st.expander("Debug — Search parameters sent to API"):
+            st.json(prefs.model_dump())
         st.stop()
 
     if search_warning:

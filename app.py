@@ -11,12 +11,6 @@ st.set_page_config(
     layout="wide",
 )
 
-st.markdown("""
-<style>
-h1 { font-size: 1.9rem !important; }
-div[data-testid="stCaptionContainer"] p { font-size: 0.78rem !important; }
-</style>
-""", unsafe_allow_html=True)
 st.title("🚗 AUTO AI — Car Discovery Agent")
 st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
@@ -37,7 +31,7 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700;900&display=swap');
 .nl-heading {
     font-family: 'Exo 2', sans-serif;
-    font-size: 1.7rem;
+    font-size: 2.1rem;
     font-weight: 900;
     background: linear-gradient(90deg, #f97316, #facc15, #22d3ee, #a855f7);
     -webkit-background-clip: text;

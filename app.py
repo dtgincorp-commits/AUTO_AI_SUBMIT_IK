@@ -106,7 +106,10 @@ if _nl_btn:
     if _nl_query.strip():
         with st.spinner("Understanding your request..."):
             from agents.nl_parser import parse_query as _parse_query
-            _parsed = _parse_query(_nl_query.strip())
+            _parsed, _parse_err = _parse_query(_nl_query.strip())
+        if _parse_err:
+            st.error(f"Could not parse your request: {_parse_err}")
+            st.stop()
         _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
         _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
         _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]

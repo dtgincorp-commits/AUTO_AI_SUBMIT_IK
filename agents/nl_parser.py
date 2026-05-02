@@ -24,13 +24,14 @@ _PARSE_PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
-def parse_query(query: str) -> dict:
+def parse_query(query: str) -> tuple[dict, str]:
+    """Returns (parsed_dict, error_message). On success error_message is empty."""
     llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
     chain = _PARSE_PROMPT | llm | StrOutputParser()
     try:
         raw = chain.invoke({"query": query}).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-        return json.loads(raw.strip())
-    except Exception:
-        return {}
+        return json.loads(raw.strip()), ""
+    except Exception as e:
+        return {}, str(e)

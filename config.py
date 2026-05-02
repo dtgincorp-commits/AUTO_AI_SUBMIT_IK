@@ -3,6 +3,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Disable LangSmith tracing if the key is not valid to prevent 403 noise
+os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
+os.environ.setdefault("LANGSMITH_TRACING", "false")
+
 def _get(key: str) -> str:
     val = os.getenv(key)
     if val:

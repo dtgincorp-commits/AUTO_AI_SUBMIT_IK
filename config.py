@@ -1,11 +1,15 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Always load from THIS project's .env with override so stale env vars
+# from other projects or previous processes never bleed in.
+_ENV_PATH = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
-# Disable LangSmith tracing if the key is not valid to prevent 403 noise
-os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
-os.environ.setdefault("LANGSMITH_TRACING", "false")
+# Disable LangSmith tracing to prevent 403 noise
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
+os.environ["LANGSMITH_TRACING"] = "false"
 
 def _get(key: str) -> str:
     val = os.getenv(key)

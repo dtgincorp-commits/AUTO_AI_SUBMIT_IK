@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing, DimensionResult, CriticResult
-from config import LLM_MODEL
+from config import LLM_MODEL, OPENAI_API_KEY
 
 _PERSONALIZATION_JUDGE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
@@ -90,7 +90,7 @@ def _check_outreach_personalization(prefs: CarPreferences, outreach_result: dict
     if not content.strip():
         return neutral
     try:
-        llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
+        llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
         chain = _PERSONALIZATION_JUDGE_PROMPT | llm | StrOutputParser()
         raw = chain.invoke({
             "make": prefs.make,

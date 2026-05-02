@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
-from config import LLM_MODEL, MARKETCHECK_API_KEY, AUTODEV_API_KEY
+from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY
 
 MARKETCHECK_BASE = "https://api.marketcheck.com/v2"
 AUTODEV_BASE = "https://auto.dev/api"
@@ -16,7 +16,7 @@ _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 def _normalize_make_model(make: str, model: str) -> tuple:
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
     chain = _NORMALIZE_PROMPT | llm | StrOutputParser()
     try:
         raw = chain.invoke({"make": make, "model": model})
@@ -183,7 +183,7 @@ def _search_gpt_fallback(prefs: CarPreferences) -> list[CarListing]:
     else:
         prompt = _SEARCH_PROMPT
 
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0.3)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0.3)
     chain = prompt | llm | StrOutputParser()
     raw = chain.invoke({
         "make": prefs.make,

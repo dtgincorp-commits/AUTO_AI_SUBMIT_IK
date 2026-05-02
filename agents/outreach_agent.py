@@ -2,7 +2,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
-from config import LLM_MODEL, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+from config import LLM_MODEL, OPENAI_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
 from config import SENDGRID_API_KEY, SENDGRID_FROM_EMAIL
 import json
 
@@ -59,7 +59,7 @@ def generate_email_content(prefs: CarPreferences, listings: list[CarListing], cr
         if specs:
             car_context = "\n".join(specs)
 
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0.4)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0.4)
     car_context_line = (
         f"\nUse these verified facts about the {prefs.make} {prefs.model} to enrich the email:\n{car_context}\n"
         if car_context else ""
@@ -94,7 +94,7 @@ def generate_email_content(prefs: CarPreferences, listings: list[CarListing], cr
 
 
 def generate_sms_content(prefs: CarPreferences, listings: list[CarListing], critic_feedback: str = None) -> str:
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0.3)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0.3)
     if critic_feedback:
         human_msg = (
             "SMS summary for {make} {model} search near {location}:\n{listings_json}\n\n"
@@ -149,7 +149,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> dict:
 
 def run_dealer_outreach(prefs: CarPreferences, listings: list[CarListing]) -> list[dict]:
     """Generate (and optionally send) outreach to the selling dealer for each top listing."""
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0.3)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0.3)
     broker_name = prefs.broker_name or "Your Agent"
     broker_email = prefs.broker_email or ""
     broker_phone = prefs.broker_phone or ""

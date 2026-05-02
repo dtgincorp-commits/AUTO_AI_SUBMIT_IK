@@ -2,7 +2,7 @@ import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from config import LLM_MODEL
+from config import LLM_MODEL, OPENAI_API_KEY
 
 _PARSE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
@@ -26,7 +26,7 @@ _PARSE_PROMPT = ChatPromptTemplate.from_messages([
 
 def parse_query(query: str) -> tuple[dict, str]:
     """Returns (parsed_dict, error_message). On success error_message is empty."""
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
+    llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
     chain = _PARSE_PROMPT | llm | StrOutputParser()
     try:
         raw = chain.invoke({"query": query}).strip()

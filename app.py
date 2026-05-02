@@ -31,6 +31,7 @@ st.markdown("""
 div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input {
     background-color: #ffffff !important;
     color: #111111 !important;
+    caret-color: #111111 !important;
     font-size: 18px !important;
     font-weight: 600 !important;
     border: 3px solid #2563eb !important;

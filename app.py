@@ -28,7 +28,9 @@ for _k, _v in _SS_DEFAULTS.items():
 # ── Natural Language Search ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input {
+/* Target the NL search input specifically */
+div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input,
+div[data-testid="stTextInput"]:has(input[data-testid="stTextInput"]) input {
     background-color: #ffffff !important;
     color: #111111 !important;
     caret-color: #111111 !important;
@@ -37,20 +39,29 @@ div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input {
     border: 3px solid #2563eb !important;
     border-radius: 10px !important;
     padding: 14px 18px !important;
-    box-shadow: 0 0 12px rgba(37,99,235,0.4) !important;
+    box-shadow: 0 0 14px rgba(37,99,235,0.5) !important;
 }
 div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input::placeholder {
-    color: #6b7280 !important;
+    color: #9ca3af !important;
     font-weight: 400 !important;
 }
 div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input:focus {
     border-color: #1d4ed8 !important;
-    box-shadow: 0 0 18px rgba(37,99,235,0.6) !important;
+    box-shadow: 0 0 22px rgba(37,99,235,0.75) !important;
 }
 </style>
-""", unsafe_allow_html=True)
 
-st.markdown("### 💬 Describe the car you're looking for")
+<div style="
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(37,99,235,0.8), 0 2px 4px rgba(0,0,0,0.5);
+">
+    🔎 &nbsp;Describe the car you're looking for
+</div>
+""", unsafe_allow_html=True)
 _nl_col, _btn_col = st.columns([5, 1])
 with _nl_col:
     _nl_query = st.text_input(

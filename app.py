@@ -26,6 +26,29 @@ for _k, _v in _SS_DEFAULTS.items():
         st.session_state[_k] = _v
 
 # ── Natural Language Search ─────────────────────────────────────────────────
+st.markdown("""
+<style>
+div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input {
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    border: 3px solid #2563eb !important;
+    border-radius: 10px !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 0 12px rgba(37,99,235,0.4) !important;
+}
+div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input::placeholder {
+    color: #6b7280 !important;
+    font-weight: 400 !important;
+}
+div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input:focus {
+    border-color: #1d4ed8 !important;
+    box-shadow: 0 0 18px rgba(37,99,235,0.6) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown("### 💬 Describe the car you're looking for")
 _nl_col, _btn_col = st.columns([5, 1])
 with _nl_col:

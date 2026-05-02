@@ -122,7 +122,7 @@ with st.sidebar:
     radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=100, key="p_radius_miles")
 
     st.subheader("Delivery Preference")
-    delivery_email = st.checkbox("Email", value=True)
+    delivery_email = st.checkbox("Email", value=False)
     delivery_sms = st.checkbox("SMS")
 
     user_email = None
@@ -146,12 +146,6 @@ with st.sidebar:
 if find_btn:
     if not make or not model or not location:
         st.error("Please fill in Make, Model, and Location.")
-        st.stop()
-    if delivery_email and not user_email:
-        st.error("Please enter your email address.")
-        st.stop()
-    if delivery_sms and not user_phone:
-        st.error("Please enter your phone number.")
         st.stop()
     if dealer_outreach and not broker_name:
         st.error("Please enter your broker name for dealer outreach.")

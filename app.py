@@ -49,6 +49,28 @@ div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input:focus {
     border-color: #1d4ed8 !important;
     box-shadow: 0 0 22px rgba(37,99,235,0.75) !important;
 }
+/* Find Cars button — vibrant orange-red, hard to miss on mobile */
+div[data-testid="stColumn"]:last-child button,
+div[data-testid="stColumn"]:last-child button:focus {
+    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%) !important;
+    color: #ffffff !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    min-height: 52px !important;
+    box-shadow: 0 4px 18px rgba(220, 38, 38, 0.6) !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+div[data-testid="stColumn"]:last-child button:hover {
+    transform: scale(1.04) !important;
+    box-shadow: 0 6px 28px rgba(220, 38, 38, 0.8) !important;
+}
+div[data-testid="stColumn"]:last-child button:active {
+    transform: scale(0.97) !important;
+}
 </style>
 
 <div style="

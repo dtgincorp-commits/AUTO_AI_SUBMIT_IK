@@ -31,12 +31,12 @@ _nl_col, _btn_col = st.columns([5, 1])
 with _nl_col:
     _nl_query = st.text_input(
         "nl",
-        placeholder='e.g. "Used Honda CR-V under $30k near Chicago, max 60k miles"',
+        placeholder='e.g. "Used Honda CR-V under $30k near Irvine CA, max 60k miles"',
         label_visibility="collapsed",
         key="nl_query_input",
     )
 with _btn_col:
-    _nl_btn = st.button("Parse →", use_container_width=True)
+    _nl_btn = st.button("🔍 Find Cars", use_container_width=True)
 
 if "nl_parse_msg" in st.session_state:
     _msg_type, _msg_text = st.session_state.pop("nl_parse_msg")
@@ -47,7 +47,7 @@ if "nl_parse_msg" in st.session_state:
 
 if _nl_btn:
     if _nl_query.strip():
-        with st.spinner("Parsing your request..."):
+        with st.spinner("Understanding your request..."):
             from agents.nl_parser import parse_query as _parse_query
             _parsed = _parse_query(_nl_query.strip())
         _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
@@ -70,18 +70,18 @@ if _nl_btn:
             st.session_state["p_location"]      = _parsed["location"]
         if _parsed.get("radius_miles"):
             st.session_state["p_radius_miles"]  = max(10, min(100, int(_parsed["radius_miles"])))
-        if _parsed.get("make") or _parsed.get("model"):
-            st.session_state["nl_parse_msg"] = (
-                "success",
-                f"✓ Filled: **{_parsed.get('make','')} {_parsed.get('model','')}** — "
-                "review the form in the sidebar and click **Find Cars**.",
-            )
+
+        _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
+        if _has_required:
+            # All required fields found — go straight to search
+            st.session_state["_nl_auto_run"] = True
         else:
+            _missing = [f for f, v in [("make", _parsed.get("make")), ("model", _parsed.get("model")), ("location", _parsed.get("location"))] if not v]
             st.session_state["nl_parse_msg"] = (
                 "warning",
-                "Couldn't extract car details. Try: \"Used Toyota Camry under $25k near Dallas, TX\"",
+                f"Please also specify **{', '.join(_missing)}** — filled what I could, check the sidebar.",
             )
-        st.rerun()
+            st.rerun()
     else:
         st.warning("Please type something first.")
 
@@ -143,7 +143,8 @@ with st.sidebar:
     find_btn = st.button("Find Cars", type="primary", use_container_width=True)
 
 # ── Main: Results ───────────────────────────────────────────────────────────
-if find_btn:
+_nl_auto_run = st.session_state.pop("_nl_auto_run", False)
+if find_btn or _nl_auto_run:
     if not make or not model or not location:
         st.error("Please fill in Make, Model, and Location.")
         st.stop()

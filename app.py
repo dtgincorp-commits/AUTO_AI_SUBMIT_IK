@@ -16,7 +16,7 @@ st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
-    "p_make": "", "p_model": "", "p_trim": "",
+    "p_make": "", "p_model": "", "p_trim": "",  # trim intentionally blank
     "p_price_min": 20000, "p_price_max": 50000,
     "p_condition": "Any", "p_exterior_color": "Any", "p_interior_color": "Any",
     "p_max_mileage": 50000, "p_location": "", "p_radius_miles": 50,
@@ -157,7 +157,7 @@ if find_btn:
     prefs = CarPreferences(
         make=make,
         model=model,
-        trim=trim or None,
+        trim=(trim if trim and trim.strip().lower() not in ("", "any") else None),
         price_min=int(price_min),
         price_max=int(price_max),
         exterior_color=None if exterior_color == "Any" else exterior_color,

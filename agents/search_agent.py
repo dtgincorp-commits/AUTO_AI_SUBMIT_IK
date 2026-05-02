@@ -50,7 +50,7 @@ def _search_marketcheck(prefs: CarPreferences) -> list[CarListing]:
         "sort_by": "price",
         "sort_order": "asc",
     }
-    if prefs.trim:
+    if prefs.trim and prefs.trim.lower() != "any":
         params["trim"] = prefs.trim
     if prefs.max_mileage:
         params["mileage_max"] = prefs.max_mileage

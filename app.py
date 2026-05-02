@@ -28,9 +28,21 @@ for _k, _v in _SS_DEFAULTS.items():
 # ── Natural Language Search ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Target the NL search input specifically */
-div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input,
-div[data-testid="stTextInput"]:has(input[data-testid="stTextInput"]) input {
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700;900&display=swap');
+.nl-heading {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 900;
+    background: linear-gradient(90deg, #f97316, #facc15, #22d3ee, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    text-shadow: none;
+}
+/* NL search input */
+div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input {
     background-color: #ffffff !important;
     color: #111111 !important;
     caret-color: #111111 !important;
@@ -49,7 +61,7 @@ div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input:focus {
     border-color: #1d4ed8 !important;
     box-shadow: 0 0 22px rgba(37,99,235,0.75) !important;
 }
-/* Find Cars button — vibrant orange-red, hard to miss on mobile */
+/* Find Cars button */
 div[data-testid="stColumn"]:last-child button,
 div[data-testid="stColumn"]:last-child button:focus {
     background: linear-gradient(135deg, #f97316 0%, #dc2626 100%) !important;
@@ -71,29 +83,24 @@ div[data-testid="stColumn"]:last-child button:hover {
 div[data-testid="stColumn"]:last-child button:active {
     transform: scale(0.97) !important;
 }
+/* Hide form border that Streamlit adds */
+div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 </style>
 
-<div style="
-    font-size: 2rem;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.5px;
-    margin-bottom: 12px;
-    text-shadow: 0 0 20px rgba(37,99,235,0.8), 0 2px 4px rgba(0,0,0,0.5);
-">
-    🔎 &nbsp;Describe the car you're looking for
-</div>
+<div class="nl-heading">🚀 &nbsp;What car are you hunting for?</div>
 """, unsafe_allow_html=True)
-_nl_col, _btn_col = st.columns([5, 1])
-with _nl_col:
-    _nl_query = st.text_input(
-        "nl",
-        placeholder='e.g. "Used Honda CR-V under $30k near Irvine CA, max 60k miles"',
-        label_visibility="collapsed",
-        key="nl_query_input",
-    )
-with _btn_col:
-    _nl_btn = st.button("🔍 Find Cars", use_container_width=True)
+
+with st.form("nl_form", clear_on_submit=False):
+    _nl_col, _btn_col = st.columns([5, 1])
+    with _nl_col:
+        _nl_query = st.text_input(
+            "nl",
+            placeholder='e.g. "Used Honda CR-V under $30k near Irvine CA, max 60k miles"',
+            label_visibility="collapsed",
+            key="nl_query_input",
+        )
+    with _btn_col:
+        _nl_btn = st.form_submit_button("🔍 Find Cars", use_container_width=True)
 
 if "nl_parse_msg" in st.session_state:
     _msg_type, _msg_text = st.session_state.pop("nl_parse_msg")

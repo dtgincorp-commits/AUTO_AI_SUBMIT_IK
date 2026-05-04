@@ -1,6 +1,8 @@
 import re
 import json
 import requests
+from typing import Optional
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI
@@ -38,6 +40,39 @@ def _parse_location(location: str) -> dict:
     if len(parts) >= 2:
         return {"city": parts[0], "state": parts[1]}
     return {"city": location}
+
+
+def _resolve_zip(location: str) -> Optional[str]:
+    """Return a US 5-digit zip for the location string.
+
+    Returns immediately if the string already contains a zip.
+    Otherwise geocodes via Nominatim (OpenStreetMap, free, no key required).
+    """
+    zip_match = re.search(r"\b(\d{5})\b", location)
+    if zip_match:
+        return zip_match.group(1)
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={
+                "q": location,
+                "format": "json",
+                "addressdetails": "1",
+                "countrycodes": "us",
+                "limit": "1",
+            },
+            headers={"User-Agent": "AUTO_AI_CarSearch/1.0"},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            hits = resp.json()
+            if hits:
+                postcode = hits[0].get("address", {}).get("postcode", "")
+                if postcode:
+                    return postcode[:5]
+    except Exception:
+        pass
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +159,7 @@ def _location_to_craigslist_site(location: str) -> str:
 # Marketcheck
 # ---------------------------------------------------------------------------
 
-def _search_marketcheck(prefs: CarPreferences) -> list[CarListing]:
+def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     make, model = _normalize_make_model(prefs.make, prefs.model)
     params = {
         "api_key": MARKETCHECK_API_KEY,
@@ -148,7 +183,10 @@ def _search_marketcheck(prefs: CarPreferences) -> list[CarListing]:
     elif prefs.condition and prefs.condition != "Any":
         params["inventory_type"] = prefs.condition.lower()
 
-    params.update(_parse_location(prefs.location))
+    if zip_code:
+        params["zip"] = zip_code
+    else:
+        params.update(_parse_location(prefs.location))
 
     resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
     resp.raise_for_status()
@@ -200,7 +238,7 @@ def _search_marketcheck(prefs: CarPreferences) -> list[CarListing]:
 # eBay Motors — Finding API (free, requires EBAY_APP_ID)
 # ---------------------------------------------------------------------------
 
-def _search_ebay(prefs: CarPreferences) -> list[CarListing]:
+def _search_ebay(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     if not EBAY_APP_ID:
         return []
 
@@ -227,9 +265,8 @@ def _search_ebay(prefs: CarPreferences) -> list[CarListing]:
         "paginationInput.entriesPerPage": "15",
         "sortOrder": "PricePlusShippingLowest",
     }
-    loc = _parse_location(prefs.location)
-    if "zip" in loc:
-        params["buyerPostalCode"] = loc["zip"]
+    if zip_code:
+        params["buyerPostalCode"] = zip_code
 
     resp = requests.get(EBAY_FINDING_URL, params=params, timeout=15)
     resp.raise_for_status()
@@ -287,16 +324,13 @@ def _search_ebay(prefs: CarPreferences) -> list[CarListing]:
 # CarGurus — via ScraperAPI (handles Kasada/PerimeterX bot detection)
 # ---------------------------------------------------------------------------
 
-def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
+def _search_cargurus(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     """CarGurus search via ScraperAPI JS-render proxy.
     Requires SCRAPERAPI_KEY in .env — free tier: 1,000 requests/month.
-    Returns empty list silently if key is not configured.
+    Returns empty list silently if key or zip_code is not available.
     """
     if not SCRAPERAPI_KEY:
         return []
-
-    loc = _parse_location(prefs.location)
-    zip_code = loc.get("zip")
     if not zip_code:
         return []
 
@@ -312,6 +346,11 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
     # Only add maxMileage if it's a real constraint (not a default placeholder like 999999)
     if prefs.max_mileage and prefs.max_mileage < 300000:
         cargurus_url += f"&maxMileage={prefs.max_mileage}"
+    if prefs.condition and prefs.condition != "Any":
+        if prefs.condition == "New":
+            cargurus_url += "&listingTypes=NEW"
+        elif prefs.condition == "Used":
+            cargurus_url += "&listingTypes=USED"
 
     # ScraperAPI is intermittent on JS-rendered pages — retry once
     resp = None
@@ -326,38 +365,72 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
     if not resp or len(resp.text) < 1000:
         return []   # ScraperAPI couldn't render — fail silently
 
+    # Verify we got an actual CarGurus page, not a CAPTCHA or error redirect
+    if "cargurus" not in resp.text.lower():
+        return []
+
     soup = BeautifulSoup(resp.text, "lxml")
     listings = []
 
-    for card in soup.select("a[class*=_vdpLink]"):
+    # Selector: require both showNegotiable and listingId in href — search-result VDP links
+    # always carry the full search context; "similar cars" / sponsored links do not.
+    seen_ids: set = set()
+    for link in soup.select('a[href*="showNegotiable"][href*="listingId"]'):
+        href = link.get("href", "")
+        lid_m = re.search(r"listingId=(\d+)", href)
+        if not lid_m:
+            continue
+        lid = lid_m.group(1)
+        if lid in seen_ids:
+            continue
+        seen_ids.add(lid)
+
+        if not href.startswith("http"):
+            href = f"{CARGURUS_BASE}{href}"
+
+        # Find the smallest ancestor that contains a price AND fits within a single card.
+        # Walking too far up lands on a multi-card container and every listing parses
+        # to the same (first) car's data.
+        text = ""
+        node = link
+        for _ in range(5):
+            if not node.parent or node.parent.name in ("body", "html", "[document]"):
+                break
+            node = node.parent
+            candidate = node.get_text(separator=" ", strip=True)
+            if "$" in candidate and len(candidate) < 700:
+                text = candidate
+                break
+        if not text:
+            text = link.get_text(separator=" ", strip=True)
+
         try:
-            text = card.get_text(separator=" ", strip=True)
-            href = card.get("href", "")
-            if href and not href.startswith("http"):
-                href = f"{CARGURUS_BASE}{href}"
-
-            # Title: text right after "Learn more about this"
-            title_m = re.search(
-                r"Learn more about this\s+(.+?)(?=\s+[\d,]+\s*mi\b|\s+\$|\s*\|)", text
-            )
-            title = title_m.group(1).strip() if title_m else ""
-
             year_m  = re.search(r"\b((?:19|20)\d{2})\b", text)
             price_m = re.search(r"\$([\d,]+)", text)
-            mile_m  = re.search(r"([\d,]+)\s*mi\b", text)
-            loc_m   = re.search(r"([A-Za-z][\w\s]+,\s*[A-Z]{2})\b", text)
+            # Require 4+ digits so "5 mi away" distance labels don't match as mileage
+            mile_m  = re.search(r"\b([\d,]{4,})\s*mi\b", text)
+            loc_m   = re.search(r"([A-Za-z][A-Za-z\s]+,\s*[A-Z]{2})\b", text)
 
-            year   = int(year_m.group(1)) if year_m else 0
-            price  = int(price_m.group(1).replace(",", "")) if price_m else 0
+            year    = int(year_m.group(1)) if year_m else 0
+            price   = int(price_m.group(1).replace(",", "")) if price_m else 0
             mileage = int(mile_m.group(1).replace(",", "")) if mile_m else 0
-            loc    = loc_m.group(1).strip() if loc_m else prefs.location
+            loc     = loc_m.group(1).strip() if loc_m else prefs.location
 
-            if not title and year:
-                title = text[:60].split("Learn")[0].strip()
-            if year and title and not title.startswith(str(year)):
-                title = f"{year} {title}"
+            # Title: look for YYYY Make Model in the card text; fallback to prefs
+            make_pat = re.escape(prefs.make)
+            model_pat = re.escape(prefs.model)
+            title_m = re.search(
+                rf"\b{year}\b\s+{make_pat}\s+{model_pat}[^\n$]{{0,40}}",
+                text, re.IGNORECASE,
+            ) if year else None
+            if title_m:
+                title = title_m.group(0).strip()
+            elif year:
+                title = f"{year} {prefs.make} {prefs.model}"
+            else:
+                title = f"{prefs.make} {prefs.model}"
 
-            if not title or not price:
+            if not price:
                 continue
             if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
                 continue
@@ -394,6 +467,11 @@ def _search_craigslist(prefs: CarPreferences) -> list[CarListing]:
     }
     if prefs.max_mileage:
         params["max_auto_miles"] = prefs.max_mileage
+    if prefs.condition and prefs.condition != "Any":
+        if prefs.condition == "New":
+            params["auto_newused"] = "1"
+        elif prefs.condition == "Used":
+            params["auto_newused"] = "10"
 
     url = f"https://{site}.craigslist.org/search/cta"
     headers = {
@@ -523,13 +601,17 @@ def run_search_agent(
 
     selected_sources: if non-empty, only run the named sources.
     """
+    # Resolve a zip code once — city/state inputs get geocoded via Nominatim so that
+    # sources requiring a zip (CarGurus, eBay) work regardless of how location was entered.
+    _zip = _resolve_zip(prefs.location)
+
     all_candidates = []
 
     if MARKETCHECK_API_KEY:
-        all_candidates.append(("Marketcheck", lambda p=prefs: _search_marketcheck(p)))
+        all_candidates.append(("Marketcheck", lambda p=prefs, z=_zip: _search_marketcheck(p, z)))
     if EBAY_APP_ID:
-        all_candidates.append(("eBay Motors", lambda p=prefs: _search_ebay(p)))
-    all_candidates.append(("CarGurus",    lambda p=prefs: _search_cargurus(p)))
+        all_candidates.append(("eBay Motors", lambda p=prefs, z=_zip: _search_ebay(p, z)))
+    all_candidates.append(("CarGurus",    lambda p=prefs, z=_zip: _search_cargurus(p, z)))
     all_candidates.append(("Craigslist",  lambda p=prefs: _search_craigslist(p)))
 
     # Filter to only selected sources when the caller specifies a subset
@@ -578,5 +660,46 @@ def run_search_agent(
         if key not in seen:
             seen.add(key)
             unique.append(listing)
+
+    # Relevance filter — drop any listing whose title doesn't mention the searched make OR model.
+    # This catches scraper misfires (wrong cars returned due to HTML structure changes) before
+    # they reach the ranking agent and confuse the user.
+    make_lc  = prefs.make.lower()
+    model_lc = prefs.model.lower()
+    unique = [
+        l for l in unique
+        if make_lc in l.title.lower() or model_lc in l.title.lower()
+    ]
+
+    # Client-side condition filter for "New" only — removes clearly-used cars that slipped through.
+    # "Used" filtering is handled server-side (Marketcheck inventory_type, CarGurus listingTypes,
+    # Craigslist auto_newused) plus Marketcheck's own miles==0 guard, so no post-filter needed there.
+    # Craigslist never includes mileage in search results so it's exempt from the mileage check.
+    if prefs.condition == "New":
+        unique = [l for l in unique if l.mileage <= 500 or l.source == "Craigslist"]
+
+    # Update source_errors to reflect post-dedup / post-filter counts.
+    # Marketcheck listings carry their upstream source name (e.g. "autotrader"), not "Marketcheck",
+    # so we only recount sources whose l.source exactly matches the key recorded above.
+    _EXACT_SRC = {"CarGurus", "Craigslist", "eBay Motors"}
+    post_counts = Counter(l.source for l in unique if l.source in _EXACT_SRC)
+    for src_name in _EXACT_SRC:
+        if src_name not in source_errors or not source_errors[src_name].startswith("OK"):
+            continue
+        raw_m = re.search(r"\((\d+)", source_errors[src_name])
+        raw = int(raw_m.group(1)) if raw_m else 0
+        kept = post_counts.get(src_name, 0)
+        if kept == raw:
+            pass  # unchanged — label stays as-is
+        elif kept == 0:
+            source_errors[src_name] = f"OK (0 usable — {raw} returned but filtered out)"
+        else:
+            source_errors[src_name] = f"OK ({kept} usable; {raw - kept} filtered)"
+
+    if not unique:
+        return [], (
+            "No listings matched your filters. "
+            "Try widening your price range, increasing the radius, or changing the condition."
+        ), source_errors
 
     return unique, None, source_errors

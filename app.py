@@ -190,8 +190,8 @@ with st.sidebar:
 
     st.subheader("Search Sources")
     src_marketcheck = st.checkbox("Marketcheck", value=True)
-    src_ebay        = st.checkbox("eBay Motors", value=True)
-    src_cargurus    = st.checkbox("CarGurus",    value=True)
+    src_ebay        = st.checkbox("eBay Motors (API key required)", value=False, disabled=True)
+    src_cargurus    = st.checkbox("CarGurus (experimental)", value=False)
     src_craigslist  = st.checkbox("Craigslist",  value=True)
 
     st.subheader("Delivery Preference")

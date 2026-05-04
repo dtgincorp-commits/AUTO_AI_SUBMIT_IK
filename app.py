@@ -191,6 +191,7 @@ with st.sidebar:
     st.subheader("Search Sources")
     src_marketcheck = st.checkbox("Marketcheck", value=True)
     src_ebay        = st.checkbox("eBay Motors", value=True)
+    src_cargurus    = st.checkbox("CarGurus",    value=True)
     src_craigslist  = st.checkbox("Craigslist",  value=True)
 
     st.subheader("Delivery Preference")
@@ -273,6 +274,7 @@ if find_btn or _nl_auto_run:
     selected_sources = [n for n, on in [
         ("Marketcheck", src_marketcheck),
         ("eBay Motors", src_ebay),
+        ("CarGurus",    src_cargurus),
         ("Craigslist",  src_craigslist),
     ] if on]
 

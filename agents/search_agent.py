@@ -217,8 +217,14 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
 
         raw_source = item.get("source", "")
         display_source = raw_source if raw_source else "Marketcheck"
+        heading = item.get("heading") or ""
+        # Marketcheck headings are often just trim levels ("EX-L AWD") with no make/model.
+        # Always prepend year+make+model so the title is human-readable and passes relevance filters.
+        if heading and not any(w in heading.lower() for w in [make.lower(), model.lower()]):
+            heading = f"{year} {make} {model} {heading}".strip()
+        title = heading or f"{year} {make} {model}"
         listings.append(CarListing(
-            title=item.get("heading") or f"{year} {prefs.make} {prefs.model}",
+            title=title,
             price=effective_price,
             asking_price=price,
             mileage=miles,
@@ -661,14 +667,18 @@ def run_search_agent(
             seen.add(key)
             unique.append(listing)
 
-    # Relevance filter — drop any listing whose title doesn't mention the searched make OR model.
-    # This catches scraper misfires (wrong cars returned due to HTML structure changes) before
-    # they reach the ranking agent and confuse the user.
+    # Relevance filter — only applied to scraped sources (CarGurus, Craigslist, eBay) which can
+    # return wrong cars due to fragile HTML parsing. Marketcheck/API sources are already filtered
+    # server-side by make/model, so we trust them and skip the check to avoid dropping listings
+    # whose headings are trim-only ("EX-L AWD") rather than full vehicle names.
+    _SCRAPED = {"CarGurus", "Craigslist", "eBay Motors"}
     make_lc  = prefs.make.lower()
     model_lc = prefs.model.lower()
     unique = [
         l for l in unique
-        if make_lc in l.title.lower() or model_lc in l.title.lower()
+        if l.source not in _SCRAPED
+        or make_lc in l.title.lower()
+        or model_lc in l.title.lower()
     ]
 
     # Client-side condition filter for "New" only — removes clearly-used cars that slipped through.

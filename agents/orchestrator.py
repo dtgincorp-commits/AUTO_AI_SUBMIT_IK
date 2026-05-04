@@ -40,7 +40,8 @@ def run_pipeline(
         critic = run_critic_agent(working_prefs, ranked, outreach_result=None)
         critic_scores_per_revision.append(critic.overall_score)
 
-        if not critic.revision_needed or cycle == MAX_REVISION_CYCLES:
+        # No point retrying if nothing came back — source-level issue, not a filter issue
+        if not listings or not critic.revision_needed or cycle == MAX_REVISION_CYCLES:
             pre_outreach_critic = critic
             break
 

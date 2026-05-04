@@ -681,12 +681,16 @@ def run_search_agent(
         or model_lc in l.title.lower()
     ]
 
-    # Client-side condition filter for "New" only — removes clearly-used cars that slipped through.
-    # "Used" filtering is handled server-side (Marketcheck inventory_type, CarGurus listingTypes,
-    # Craigslist auto_newused) plus Marketcheck's own miles==0 guard, so no post-filter needed there.
-    # Craigslist never includes mileage in search results so it's exempt from the mileage check.
+    # Client-side "New" condition filter — only applied to scraped sources whose server-side
+    # condition filtering is unreliable. Marketcheck already sends inventory_type=new and its
+    # results (source = "autotrader", "cars.com", "cargurus", etc.) are trusted as-is.
+    # Craigslist never reports mileage in search results so it's also exempt.
     if prefs.condition == "New":
-        unique = [l for l in unique if l.mileage <= 500 or l.source == "Craigslist"]
+        _MILEAGE_FILTER_SOURCES = {"CarGurus", "eBay Motors"}
+        unique = [
+            l for l in unique
+            if l.source not in _MILEAGE_FILTER_SOURCES or l.mileage <= 500
+        ]
 
     # Update source_errors to reflect post-dedup / post-filter counts.
     # Marketcheck listings carry their upstream source name (e.g. "autotrader"), not "Marketcheck",

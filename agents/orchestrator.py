@@ -16,6 +16,7 @@ except ImportError:
 def run_pipeline(
     prefs: CarPreferences,
     on_status: Callable[[str], None] = lambda s: None,
+    selected_sources: list = [],
 ) -> dict:
     working_prefs = prefs
     revision_count = 0
@@ -23,11 +24,14 @@ def run_pipeline(
     search_warning = None
     ranked = []
     pre_outreach_critic = None
+    source_errors: dict = {}
 
     # Phase 1: Search + Rank + Critic revision loop (max MAX_REVISION_CYCLES)
     for cycle in range(MAX_REVISION_CYCLES + 1):
         on_status("search")
-        listings, search_warning = run_search_agent(working_prefs)
+        listings, search_warning, src_errs = run_search_agent(working_prefs, selected_sources)
+        if cycle == 0:
+            source_errors = src_errs
 
         on_status("ranking")
         ranked = run_ranking_agent(working_prefs, listings)
@@ -114,4 +118,5 @@ def run_pipeline(
         "revision_count": revision_count,
         "critic_scores_per_revision": critic_scores_per_revision,
         "outreach_retried": outreach_retry,
+        "source_errors": source_errors,
     }

@@ -188,6 +188,11 @@ with st.sidebar:
     location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
     radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=100, key="p_radius_miles")
 
+    st.subheader("Search Sources")
+    src_marketcheck = st.checkbox("Marketcheck", value=True)
+    src_ebay        = st.checkbox("eBay Motors", value=True)
+    src_craigslist  = st.checkbox("Craigslist",  value=True)
+
     st.subheader("Delivery Preference")
     delivery_email = st.checkbox("Email", value=False)
     delivery_sms = st.checkbox("SMS")
@@ -265,8 +270,14 @@ if find_btn or _nl_auto_run:
         status_box.info(label)
         progress_bar.progress(pct)
 
+    selected_sources = [n for n, on in [
+        ("Marketcheck", src_marketcheck),
+        ("eBay Motors", src_ebay),
+        ("Craigslist",  src_craigslist),
+    ] if on]
+
     try:
-        result = run_pipeline(prefs, on_status=on_status)
+        result = run_pipeline(prefs, on_status=on_status, selected_sources=selected_sources)
     except Exception as e:
         st.error(f"Pipeline error: {e}")
         st.stop()
@@ -277,6 +288,7 @@ if find_btn or _nl_auto_run:
     listings = result["listings"]
     delivery = result.get("delivery", {})
     search_warning = result.get("search_warning")
+    source_errors  = result.get("source_errors", {})
     critic = result.get("critic")
     revision_count = result.get("revision_count", 0)
     outreach_retried = result.get("outreach_retried", False)
@@ -325,6 +337,17 @@ if find_btn or _nl_auto_run:
                     f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
                     f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
                     f"<small style='color:#6b7280'>{dim.reason}</small>",
+                    unsafe_allow_html=True,
+                )
+
+    if source_errors:
+        with st.expander("Source Status"):
+            for src_name, src_status in source_errors.items():
+                ok = src_status.startswith("OK")
+                icon = "✅" if ok else "❌"
+                color = "#27ae60" if ok else "#e74c3c"
+                st.markdown(
+                    f"<span style='color:{color}'>{icon} <b>{src_name}</b></span> — {src_status}",
                     unsafe_allow_html=True,
                 )
 

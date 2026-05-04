@@ -541,39 +541,51 @@ _SEARCH_PROMPT = ChatPromptTemplate.from_messages([
 # Main entry point — parallel multi-source search
 # ---------------------------------------------------------------------------
 
-def run_search_agent(prefs: CarPreferences) -> tuple:
-    """Query all available sources in parallel and return merged, deduplicated listings."""
-    sources = []
+def run_search_agent(
+    prefs: CarPreferences,
+    selected_sources: list = [],
+) -> tuple:
+    """Query available sources in parallel and return (listings, warning, source_errors).
+
+    selected_sources: if non-empty, only run the named sources.
+    """
+    all_candidates = []
 
     if MARKETCHECK_API_KEY:
-        sources.append(("Marketcheck", lambda p=prefs: _search_marketcheck(p)))
-
+        all_candidates.append(("Marketcheck", lambda p=prefs: _search_marketcheck(p)))
     if EBAY_APP_ID:
-        sources.append(("eBay Motors", lambda p=prefs: _search_ebay(p)))
+        all_candidates.append(("eBay Motors", lambda p=prefs: _search_ebay(p)))
+    all_candidates.append(("CarGurus",    lambda p=prefs: _search_cargurus(p)))
+    all_candidates.append(("Craigslist",  lambda p=prefs: _search_craigslist(p)))
 
-    sources.append(("CarGurus", lambda p=prefs: _search_cargurus(p)))
-    sources.append(("Craigslist", lambda p=prefs: _search_craigslist(p)))
+    # Filter to only selected sources when the caller specifies a subset
+    if selected_sources:
+        sources = [(n, fn) for n, fn in all_candidates if n in selected_sources]
+    else:
+        sources = all_candidates
 
     all_listings: list[CarListing] = []
+    source_errors: dict = {}
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {executor.submit(fn): name for name, fn in sources}
         for future in as_completed(futures):
+            name = futures[future]
             try:
-                all_listings.extend(future.result(timeout=25))
-            except Exception:
-                pass  # source failed silently; others still contribute
+                results = future.result(timeout=25)
+                all_listings.extend(results)
+                source_errors[name] = f"OK ({len(results)} listings)"
+            except Exception as exc:
+                source_errors[name] = f"Error: {exc}"
 
     if not all_listings:
         if not MARKETCHECK_API_KEY and not EBAY_APP_ID:
             return [], (
-                "No API key configured. Add MARKETCHECK_API_KEY or EBAY_APP_ID to .env, "
-                "or results will come from CarGurus/Craigslist scraping only."
-            )
+                "No API key configured. Add MARKETCHECK_API_KEY or EBAY_APP_ID to .env."
+            ), source_errors
         return [], (
-            "No listings found matching your criteria. "
-            "Try widening your price range, increasing the search radius, or relaxing other filters."
-        )
+            "No listings found. Try widening your price range, increasing the radius, or relaxing filters."
+        ), source_errors
 
     # Deduplicate by (normalised title prefix, price)
     seen: set = set()
@@ -584,4 +596,4 @@ def run_search_agent(prefs: CarPreferences) -> tuple:
             seen.add(key)
             unique.append(listing)
 
-    return unique, None
+    return unique, None, source_errors

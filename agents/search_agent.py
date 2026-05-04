@@ -308,86 +308,67 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
         f"&minPrice={prefs.price_min}"
         f"&maxPrice={prefs.price_max}"
         f"&showNegotiable=true&sortDir=ASC&sortType=PRICE"
-        f"&sourceContext=carGurusHomePageModel"
     )
     if prefs.max_mileage:
         cargurus_url += f"&maxMileage={prefs.max_mileage}"
 
-    resp = requests.get(
-        "https://api.scraperapi.com/",
-        params={
-            "api_key": SCRAPERAPI_KEY,
-            "url": cargurus_url,
-            "render": "true",       # executes JS before returning HTML
-            "premium": "true",      # uses residential IPs for bot bypass
-        },
-        timeout=60,                 # ScraperAPI with render takes longer
-    )
-    resp.raise_for_status()
+    # ScraperAPI is intermittent on JS-rendered pages — retry up to 3 times
+    resp = None
+    for _ in range(3):
+        resp = requests.get(
+            "https://api.scraperapi.com/",
+            params={"api_key": SCRAPERAPI_KEY, "url": cargurus_url, "render": "true"},
+            timeout=60,
+        )
+        if len(resp.text) > 1000:   # real HTML is hundreds of KB; error blobs are tiny
+            break
+    if not resp or len(resp.text) < 1000:
+        return []   # ScraperAPI couldn't render the page — fail silently
 
     soup = BeautifulSoup(resp.text, "lxml")
     listings = []
 
-    # Primary: JSON-LD structured data (populated after JS renders)
-    for script in soup.find_all("script", type="application/ld+json"):
+    for card in soup.select("a[class*=_vdpLink]"):
         try:
-            ld = json.loads(script.string or "")
-            items = ld if isinstance(ld, list) else [ld]
-            for item in items:
-                if item.get("@type") not in ("Car", "Vehicle"):
-                    continue
-                title = item.get("name", "")
-                offers = item.get("offers") or {}
-                price = int(float(str(offers.get("price", 0)).replace(",", "")))
-                mileage_info = item.get("mileageFromOdometer") or {}
-                mileage = int(float(str(mileage_info.get("value", 0)).replace(",", "")))
-                year_m = re.search(r"\b(19|20)\d{2}\b", title)
-                year = int(year_m.group()) if year_m else int(item.get("modelYear") or 0)
-                listing_url = item.get("url") or offers.get("url", "")
-                color = item.get("color", "")
-                if not title or not price:
-                    continue
-                if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
-                    continue
-                listings.append(CarListing(
-                    title=title, price=price, asking_price=price,
-                    mileage=mileage, year=year, exterior_color=color or None,
-                    location=prefs.location, listing_url=listing_url,
-                    source="CarGurus",
-                ))
+            text = card.get_text(separator=" ", strip=True)
+            href = card.get("href", "")
+            if href and not href.startswith("http"):
+                href = f"{CARGURUS_BASE}{href}"
+
+            # Title: text right after "Learn more about this"
+            title_m = re.search(
+                r"Learn more about this\s+(.+?)(?=\s+[\d,]+\s*mi\b|\s+\$|\s*\|)", text
+            )
+            title = title_m.group(1).strip() if title_m else ""
+
+            year_m  = re.search(r"\b((?:19|20)\d{2})\b", text)
+            price_m = re.search(r"\$([\d,]+)", text)
+            mile_m  = re.search(r"([\d,]+)\s*mi\b", text)
+            loc_m   = re.search(r"([A-Za-z][\w\s]+,\s*[A-Z]{2})\b", text)
+
+            year   = int(year_m.group(1)) if year_m else 0
+            price  = int(price_m.group(1).replace(",", "")) if price_m else 0
+            mileage = int(mile_m.group(1).replace(",", "")) if mile_m else 0
+            loc    = loc_m.group(1).strip() if loc_m else prefs.location
+
+            if not title and year:
+                title = text[:60].split("Learn")[0].strip()
+            if year and title and not title.startswith(str(year)):
+                title = f"{year} {title}"
+
+            if not title or not price:
+                continue
+            if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
+                continue
+
+            listings.append(CarListing(
+                title=title, price=price, asking_price=price,
+                mileage=mileage, year=year,
+                location=loc, listing_url=href,
+                source="CarGurus",
+            ))
         except Exception:
             continue
-
-    # Fallback: rendered listing cards
-    if not listings:
-        for card in soup.select(
-            "article[data-listing-id], [class*='listing-row'], [class*='ListingCard']"
-        ):
-            try:
-                title_el = card.select_one("h4, [class*='title'], [class*='Title']")
-                price_el = card.select_one("[class*='price'], [class*='Price']")
-                mileage_el = card.select_one("[class*='mileage'], [class*='Mileage']")
-                link_el = card.select_one("a[href]")
-                if not title_el:
-                    continue
-                title = title_el.get_text(strip=True)
-                price_text = re.sub(r"[^\d]", "", price_el.get_text(strip=True)) if price_el else ""
-                price = int(price_text) if price_text else 0
-                mileage_text = re.sub(r"[^\d]", "", mileage_el.get_text(strip=True)) if mileage_el else ""
-                mileage = int(mileage_text) if mileage_text else 0
-                href = (link_el.get("href") or "") if link_el else ""
-                if href and not href.startswith("http"):
-                    href = f"{CARGURUS_BASE}{href}"
-                year_m = re.search(r"\b(19|20)\d{2}\b", title)
-                year = int(year_m.group()) if year_m else 0
-                if price and prefs.price_min <= price <= prefs.price_max:
-                    listings.append(CarListing(
-                        title=title, price=price, asking_price=price,
-                        mileage=mileage, year=year, location=prefs.location,
-                        listing_url=href, source="CarGurus",
-                    ))
-            except Exception:
-                continue
 
     return listings[:15]
 

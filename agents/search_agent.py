@@ -312,18 +312,18 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
     if prefs.max_mileage:
         cargurus_url += f"&maxMileage={prefs.max_mileage}"
 
-    # ScraperAPI is intermittent on JS-rendered pages — retry up to 3 times
+    # ScraperAPI is intermittent on JS-rendered pages — retry once
     resp = None
-    for _ in range(3):
+    for _ in range(2):
         resp = requests.get(
             "https://api.scraperapi.com/",
             params={"api_key": SCRAPERAPI_KEY, "url": cargurus_url, "render": "true"},
-            timeout=60,
+            timeout=20,             # 20s per attempt; 2 attempts = 40s max
         )
         if len(resp.text) > 1000:   # real HTML is hundreds of KB; error blobs are tiny
             break
     if not resp or len(resp.text) < 1000:
-        return []   # ScraperAPI couldn't render the page — fail silently
+        return []   # ScraperAPI couldn't render — fail silently
 
     soup = BeautifulSoup(resp.text, "lxml")
     listings = []
@@ -540,9 +540,11 @@ def run_search_agent(
     all_listings: list[CarListing] = []
     source_errors: dict = {}
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {executor.submit(fn): name for name, fn in sources}
-        for future in as_completed(futures):
+    executor = ThreadPoolExecutor(max_workers=4)
+    futures = {executor.submit(fn): name for name, fn in sources}
+    try:
+        # Hard 30s wall-clock limit across all sources
+        for future in as_completed(futures, timeout=30):
             name = futures[future]
             try:
                 results = future.result(timeout=25)
@@ -550,6 +552,13 @@ def run_search_agent(
                 source_errors[name] = f"OK ({len(results)} listings)"
             except Exception as exc:
                 source_errors[name] = f"Error: {exc}"
+    except TimeoutError:
+        # Mark any source that didn't finish in time
+        for future, name in futures.items():
+            if not future.done():
+                source_errors[name] = "Error: timed out"
+    finally:
+        executor.shutdown(wait=False)  # don't block waiting for slow threads
 
     if not all_listings:
         if not MARKETCHECK_API_KEY and not EBAY_APP_ID:

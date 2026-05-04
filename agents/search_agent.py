@@ -309,7 +309,8 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
         f"&maxPrice={prefs.price_max}"
         f"&showNegotiable=true&sortDir=ASC&sortType=PRICE"
     )
-    if prefs.max_mileage:
+    # Only add maxMileage if it's a real constraint (not a default placeholder like 999999)
+    if prefs.max_mileage and prefs.max_mileage < 300000:
         cargurus_url += f"&maxMileage={prefs.max_mileage}"
 
     # ScraperAPI is intermittent on JS-rendered pages — retry once
@@ -318,7 +319,7 @@ def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
         resp = requests.get(
             "https://api.scraperapi.com/",
             params={"api_key": SCRAPERAPI_KEY, "url": cargurus_url, "render": "true"},
-            timeout=20,             # 20s per attempt; 2 attempts = 40s max
+            timeout=25,             # 25s per attempt; 2 attempts = 50s max
         )
         if len(resp.text) > 1000:   # real HTML is hundreds of KB; error blobs are tiny
             break
@@ -543,8 +544,8 @@ def run_search_agent(
     executor = ThreadPoolExecutor(max_workers=4)
     futures = {executor.submit(fn): name for name, fn in sources}
     try:
-        # Hard 30s wall-clock limit across all sources
-        for future in as_completed(futures, timeout=30):
+        # Hard 55s wall-clock limit across all sources
+        for future in as_completed(futures, timeout=55):
             name = futures[future]
             try:
                 results = future.result(timeout=25)

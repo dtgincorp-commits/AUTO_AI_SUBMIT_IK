@@ -284,120 +284,14 @@ def _search_ebay(prefs: CarPreferences) -> list[CarListing]:
 
 
 # ---------------------------------------------------------------------------
-# CarGurus — web scrape (JSON-LD structured data)
+# CarGurus — blocked by enterprise bot detection; returns empty list
 # ---------------------------------------------------------------------------
 
 def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
-    loc = _parse_location(prefs.location)
-    zip_code = loc.get("zip")
-    if not zip_code:
-        return []   # CarGurus requires a 5-digit zip
-
-    params = {
-        "zip": zip_code,
-        "distance": min(prefs.radius_miles, 100),
-        "minPrice": prefs.price_min,
-        "maxPrice": prefs.price_max,
-        "showNegotiable": "true",
-        "sortDir": "ASC",
-        "sortType": "PRICE",
-        "keywords": f"{prefs.make} {prefs.model}",
-    }
-    if prefs.max_mileage:
-        params["maxMileage"] = prefs.max_mileage
-
-    url = f"{CARGURUS_BASE}/Cars/new/nl/Cars/d_Cars"
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/121.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-
-    resp = requests.get(url, params=params, headers=headers, timeout=20)
-    resp.raise_for_status()
-
-    soup = BeautifulSoup(resp.text, "lxml")
-    listings = []
-
-    # Primary: JSON-LD structured data (Car / Vehicle schema)
-    for script in soup.find_all("script", type="application/ld+json"):
-        try:
-            ld = json.loads(script.string or "")
-            items = ld if isinstance(ld, list) else [ld]
-            for item in items:
-                if item.get("@type") not in ("Car", "Vehicle"):
-                    continue
-                title = item.get("name", "")
-                offers = item.get("offers") or {}
-                price = int(float(str(offers.get("price", 0)).replace(",", "")))
-                mileage_info = item.get("mileageFromOdometer") or {}
-                mileage = int(float(str(mileage_info.get("value", 0)).replace(",", "")))
-                year_m = re.search(r"\b(19|20)\d{2}\b", title)
-                year = int(year_m.group()) if year_m else int(item.get("modelYear") or 0)
-                listing_url = item.get("url") or offers.get("url", "")
-                color = item.get("color", "")
-
-                if not title or not price:
-                    continue
-                if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
-                    continue
-
-                listings.append(CarListing(
-                    title=title,
-                    price=price,
-                    asking_price=price,
-                    mileage=mileage,
-                    year=year,
-                    exterior_color=color or None,
-                    location=prefs.location,
-                    listing_url=listing_url,
-                    source="CarGurus",
-                ))
-        except Exception:
-            continue
-
-    # Fallback: parse listing card elements from HTML
-    if not listings:
-        for card in soup.select(
-            "a[data-cg-ft='car-blade-link'], article.listing-item, div.listingCard"
-        ):
-            try:
-                title_el = card.select_one("h4, [class*='title'], [class*='heading']")
-                price_el = card.select_one("[class*='price'], [data-testid*='price']")
-                link_el = card if card.name == "a" else card.select_one("a[href]")
-
-                if not title_el or not price_el:
-                    continue
-
-                title = title_el.get_text(strip=True)
-                price_text = re.sub(r"[^\d]", "", price_el.get_text(strip=True))
-                price = int(price_text) if price_text else 0
-                href = (link_el.get("href") or "") if link_el else ""
-                if href and not href.startswith("http"):
-                    href = f"{CARGURUS_BASE}{href}"
-
-                year_m = re.search(r"\b(19|20)\d{2}\b", title)
-                year = int(year_m.group()) if year_m else 0
-
-                if price and prefs.price_min <= price <= prefs.price_max:
-                    listings.append(CarListing(
-                        title=title,
-                        price=price,
-                        asking_price=price,
-                        mileage=0,
-                        year=year,
-                        location=prefs.location,
-                        listing_url=href,
-                        source="CarGurus",
-                    ))
-            except Exception:
-                continue
-
-    return listings[:15]
+    """CarGurus uses Kasada/PerimeterX bot protection that blocks headless browsers.
+    Returns empty list until a paid anti-detection solution is available.
+    """
+    return []
 
 
 # ---------------------------------------------------------------------------

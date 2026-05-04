@@ -299,6 +299,16 @@ if find_btn or _nl_auto_run:
     if not listings:
         st.warning(f"No results found — {search_warning}" if search_warning else "No results found.")
         st.info("Try widening your price range, increasing the search radius, or removing color/mileage filters.")
+        if source_errors:
+            with st.expander("Source Status — click to see why"):
+                for src_name, src_status in source_errors.items():
+                    ok = src_status.startswith("OK")
+                    icon = "✅" if ok else "❌"
+                    color = "#27ae60" if ok else "#e74c3c"
+                    st.markdown(
+                        f"<span style='color:{color}'>{icon} <b>{src_name}</b></span> — {src_status}",
+                        unsafe_allow_html=True,
+                    )
         with st.expander("Debug — Search parameters sent to API"):
             st.json(prefs.model_dump())
         st.stop()

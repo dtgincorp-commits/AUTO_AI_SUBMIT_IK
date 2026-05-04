@@ -662,7 +662,9 @@ def run_search_agent(
     seen: set = set()
     unique: list[CarListing] = []
     for listing in all_listings:
-        key = (listing.title.lower()[:40], listing.price)
+        # Include dealer/location in the key so identical trim+price at different dealers
+        # are kept as separate listings (common for new car inventory).
+        key = (listing.title.lower()[:40], listing.price, (listing.dealer_name or listing.location or "").lower()[:30])
         if key not in seen:
             seen.add(key)
             unique.append(listing)

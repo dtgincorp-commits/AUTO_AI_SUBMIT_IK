@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
-from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY, EBAY_APP_ID
+from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY, EBAY_APP_ID, SCRAPERAPI_KEY
 
 MARKETCHECK_BASE = "https://api.marketcheck.com/v2"
 EBAY_FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
@@ -284,14 +284,112 @@ def _search_ebay(prefs: CarPreferences) -> list[CarListing]:
 
 
 # ---------------------------------------------------------------------------
-# CarGurus — blocked by enterprise bot detection; returns empty list
+# CarGurus — via ScraperAPI (handles Kasada/PerimeterX bot detection)
 # ---------------------------------------------------------------------------
 
 def _search_cargurus(prefs: CarPreferences) -> list[CarListing]:
-    """CarGurus uses Kasada/PerimeterX bot protection that blocks headless browsers.
-    Returns empty list until a paid anti-detection solution is available.
+    """CarGurus search via ScraperAPI JS-render proxy.
+    Requires SCRAPERAPI_KEY in .env — free tier: 1,000 requests/month.
+    Returns empty list silently if key is not configured.
     """
-    return []
+    if not SCRAPERAPI_KEY:
+        return []
+
+    loc = _parse_location(prefs.location)
+    zip_code = loc.get("zip")
+    if not zip_code:
+        return []
+
+    cargurus_url = (
+        f"{CARGURUS_BASE}/Cars/inventorylisting/"
+        f"viewDetailsFilterViewInventoryListing.action"
+        f"?zip={zip_code}"
+        f"&distance={min(prefs.radius_miles, 100)}"
+        f"&minPrice={prefs.price_min}"
+        f"&maxPrice={prefs.price_max}"
+        f"&showNegotiable=true&sortDir=ASC&sortType=PRICE"
+        f"&sourceContext=carGurusHomePageModel"
+    )
+    if prefs.max_mileage:
+        cargurus_url += f"&maxMileage={prefs.max_mileage}"
+
+    resp = requests.get(
+        "https://api.scraperapi.com/",
+        params={
+            "api_key": SCRAPERAPI_KEY,
+            "url": cargurus_url,
+            "render": "true",       # executes JS before returning HTML
+            "premium": "true",      # uses residential IPs for bot bypass
+        },
+        timeout=60,                 # ScraperAPI with render takes longer
+    )
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.text, "lxml")
+    listings = []
+
+    # Primary: JSON-LD structured data (populated after JS renders)
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            ld = json.loads(script.string or "")
+            items = ld if isinstance(ld, list) else [ld]
+            for item in items:
+                if item.get("@type") not in ("Car", "Vehicle"):
+                    continue
+                title = item.get("name", "")
+                offers = item.get("offers") or {}
+                price = int(float(str(offers.get("price", 0)).replace(",", "")))
+                mileage_info = item.get("mileageFromOdometer") or {}
+                mileage = int(float(str(mileage_info.get("value", 0)).replace(",", "")))
+                year_m = re.search(r"\b(19|20)\d{2}\b", title)
+                year = int(year_m.group()) if year_m else int(item.get("modelYear") or 0)
+                listing_url = item.get("url") or offers.get("url", "")
+                color = item.get("color", "")
+                if not title or not price:
+                    continue
+                if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
+                    continue
+                listings.append(CarListing(
+                    title=title, price=price, asking_price=price,
+                    mileage=mileage, year=year, exterior_color=color or None,
+                    location=prefs.location, listing_url=listing_url,
+                    source="CarGurus",
+                ))
+        except Exception:
+            continue
+
+    # Fallback: rendered listing cards
+    if not listings:
+        for card in soup.select(
+            "article[data-listing-id], [class*='listing-row'], [class*='ListingCard']"
+        ):
+            try:
+                title_el = card.select_one("h4, [class*='title'], [class*='Title']")
+                price_el = card.select_one("[class*='price'], [class*='Price']")
+                mileage_el = card.select_one("[class*='mileage'], [class*='Mileage']")
+                link_el = card.select_one("a[href]")
+                if not title_el:
+                    continue
+                title = title_el.get_text(strip=True)
+                price_text = re.sub(r"[^\d]", "", price_el.get_text(strip=True)) if price_el else ""
+                price = int(price_text) if price_text else 0
+                mileage_text = re.sub(r"[^\d]", "", mileage_el.get_text(strip=True)) if mileage_el else ""
+                mileage = int(mileage_text) if mileage_text else 0
+                href = (link_el.get("href") or "") if link_el else ""
+                if href and not href.startswith("http"):
+                    href = f"{CARGURUS_BASE}{href}"
+                year_m = re.search(r"\b(19|20)\d{2}\b", title)
+                year = int(year_m.group()) if year_m else 0
+                if price and prefs.price_min <= price <= prefs.price_max:
+                    listings.append(CarListing(
+                        title=title, price=price, asking_price=price,
+                        mileage=mileage, year=year, location=prefs.location,
+                        listing_url=href, source="CarGurus",
+                    ))
+            except Exception:
+                continue
+
+    return listings[:15]
 
 
 # ---------------------------------------------------------------------------

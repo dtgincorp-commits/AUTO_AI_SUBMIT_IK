@@ -167,8 +167,8 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
         "model": model,
         "price_min": prefs.price_min,
         "price_max": prefs.price_max,
-        "radius": min(prefs.radius_miles, 100),
-        "rows": 30,
+        "radius": min(prefs.radius_miles, 200),
+        "rows": 100,
         "sort_by": "price",
         "sort_order": "asc",
     }

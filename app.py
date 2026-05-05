@@ -185,7 +185,7 @@ with st.sidebar:
 
     st.subheader("Location")
     location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
-    radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=100, key="p_radius_miles")
+    radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=200, key="p_radius_miles")
 
     st.subheader("Search Sources")
     src_marketcheck = st.checkbox("Marketcheck", value=True)

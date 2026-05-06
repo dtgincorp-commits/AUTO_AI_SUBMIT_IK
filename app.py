@@ -445,6 +445,29 @@ if _last_result:
 
         _pagination_controls("top")
 
+        # ── AutoTrader search URL (built once from search prefs) ────────────
+        import re as _re
+        _at_cond_seg = (
+            "used-cars" if _condition == "Used" else
+            "new-cars"  if _condition == "New"  else
+            "all-cars"
+        )
+        _at_make_slug  = _make.lower().replace(" ", "-")
+        _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
+        _zip_m = _re.search(r"\b(\d{5})\b", _location)
+        _at_zip = _zip_m.group(1) if _zip_m else ""
+        _at_qp = []
+        if _at_zip:
+            _at_qp.append(f"zip={_at_zip}")
+        if _prefs:
+            if _prefs.price_min:  _at_qp.append(f"startPrice={_prefs.price_min}")
+            if _prefs.price_max:  _at_qp.append(f"endPrice={_prefs.price_max}")
+            if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
+        _autotrader_url = (
+            f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_make_slug}/{_at_model_slug}"
+            + ("?" + "&".join(_at_qp) if _at_qp else "")
+        )
+
         # ── Car listing cards ────────────────────────────────────────────────
         st.subheader(f"Top Matches — Page {page + 1}")
         cols = st.columns(3)
@@ -508,7 +531,10 @@ if _last_result:
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
-                        {view_link}
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+                            {view_link}
+                            <a href="{_autotrader_url}" target="_blank" style="font-size:13px;color:#e67e22;font-weight:600">🔎 Search AutoTrader →</a>
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -551,6 +577,24 @@ if _last_result:
                                 """,
                                 unsafe_allow_html=True,
                             )
+                            # ── Clipboard: car detail sheet ─────────────────
+                            _clip_price = _live_data['price_formatted'] if _live_data.get('price') else f"${listing.asking_price or listing.price:,}"
+                            _clip_miles = _live_data['mileage'] or listing.mileage
+                            _clip_text = "\n".join(filter(None, [
+                                listing.title,
+                                f"Year:     {listing.year}",
+                                f"Price:    {_clip_price}",
+                                f"Mileage:  {_clip_miles:,} mi",
+                                f"Exterior: {listing.exterior_color or 'N/A'}  |  Interior: {listing.interior_color or 'N/A'}",
+                                f"Dealer:   {_dn}" if _dn else None,
+                                f"Location: {listing.location or _location}",
+                                f"Phone:    {_ph}" if _ph else None,
+                                f"VIN:      {listing.vin}" if listing.vin else None,
+                                f"AutoTrader search: {_autotrader_url}",
+                            ]))
+                            with st.expander("📋 Copy car details"):
+                                st.code(_clip_text, language=None)
+
                             if _live_data.get("price_history"):
                                 with st.expander("Price History"):
                                     for ph in _live_data["price_history"]:

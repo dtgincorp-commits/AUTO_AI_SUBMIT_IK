@@ -393,13 +393,30 @@ if _last_result:
                         unsafe_allow_html=True,
                     )
 
+        # ── Sort control ─────────────────────────────────────────────────────
+        _SORT_OPTIONS = {
+            "Match Score (Best First)":   lambda l: (-(l.match_score or 0)),
+            "Price: Low → High":          lambda l: l.price,
+            "Price: High → Low":          lambda l: -l.price,
+            "Mileage: Low → High":        lambda l: l.mileage,
+            "Year: Newest First":         lambda l: -(l.year or 0),
+        }
+        sort_col, _ = st.columns([2, 3])
+        with sort_col:
+            sort_choice = st.selectbox(
+                "Sort by", list(_SORT_OPTIONS.keys()),
+                key="results_sort",
+                label_visibility="collapsed",
+            )
+        sorted_listings = sorted(listings, key=_SORT_OPTIONS[sort_choice])
+
         # ── Pagination setup ─────────────────────────────────────────────────
-        total       = len(listings)
+        total       = len(sorted_listings)
         total_pages = max(1, (total + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE)
         page        = min(st.session_state.get("results_page", 0), total_pages - 1)
         start       = page * RESULTS_PER_PAGE
         end         = min(start + RESULTS_PER_PAGE, total)
-        page_listings = listings[start:end]
+        page_listings = sorted_listings[start:end]
 
         cond_label = f" — {_condition}" if _condition != "Any" else ""
         st.success(

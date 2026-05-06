@@ -14,7 +14,7 @@ st.set_page_config(
 st.title("🚗 AUTO AI — Car Discovery Agent")
 st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
-RESULTS_PER_PAGE = 50
+RESULTS_PER_PAGE = 18   # 3 columns × 6 rows per page
 
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {

@@ -481,6 +481,18 @@ if _last_result:
             if _condition == "New":   _cg_qp.append("listingTypes=NEW")
             elif _condition == "Used": _cg_qp.append("listingTypes=USED")
         _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
+        # Cars.com — supports plain-text make/model slugs like AutoTrader
+        _cm_make  = _make.lower().replace(" ", "-")
+        _cm_model = (_make + "-" + _model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
+        _cm_stock = "used" if _condition == "Used" else "new" if _condition == "New" else "all"
+        _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
+        if _at_zip:          _cm_qp.append(f"zip={_at_zip}")
+        if _prefs:
+            if _prefs.radius_miles: _cm_qp.append(f"maximum_distance={_prefs.radius_miles}")
+            if _prefs.price_min:    _cm_qp.append(f"price_min={_prefs.price_min}")
+            if _prefs.price_max:    _cm_qp.append(f"price_max={_prefs.price_max}")
+            if _prefs.max_mileage:  _cm_qp.append(f"mileage_max={_prefs.max_mileage}")
+        _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
 
         # ── Car listing cards ────────────────────────────────────────────────
         st.subheader(f"Top Matches — Page {page + 1}")
@@ -553,6 +565,7 @@ if _last_result:
                 if listing.listing_url:
                     _link_parts.append(f"[View Listing →]({listing.listing_url})")
                 _link_parts.append(f"[🔎 AutoTrader →]({_autotrader_url})")
+                _link_parts.append(f"[🚙 Cars.com →]({_carsdotcom_url})")
                 _link_parts.append(f"[🚗 CarGurus →]({_cargurus_url})")
                 st.markdown(" &nbsp; ".join(_link_parts), unsafe_allow_html=True)
 

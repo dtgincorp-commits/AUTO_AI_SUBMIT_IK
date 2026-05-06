@@ -483,6 +483,8 @@ if _last_result:
             if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
             if _condition == "New":   _cg_qp.append("listingTypes=NEW")
             elif _condition == "Used": _cg_qp.append("listingTypes=USED")
+            if _ext_color and _ext_color.lower() not in ("any", "other", ""):
+                _cg_qp.append(f"exteriorColor={_ext_color.lower()}")
         _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
         # Cars.com — supports plain-text make/model slugs like AutoTrader
         _cm_make  = _make.lower().replace(" ", "-")
@@ -495,6 +497,8 @@ if _last_result:
             if _prefs.price_min:    _cm_qp.append(f"price_min={_prefs.price_min}")
             if _prefs.price_max:    _cm_qp.append(f"price_max={_prefs.price_max}")
             if _prefs.max_mileage:  _cm_qp.append(f"mileage_max={_prefs.max_mileage}")
+            if _ext_color and _ext_color.lower() not in ("any", "other", ""):
+                _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
         _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
 
         # ── Car listing cards ────────────────────────────────────────────────

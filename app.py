@@ -568,6 +568,7 @@ if _last_result:
                     unsafe_allow_html=True,
                 )
                 # Links rendered outside HTML block — no & encoding needed
+                from urllib.parse import quote as _url_quote
                 _link_parts = []
                 if listing.listing_url:
                     _link_parts.append(
@@ -576,14 +577,33 @@ if _last_result:
                         f'font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">'
                         f'View Listing →</a>'
                     )
-                if listing.dealer_name:
-                    from urllib.parse import quote as _url_quote
-                    _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
-                    _link_parts.append(f"[🌐 Dealer site](<https://www.google.com/search?q={_dsite_q}>)")
                 _link_parts.append(f"[🔎 AutoTrader →]({_autotrader_url})")
                 _link_parts.append(f"[🚙 Cars.com →]({_carsdotcom_url})")
                 _link_parts.append(f"[🚗 CarGurus →]({_cargurus_url})")
                 st.markdown(" &nbsp; ".join(_link_parts), unsafe_allow_html=True)
+
+                # Dealer Site button — opens clipboard detail sheet + dealer URL
+                if listing.dealer_name:
+                    _dsite_key = f"dsite_{_live_key}"
+                    _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
+                    _dsite_url = f"https://www.google.com/search?q={_dsite_q}"
+                    if st.button("🌐 Dealer Site", key=_dsite_key, use_container_width=True):
+                        st.session_state[f"{_dsite_key}_open"] = not st.session_state.get(f"{_dsite_key}_open", False)
+                    if st.session_state.get(f"{_dsite_key}_open"):
+                        _ask = listing.asking_price or listing.price
+                        _clip = "\n".join(filter(None, [
+                            listing.title,
+                            f"Year:     {listing.year}",
+                            f"Price:    ${_ask:,}" if _ask else None,
+                            f"Mileage:  {listing.mileage:,} mi",
+                            f"Exterior: {listing.exterior_color or 'N/A'}  |  Interior: {listing.interior_color or 'N/A'}",
+                            f"Dealer:   {listing.dealer_name}",
+                            f"Location: {listing.location or _location}",
+                            f"VIN:      {listing.vin}" if listing.vin else None,
+                        ]))
+                        st.caption("📋 Copy details below, then open the dealer site:")
+                        st.code(_clip, language=None)
+                        st.markdown(f"[🌐 Open dealer website →]({_dsite_url})")
 
                 # Live Check button for auto.dev listings
                 if listing.source == "auto.dev" and listing.vin:

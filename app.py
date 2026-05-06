@@ -480,8 +480,6 @@ if _last_result:
                 source_color = "#e67e22" if source in ("AI Simulated", "Unknown") else "#2ecc71"
                 badge_text = listing.dealer_name if listing.dealer_name and source not in ("AI Simulated", "Unknown") else source
                 source_badge = f'<span style="background:{source_color};color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">{badge_text}</span>'
-                _safe_url = listing.listing_url.replace("&", "&amp;") if listing.listing_url else ""
-                view_link = f'<a href="{_safe_url}" target="_blank">View Listing →</a>' if _safe_url else ""
                 _live_key = f"live_{listing.vin or i}"
 
                 ask  = listing.asking_price if listing.asking_price is not None else 0
@@ -532,14 +530,16 @@ if _last_result:
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
-                            {view_link}
-                            <a href="{_autotrader_url.replace('&', '&amp;')}" target="_blank" style="font-size:13px;color:#e67e22;font-weight:600">🔎 Search AutoTrader →</a>
-                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
+                # Links rendered outside HTML block — no & encoding needed
+                _link_parts = []
+                if listing.listing_url:
+                    _link_parts.append(f"[View Listing →]({listing.listing_url})")
+                _link_parts.append(f"[🔎 Search AutoTrader →]({_autotrader_url})")
+                st.markdown(" &nbsp; ".join(_link_parts), unsafe_allow_html=True)
 
                 # Live Check button for auto.dev listings
                 if listing.source == "auto.dev" and listing.vin:

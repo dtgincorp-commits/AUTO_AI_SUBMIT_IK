@@ -609,8 +609,8 @@ if _last_result:
                     f'<a href="{_hurl(_cargurus_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚗 CarGurus →</a>',
                 ]))
                 _stc.html(
-                    f'<div style="font-family:sans-serif;font-size:13px;padding:4px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center">{_links_html}</div>',
-                    height=38,
+                    f'<div style="font-family:sans-serif;font-size:13px;padding:4px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;line-height:1.8">{_links_html}</div>',
+                    height=65,
                 )
 
                 # Live Check button for auto.dev listings

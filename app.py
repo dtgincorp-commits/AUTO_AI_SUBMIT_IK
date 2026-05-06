@@ -570,7 +570,12 @@ if _last_result:
                 # Links rendered outside HTML block — no & encoding needed
                 _link_parts = []
                 if listing.listing_url:
-                    _link_parts.append(f"[View Listing →]({listing.listing_url})")
+                    _link_parts.append(
+                        f'<a href="{listing.listing_url}" target="_blank" '
+                        f'style="background:#2563eb;color:#fff;padding:3px 11px;border-radius:5px;'
+                        f'font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">'
+                        f'View Listing →</a>'
+                    )
                 if listing.dealer_name:
                     from urllib.parse import quote as _url_quote
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())

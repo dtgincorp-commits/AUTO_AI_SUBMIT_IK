@@ -44,20 +44,19 @@ def _parse_location(location: str) -> dict:
     return {"city": location}
 
 
-def _resolve_zip(location: str) -> Optional[str]:
-    """Return a US 5-digit zip for the location string.
+def _resolve_location(location: str) -> Tuple[Optional[str], Optional[float], Optional[float]]:
+    """Single Nominatim call → (zip, lat, lon).
 
-    Returns immediately if the string already contains a zip.
-    Otherwise geocodes via Nominatim (OpenStreetMap, free, no key required).
+    Extracts zip from the string if present, then geocodes once to get
+    coordinates. Returns (None, None, None) on failure.
     """
     zip_match = re.search(r"\b(\d{5})\b", location)
-    if zip_match:
-        return zip_match.group(1)
+    query = zip_match.group(1) if zip_match else location
     try:
         resp = requests.get(
             "https://nominatim.openstreetmap.org/search",
             params={
-                "q": location,
+                "q": query,
                 "format": "json",
                 "addressdetails": "1",
                 "countrycodes": "us",
@@ -69,30 +68,22 @@ def _resolve_zip(location: str) -> Optional[str]:
         if resp.status_code == 200:
             hits = resp.json()
             if hits:
-                postcode = hits[0].get("address", {}).get("postcode", "")
-                if postcode:
-                    return postcode[:5]
+                hit = hits[0]
+                zip_code = (zip_match.group(1) if zip_match
+                            else hit.get("address", {}).get("postcode", "")[:5] or None)
+                lat = float(hit["lat"])
+                lon = float(hit["lon"])
+                return zip_code, lat, lon
     except Exception:
         pass
-    return None
+    # If Nominatim fails but we have a zip, return it with no coords
+    return (zip_match.group(1) if zip_match else None), None, None
 
 
-def _geocode_zip(zip_code: str) -> Optional[Tuple[float, float]]:
-    """Return (lat, lon) for a US zip code via Nominatim."""
-    try:
-        resp = requests.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": zip_code, "format": "json", "countrycodes": "us", "limit": "1"},
-            headers={"User-Agent": "AUTO_AI_CarSearch/1.0"},
-            timeout=5,
-        )
-        if resp.status_code == 200:
-            hits = resp.json()
-            if hits:
-                return float(hits[0]["lat"]), float(hits[0]["lon"])
-    except Exception:
-        pass
-    return None
+# Keep _resolve_zip as a thin wrapper for callers that only need the zip
+def _resolve_zip(location: str) -> Optional[str]:
+    zip_code, _, _ = _resolve_location(location)
+    return zip_code
 
 
 def _haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -605,15 +596,16 @@ def _search_craigslist(prefs: CarPreferences) -> list[CarListing]:
 # auto.dev — structured listings API (1-4M inventory, $0.002/call)
 # ---------------------------------------------------------------------------
 
-def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+def _search_autodev(
+    prefs: CarPreferences,
+    zip_code: Optional[str] = None,
+    search_coords: Optional[Tuple[float, float]] = None,
+) -> list[CarListing]:
     if not AUTODEV_API_KEY:
         return []
 
     make, model = _normalize_make_model(prefs.make, prefs.model)
     headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
-
-    # Geocode search location once for client-side distance enforcement
-    search_coords = _geocode_zip(zip_code) if zip_code else None
 
     base_params: dict = {
         "vehicle.make": make,
@@ -746,14 +738,16 @@ def run_search_agent(
 
     selected_sources: if non-empty, only run the named sources.
     """
-    # Resolve a zip code once — city/state inputs get geocoded via Nominatim so that
-    # sources requiring a zip (CarGurus, eBay) work regardless of how location was entered.
-    _zip = _resolve_zip(prefs.location)
+    # Single Nominatim call → zip + coordinates for the whole pipeline.
+    # Passing coordinates into _search_autodev avoids a second Nominatim hit
+    # and ensures the client-side distance filter always has data to work with.
+    _zip, _lat, _lon = _resolve_location(prefs.location)
+    _coords = (_lat, _lon) if _lat and _lon else None
 
     all_candidates = []
 
     if AUTODEV_API_KEY:
-        all_candidates.append(("auto.dev",   lambda p=prefs, z=_zip: _search_autodev(p, z)))
+        all_candidates.append(("auto.dev", lambda p=prefs, z=_zip, c=_coords: _search_autodev(p, z, c)))
     if MARKETCHECK_API_KEY:
         all_candidates.append(("Marketcheck", lambda p=prefs, z=_zip: _search_marketcheck(p, z)))
     if EBAY_APP_ID:

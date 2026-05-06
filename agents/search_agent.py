@@ -732,6 +732,15 @@ def fetch_autodev_live(vin: str) -> dict:
             f"https://www.google.com/search?q={requests.utils.quote(dealer + ' ' + city + ' ' + state + ' inventory')}"
             if dealer else ""
         )
+        # Try several field names auto.dev uses for dealer website
+        dealer_website = (
+            d.get("dealerUrl") or d.get("dealerWebsite") or d.get("website") or
+            d.get("websiteUrl") or (d.get("dealer") or {}).get("url") or
+            (d.get("dealer") or {}).get("website") or ""
+        )
+        # Fallback: Google search for dealer's homepage
+        if not dealer_website and dealer:
+            dealer_website = f"https://www.google.com/search?q={requests.utils.quote(dealer + ' ' + city + ' ' + state + ' official site')}"
 
         price_history = []
         for ch in (d.get("realTimePriceChanges") or []):
@@ -761,6 +770,7 @@ def fetch_autodev_live(vin: str) -> dict:
             "recent_price_drop": d.get("recentPriceDrop", False),
             "original_price": d.get("originalPrice") or 0,
             "listing_url": listing_url,
+            "dealer_website": dealer_website,
             "features": (d.get("features") or [])[:15],
             "price_history": price_history,
             "photo_url": d.get("thumbnailUrlLarge") or d.get("thumbnailUrl") or "",

@@ -564,6 +564,10 @@ if _last_result:
                 _link_parts = []
                 if listing.listing_url:
                     _link_parts.append(f"[View Listing →]({listing.listing_url})")
+                if listing.dealer_name:
+                    from urllib.parse import quote as _url_quote
+                    _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
+                    _link_parts.append(f"[🌐 Dealer site](<https://www.google.com/search?q={_dsite_q}>)")
                 _link_parts.append(f"[🔎 AutoTrader →]({_autotrader_url})")
                 _link_parts.append(f"[🚙 Cars.com →]({_carsdotcom_url})")
                 _link_parts.append(f"[🚗 CarGurus →]({_cargurus_url})")
@@ -583,15 +587,15 @@ if _last_result:
                             _dn = _live_data["dealer_name"] or listing.dealer_name or ""
                             _ph = _live_data["phone"]
                             _dloc = listing.location or ""
-                            _inv_q = f"{_dn} {_dloc} inventory".strip()
                             from urllib.parse import quote as _url_quote
+                            _dw = _live_data.get("dealer_website") or ""
                             _link = _live_data["listing_url"] or (
-                                f"https://www.google.com/search?q={_url_quote(_inv_q)}" if _dn else ""
+                                f"https://www.google.com/search?q={_url_quote((_dn + ' ' + _dloc + ' inventory').strip())}" if _dn else ""
                             )
                             _phone_html = (
                                 f'<a href="tel:{_ph}" style="font-size:16px;font-weight:bold;color:#60a5fa">{_ph}</a>'
                                 if _ph else
-                                (f'<a href="{_link}" target="_blank" style="color:#60a5fa">Visit dealer website →</a>' if _link else "No phone available")
+                                (f'<a href="{_dw}" target="_blank" style="color:#60a5fa">Visit dealer website →</a>' if _dw else "No phone available")
                             )
                             st.markdown(
                                 f"""
@@ -601,6 +605,7 @@ if _last_result:
                                     {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>" + _tc_label + "</span>" if _tc else ""}<br>
                                     📞 {_phone_html}<br>
                                     🛣 <span style="color:#d1d5db">Mileage: <b>{_live_data['mileage']:,} mi</b></span><br>
+                                    {"<a href='" + _dw + "' target='_blank' style='color:#a78bfa'>🌐 Dealer website →</a><br>" if _dw else ""}
                                     {"<a href='" + _link + "' target='_blank' style='color:#34d399'>🔍 Find dealer inventory →</a>" if _link else ""}
                                 </div>
                                 """,

@@ -567,9 +567,10 @@ if _last_result:
                     """,
                     unsafe_allow_html=True,
                 )
-                # Links rendered outside HTML block — no & encoding needed
+                # Link row — rendered via components.html() so onclick JS works natively
+                import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Build clipboard text for this card (used by Dealer site onclick)
+                # Clipboard text for this card
                 _ask = listing.asking_price or listing.price
                 _clip_text = "\n".join(filter(None, [
                     listing.title,
@@ -581,33 +582,36 @@ if _last_result:
                     f"Location: {listing.location or _location}",
                     f"VIN:      {listing.vin}" if listing.vin else None,
                 ]))
-                # Escape for JS template literal (backtick string)
                 _clip_js = (_clip_text
-                    .replace("\\", "\\\\")
-                    .replace("`", "\\`")
-                    .replace("${", "\\${")
-                    .replace("\n", "\\n")
+                    .replace("\\", "\\\\").replace("`", "\\`")
+                    .replace("${", "\\${").replace("\n", "\\n")
                 )
-                _link_parts = []
-                if listing.listing_url:
-                    _link_parts.append(
-                        f'<a href="{listing.listing_url}" target="_blank" '
-                        f'style="background:#2563eb;color:#fff;padding:3px 11px;border-radius:5px;'
-                        f'font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">'
-                        f'View Listing →</a>'
-                    )
+                # Encode & as &amp; for HTML href attributes
+                def _hurl(u): return u.replace("&", "&amp;")
+                _view_a = (
+                    f'<a href="{_hurl(listing.listing_url)}" target="_blank" '
+                    f'style="background:#2563eb;color:#fff;padding:3px 11px;border-radius:5px;'
+                    f'font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">'
+                    f'View Listing →</a>' if listing.listing_url else ""
+                )
+                _dsite_a = ""
                 if listing.dealer_name:
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
-                    _dsite_url = f"https://www.google.com/search?q={_dsite_q}"
-                    _link_parts.append(
-                        f'<a href="{_dsite_url}" target="_blank" '
-                        f'onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(()={{}})" '
+                    _dsite_a = (
+                        f'<a href="https://www.google.com/search?q={_dsite_q}" target="_blank" '
+                        f'onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" '
                         f'style="color:#10b981;font-weight:600;text-decoration:none">🌐 Dealer site</a>'
                     )
-                _link_parts.append(f"[🔎 AutoTrader →]({_autotrader_url})")
-                _link_parts.append(f"[🚙 Cars.com →]({_carsdotcom_url})")
-                _link_parts.append(f"[🚗 CarGurus →]({_cargurus_url})")
-                st.markdown(" &nbsp; ".join(_link_parts), unsafe_allow_html=True)
+                _links_html = " &nbsp; ".join(filter(None, [
+                    _view_a, _dsite_a,
+                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader →</a>',
+                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚙 Cars.com →</a>',
+                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚗 CarGurus →</a>',
+                ]))
+                _stc.html(
+                    f'<div style="font-family:sans-serif;font-size:13px;padding:4px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center">{_links_html}</div>',
+                    height=38,
+                )
 
                 # Live Check button for auto.dev listings
                 if listing.source == "auto.dev" and listing.vin:

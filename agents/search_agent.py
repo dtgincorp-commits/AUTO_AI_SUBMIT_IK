@@ -236,8 +236,7 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
         if prefs.condition == "Used" and miles == 0:
             continue
 
-        raw_source = item.get("source", "")
-        display_source = raw_source if raw_source else "Marketcheck"
+        display_source = "Marketcheck"
         heading = item.get("heading") or ""
         # Marketcheck headings are often just trim levels ("EX-L AWD") with no make/model.
         # Always prepend year+make+model so the title is human-readable and passes relevance filters.

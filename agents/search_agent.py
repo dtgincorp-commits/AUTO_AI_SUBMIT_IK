@@ -741,12 +741,15 @@ def fetch_autodev_live(vin: str) -> dict:
                 "delta": ch.get("delta"),
             })
 
+        if d.get("clickOff"):
+            return {"error": "This dealer has opted out of direct contact — visit the dealership in person or call their main line."}
+
         phone_raw = d.get("phone") or ""
         phone_tel = d.get("phoneTel") or d.get("phoneTelRegional") or ""
         phone = phone_raw or (f"({str(phone_tel)[:3]}) {str(phone_tel)[3:6]}-{str(phone_tel)[6:]}" if len(str(phone_tel)) == 10 else str(phone_tel))
 
         price = d.get("price") or d.get("basePrice") or d.get("priceWithListimate") or 0
-        price_fmt = d.get("priceFormatted") or (f"${price:,}" if price else "")
+        price_fmt = d.get("priceFormatted") or (f"${price:,}" if price else "Not published")
 
         return {
             "phone": phone,

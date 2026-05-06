@@ -581,87 +581,91 @@ def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
         return []
 
     make, model = _normalize_make_model(prefs.make, prefs.model)
+    headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
 
-    params: dict = {
+    base_params: dict = {
         "vehicle.make": make,
         "vehicle.model": model,
         "retailListing.price": f"{prefs.price_min}-{prefs.price_max}",
         "distance": min(prefs.radius_miles, 200),
-        "limit": 50,
-        "page": 1,
+        "limit": 100,
     }
     if zip_code:
-        params["zip"] = zip_code
+        base_params["zip"] = zip_code
     if prefs.trim and prefs.trim.lower() not in ("", "any"):
-        params["vehicle.trim"] = prefs.trim
-    if prefs.condition and prefs.condition.lower() == "new":
-        params["retailListing.condition"] = "new"
-    elif prefs.condition and prefs.condition.lower() == "used":
-        params["retailListing.condition"] = "used"
-
-    headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
-    resp = requests.get(f"{AUTODEV_BASE}/listings", params=params, headers=headers, timeout=20)
-    resp.raise_for_status()
-    data = resp.json()
-
-    raw_items = data.get("records") or data.get("data") or []
-    if isinstance(raw_items, dict):
-        raw_items = raw_items.get("records") or raw_items.get("items") or []
+        base_params["vehicle.trim"] = prefs.trim
 
     listings = []
-    for item in raw_items:
-        try:
-            vehicle = item.get("vehicle") or {}
-            retail  = item.get("retailListing") or {}
-            dealer  = item.get("dealer") or {}
+    for page in range(1, 6):   # up to 5 pages = 500 results
+        params = {**base_params, "page": page}
+        resp = requests.get(f"{AUTODEV_BASE}/listings", params=params, headers=headers, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
 
-            year  = int(vehicle.get("year") or 0)
-            vmake = vehicle.get("make") or make
-            vmodel= vehicle.get("model") or model
-            trim  = vehicle.get("trim") or ""
+        raw_items = data.get("data") or []
+        if not raw_items:
+            break
 
-            price_raw = retail.get("price") or item.get("price") or 0
-            price = int(float(str(price_raw).replace(",", ""))) if price_raw else 0
-            if price <= 0:
+        for item in raw_items:
+            try:
+                vehicle = item.get("vehicle") or {}
+                retail  = item.get("retailListing") or {}
+
+                year   = int(vehicle.get("year") or 0)
+                vmake  = vehicle.get("make") or make
+                vmodel = vehicle.get("model") or model
+                trim   = vehicle.get("trim") or ""
+
+                price = int(float(retail.get("price") or 0))
+                if price <= 0 or not (prefs.price_min <= price <= prefs.price_max):
+                    continue
+
+                mileage = int(float(retail.get("miles") or 0))
+                if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
+                    continue
+
+                # Client-side condition filter using retailListing.used boolean
+                if prefs.condition == "New" and retail.get("used") is True:
+                    continue
+                if prefs.condition == "Used" and retail.get("used") is False:
+                    continue
+
+                ext_color = vehicle.get("exteriorColor") or ""
+                int_color = vehicle.get("interiorColor") or ""
+
+                dealer_name  = retail.get("dealer") or ""
+                dealer_city  = retail.get("city") or ""
+                dealer_state = retail.get("state") or ""
+                location     = ", ".join(filter(None, [dealer_city, dealer_state])) or prefs.location
+
+                vin = item.get("vin") or vehicle.get("vin") or ""
+                vdp_url = f"https://auto.dev/auto/{vin}" if vin else ""
+
+                title_parts = [str(year), vmake, vmodel]
+                if trim:
+                    title_parts.append(trim)
+                title = " ".join(filter(None, title_parts))
+
+                listings.append(CarListing(
+                    title=title,
+                    price=price,
+                    asking_price=price,
+                    mileage=mileage,
+                    year=year,
+                    exterior_color=ext_color or None,
+                    interior_color=int_color or None,
+                    dealer_name=dealer_name or None,
+                    location=location,
+                    listing_url=vdp_url or None,
+                    source="auto.dev",
+                ))
+            except Exception:
                 continue
-            if not (prefs.price_min <= price <= prefs.price_max):
-                continue
 
-            mileage_raw = retail.get("mileage") or vehicle.get("mileage") or item.get("mileage") or 0
-            mileage = int(float(str(mileage_raw).replace(",", ""))) if mileage_raw else 0
-            if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
-                continue
-
-            ext_color = vehicle.get("exteriorColor") or vehicle.get("exterior_color") or ""
-            int_color = vehicle.get("interiorColor") or vehicle.get("interior_color") or ""
-
-            dealer_name  = dealer.get("name") or ""
-            dealer_city  = dealer.get("city") or ""
-            dealer_state = dealer.get("state") or ""
-            location     = ", ".join(filter(None, [dealer_city, dealer_state])) or prefs.location
-
-            vdp_url = retail.get("url") or retail.get("vdpUrl") or item.get("url") or ""
-
-            title_parts = [str(year), vmake, vmodel]
-            if trim:
-                title_parts.append(trim)
-            title = " ".join(filter(None, title_parts))
-
-            listings.append(CarListing(
-                title=title,
-                price=price,
-                asking_price=price,
-                mileage=mileage,
-                year=year,
-                exterior_color=ext_color or None,
-                interior_color=int_color or None,
-                dealer_name=dealer_name or None,
-                location=location,
-                listing_url=vdp_url or None,
-                source="auto.dev",
-            ))
-        except Exception:
-            continue
+        # Stop if no next page
+        links = data.get("links", {})
+        if not links.get("next") or links["next"] == links.get("self"):
+            break
 
     return listings
 

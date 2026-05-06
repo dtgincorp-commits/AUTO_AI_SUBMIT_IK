@@ -455,7 +455,8 @@ if _last_result:
                 score_color = "green" if (listing.match_score or 0) >= 70 else "orange"
                 source = listing.source or "Unknown"
                 source_color = "#e67e22" if source in ("AI Simulated", "Unknown") else "#2ecc71"
-                source_badge = f'<span style="background:{source_color};color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">{source}</span>'
+                badge_text = listing.dealer_name if listing.dealer_name and source not in ("AI Simulated", "Unknown") else source
+                source_badge = f'<span style="background:{source_color};color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">{badge_text}</span>'
                 view_link = f'<a href="{listing.listing_url}" target="_blank">View Listing →</a>' if listing.listing_url else ""
                 _live_key = f"live_{listing.vin or i}"
 
@@ -523,15 +524,29 @@ if _last_result:
                             _tc = _live_data["total_price_change"]
                             _tc_color = "#27ae60" if _tc < 0 else "#e74c3c"
                             _tc_label = f"${abs(_tc):,} price drop" if _tc < 0 else f"${abs(_tc):,} price increase"
+                            # Fall back to card-level data when VIN endpoint returns empty fields
+                            _dn = _live_data["dealer_name"] or listing.dealer_name or ""
+                            _ph = _live_data["phone"]
+                            _dloc = listing.location or ""
+                            _inv_q = f"{_dn} {_dloc} inventory".strip()
+                            from urllib.parse import quote as _url_quote
+                            _link = _live_data["listing_url"] or (
+                                f"https://www.google.com/search?q={_url_quote(_inv_q)}" if _dn else ""
+                            )
+                            _phone_html = (
+                                f'<a href="tel:{_ph}" style="font-size:16px;font-weight:bold;color:#60a5fa">{_ph}</a>'
+                                if _ph else
+                                (f'<a href="{_link}" target="_blank" style="color:#60a5fa">Visit dealer website →</a>' if _link else "No phone available")
+                            )
                             st.markdown(
                                 f"""
                                 <div style="border:1px solid #2563eb;border-radius:8px;padding:12px;margin-bottom:12px;background:#1e3a5f;color:#ffffff">
-                                    <b style="color:#ffffff">🔴 Live Data — {_live_data['dealer_name']}</b><br>
+                                    <b style="color:#ffffff">🔴 Live Data — {_dn}</b><br>
                                     💰 <b style="color:#facc15">Live Price: {_live_data['price_formatted']}</b>
                                     {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>" + _tc_label + "</span>" if _tc else ""}<br>
-                                    📞 <a href="tel:{_live_data['phone']}" style="font-size:16px;font-weight:bold;color:#60a5fa">{_live_data['phone']}</a><br>
+                                    📞 {_phone_html}<br>
                                     🛣 <span style="color:#d1d5db">Mileage: <b>{_live_data['mileage']:,} mi</b></span><br>
-                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank' style='color:#34d399'>🔍 Find dealer inventory →</a>" if _live_data['listing_url'] else ""}
+                                    {"<a href='" + _link + "' target='_blank' style='color:#34d399'>🔍 Find dealer inventory →</a>" if _link else ""}
                                 </div>
                                 """,
                                 unsafe_allow_html=True,

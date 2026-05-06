@@ -14,7 +14,7 @@ st.set_page_config(
 st.title("🚗 AUTO AI — Car Discovery Agent")
 st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
-RESULTS_PER_PAGE = 9   # 3 columns × 3 rows
+RESULTS_PER_PAGE = 50
 
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
@@ -188,6 +188,9 @@ with st.sidebar:
     radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=200, key="p_radius_miles")
 
     st.subheader("Search Sources")
+    from config import AUTODEV_API_KEY as _AUTODEV_KEY
+    src_autodev     = st.checkbox("auto.dev", value=bool(_AUTODEV_KEY), disabled=not bool(_AUTODEV_KEY),
+                                  help="Requires AUTODEV_API_KEY in .env — 1–4M listings, $0.002/call")
     src_marketcheck = st.checkbox("Marketcheck", value=True)
     src_ebay        = st.checkbox("eBay Motors (API key required)", value=False, disabled=True)
     src_cargurus    = st.checkbox("CarGurus (experimental)", value=False)
@@ -270,6 +273,7 @@ if find_btn or _nl_auto_run:
         progress_bar.progress(pct)
 
     selected_sources = [n for n, on in [
+        ("auto.dev",    src_autodev),
         ("Marketcheck", src_marketcheck),
         ("eBay Motors", src_ebay),
         ("CarGurus",    src_cargurus),

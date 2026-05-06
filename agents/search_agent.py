@@ -14,6 +14,7 @@ from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_K
 MARKETCHECK_BASE = "https://api.marketcheck.com/v2"
 EBAY_FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
 CARGURUS_BASE = "https://www.cargurus.com"
+AUTODEV_BASE = "https://auto.dev/api"
 
 _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", "Return ONLY a JSON object with keys 'make' and 'model', corrected to their exact official names. No extra text."),
@@ -572,6 +573,100 @@ def _search_craigslist(prefs: CarPreferences) -> list[CarListing]:
 
 
 # ---------------------------------------------------------------------------
+# auto.dev — structured listings API (1-4M inventory, $0.002/call)
+# ---------------------------------------------------------------------------
+
+def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    if not AUTODEV_API_KEY:
+        return []
+
+    make, model = _normalize_make_model(prefs.make, prefs.model)
+
+    params: dict = {
+        "vehicle.make": make,
+        "vehicle.model": model,
+        "retailListing.price": f"{prefs.price_min}-{prefs.price_max}",
+        "distance": min(prefs.radius_miles, 200),
+        "limit": 50,
+        "page": 1,
+    }
+    if zip_code:
+        params["zip"] = zip_code
+    if prefs.trim and prefs.trim.lower() not in ("", "any"):
+        params["vehicle.trim"] = prefs.trim
+    if prefs.condition and prefs.condition.lower() == "new":
+        params["retailListing.condition"] = "new"
+    elif prefs.condition and prefs.condition.lower() == "used":
+        params["retailListing.condition"] = "used"
+
+    headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
+    resp = requests.get(f"{AUTODEV_BASE}/listings", params=params, headers=headers, timeout=20)
+    resp.raise_for_status()
+    data = resp.json()
+
+    raw_items = data.get("records") or data.get("data") or []
+    if isinstance(raw_items, dict):
+        raw_items = raw_items.get("records") or raw_items.get("items") or []
+
+    listings = []
+    for item in raw_items:
+        try:
+            vehicle = item.get("vehicle") or {}
+            retail  = item.get("retailListing") or {}
+            dealer  = item.get("dealer") or {}
+
+            year  = int(vehicle.get("year") or 0)
+            vmake = vehicle.get("make") or make
+            vmodel= vehicle.get("model") or model
+            trim  = vehicle.get("trim") or ""
+
+            price_raw = retail.get("price") or item.get("price") or 0
+            price = int(float(str(price_raw).replace(",", ""))) if price_raw else 0
+            if price <= 0:
+                continue
+            if not (prefs.price_min <= price <= prefs.price_max):
+                continue
+
+            mileage_raw = retail.get("mileage") or vehicle.get("mileage") or item.get("mileage") or 0
+            mileage = int(float(str(mileage_raw).replace(",", ""))) if mileage_raw else 0
+            if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
+                continue
+
+            ext_color = vehicle.get("exteriorColor") or vehicle.get("exterior_color") or ""
+            int_color = vehicle.get("interiorColor") or vehicle.get("interior_color") or ""
+
+            dealer_name  = dealer.get("name") or ""
+            dealer_city  = dealer.get("city") or ""
+            dealer_state = dealer.get("state") or ""
+            location     = ", ".join(filter(None, [dealer_city, dealer_state])) or prefs.location
+
+            vdp_url = retail.get("url") or retail.get("vdpUrl") or item.get("url") or ""
+
+            title_parts = [str(year), vmake, vmodel]
+            if trim:
+                title_parts.append(trim)
+            title = " ".join(filter(None, title_parts))
+
+            listings.append(CarListing(
+                title=title,
+                price=price,
+                asking_price=price,
+                mileage=mileage,
+                year=year,
+                exterior_color=ext_color or None,
+                interior_color=int_color or None,
+                dealer_name=dealer_name or None,
+                location=location,
+                listing_url=vdp_url or None,
+                source="auto.dev",
+            ))
+        except Exception:
+            continue
+
+    return listings
+
+
+# ---------------------------------------------------------------------------
 # GPT fallback (unused in production — kept for reference)
 # ---------------------------------------------------------------------------
 
@@ -613,6 +708,8 @@ def run_search_agent(
 
     all_candidates = []
 
+    if AUTODEV_API_KEY:
+        all_candidates.append(("auto.dev",   lambda p=prefs, z=_zip: _search_autodev(p, z)))
     if MARKETCHECK_API_KEY:
         all_candidates.append(("Marketcheck", lambda p=prefs, z=_zip: _search_marketcheck(p, z)))
     if EBAY_APP_ID:
@@ -650,9 +747,9 @@ def run_search_agent(
         executor.shutdown(wait=False)  # don't block waiting for slow threads
 
     if not all_listings:
-        if not MARKETCHECK_API_KEY and not EBAY_APP_ID:
+        if not MARKETCHECK_API_KEY and not EBAY_APP_ID and not AUTODEV_API_KEY:
             return [], (
-                "No API key configured. Add MARKETCHECK_API_KEY or EBAY_APP_ID to .env."
+                "No API key configured. Add AUTODEV_API_KEY or MARKETCHECK_API_KEY to .env."
             ), source_errors
         return [], (
             "No listings found. Try widening your price range, increasing the radius, or relaxing filters."

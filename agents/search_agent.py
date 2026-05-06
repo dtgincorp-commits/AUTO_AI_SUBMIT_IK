@@ -639,7 +639,11 @@ def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
                 location     = ", ".join(filter(None, [dealer_city, dealer_state])) or prefs.location
 
                 vin = item.get("vin") or vehicle.get("vin") or ""
-                vdp_url = f"https://auto.dev/auto/{vin}" if vin else ""
+                # carfaxUrl is a real URL from the API; fall back to Google VIN search
+                vdp_url = (
+                    retail.get("carfaxUrl")
+                    or (f"https://www.google.com/search?q={vin}+for+sale" if vin else "")
+                )
 
                 title_parts = [str(year), vmake, vmodel]
                 if trim:

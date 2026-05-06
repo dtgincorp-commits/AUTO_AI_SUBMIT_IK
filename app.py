@@ -456,15 +456,18 @@ if _last_result:
         _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
         _zip_m = _re.search(r"\b(\d{5})\b", _location)
         _at_zip = _zip_m.group(1) if _zip_m else ""
+        # Color slot goes between condition and make in AutoTrader path
+        _ext_color = (_prefs.exterior_color or "") if _prefs else ""
+        _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
         _at_qp = []
         if _at_zip:
             _at_qp.append(f"zip={_at_zip}")
         if _prefs:
-            if _prefs.price_min:  _at_qp.append(f"startPrice={_prefs.price_min}")
-            if _prefs.price_max:  _at_qp.append(f"endPrice={_prefs.price_max}")
-            if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
+            if _prefs.price_min:    _at_qp.append(f"startPrice={_prefs.price_min}")
+            if _prefs.price_max:    _at_qp.append(f"endPrice={_prefs.price_max}")
+            if _prefs.max_mileage:  _at_qp.append(f"maxMileage={_prefs.max_mileage}")
         _autotrader_url = (
-            f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_make_slug}/{_at_model_slug}"
+            f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_color_seg}{_at_make_slug}/{_at_model_slug}"
             + ("?" + "&".join(_at_qp) if _at_qp else "")
         )
         # CarGurus new /search endpoint — make/model require internal entity IDs

@@ -1,7 +1,8 @@
 import re
 import json
+import math
 import requests
-from typing import Optional
+from typing import Optional, Tuple
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
@@ -74,6 +75,34 @@ def _resolve_zip(location: str) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def _geocode_zip(zip_code: str) -> Optional[Tuple[float, float]]:
+    """Return (lat, lon) for a US zip code via Nominatim."""
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": zip_code, "format": "json", "countrycodes": "us", "limit": "1"},
+            headers={"User-Agent": "AUTO_AI_CarSearch/1.0"},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            hits = resp.json()
+            if hits:
+                return float(hits[0]["lat"]), float(hits[0]["lon"])
+    except Exception:
+        pass
+    return None
+
+
+def _haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in miles between two lat/lon points."""
+    R = 3958.8
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 # ---------------------------------------------------------------------------
@@ -583,6 +612,9 @@ def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
     make, model = _normalize_make_model(prefs.make, prefs.model)
     headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
 
+    # Geocode search location once for client-side distance enforcement
+    search_coords = _geocode_zip(zip_code) if zip_code else None
+
     base_params: dict = {
         "vehicle.make": make,
         "vehicle.model": model,
@@ -637,6 +669,14 @@ def _search_autodev(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
                 dealer_city  = retail.get("city") or ""
                 dealer_state = retail.get("state") or ""
                 location     = ", ".join(filter(None, [dealer_city, dealer_state])) or prefs.location
+
+                # Client-side distance filter using coordinates auto.dev provides
+                # location field is [longitude, latitude]
+                coords = item.get("location")
+                if search_coords and coords and isinstance(coords, list) and len(coords) == 2:
+                    dist = _haversine_miles(search_coords[0], search_coords[1], coords[1], coords[0])
+                    if dist > prefs.radius_miles:
+                        continue
 
                 vin = item.get("vin") or vehicle.get("vin") or ""
                 vdp_url = f"https://www.google.com/search?q={vin}+for+sale" if vin else ""

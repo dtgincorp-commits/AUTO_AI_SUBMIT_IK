@@ -467,6 +467,21 @@ if _last_result:
             f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_make_slug}/{_at_model_slug}"
             + ("?" + "&".join(_at_qp) if _at_qp else "")
         )
+        # CarGurus search URL (entity IDs not needed for zip/price/distance filters)
+        _cg_qp = ["showNegotiable=true", "sortDir=ASC", "sortType=PRICE"]
+        if _at_zip:
+            _cg_qp.append(f"zip={_at_zip}")
+        if _prefs:
+            if _prefs.radius_miles: _cg_qp.append(f"distance={min(_prefs.radius_miles, 100)}")
+            if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
+            if _prefs.price_max:    _cg_qp.append(f"maxPrice={_prefs.price_max}")
+            if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
+            if _condition == "New":  _cg_qp.append("listingTypes=NEW")
+            elif _condition == "Used": _cg_qp.append("listingTypes=USED")
+        _cargurus_url = (
+            "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action?"
+            + "&".join(_cg_qp)
+        )
 
         # ── Car listing cards ────────────────────────────────────────────────
         st.subheader(f"Top Matches — Page {page + 1}")
@@ -538,7 +553,8 @@ if _last_result:
                 _link_parts = []
                 if listing.listing_url:
                     _link_parts.append(f"[View Listing →]({listing.listing_url})")
-                _link_parts.append(f"[🔎 Search AutoTrader →]({_autotrader_url})")
+                _link_parts.append(f"[🔎 AutoTrader →]({_autotrader_url})")
+                _link_parts.append(f"[🚗 CarGurus →]({_cargurus_url})")
                 st.markdown(" &nbsp; ".join(_link_parts), unsafe_allow_html=True)
 
                 # Live Check button for auto.dev listings

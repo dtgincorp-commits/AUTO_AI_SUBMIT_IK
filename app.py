@@ -525,13 +525,13 @@ if _last_result:
                             _tc_label = f"${abs(_tc):,} price drop" if _tc < 0 else f"${abs(_tc):,} price increase"
                             st.markdown(
                                 f"""
-                                <div style="border:1px solid #2563eb;border-radius:8px;padding:12px;margin-bottom:12px;background:#f0f7ff">
-                                    <b>🔴 Live Data — {_live_data['dealer_name']}</b><br>
-                                    💰 <b>Live Price: {_live_data['price_formatted']}</b>
-                                    {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>▼ " + _tc_label + " since listed</span>" if _tc else ""}<br>
-                                    📞 <a href="tel:{_live_data['phone']}" style="font-size:16px;font-weight:bold">{_live_data['phone']}</a><br>
-                                    🛣 Current mileage: <b>{_live_data['mileage']:,} mi</b><br>
-                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank'>📄 View on auto.dev →</a>" if _live_data['listing_url'] else ""}
+                                <div style="border:1px solid #2563eb;border-radius:8px;padding:12px;margin-bottom:12px;background:#1e3a5f;color:#ffffff">
+                                    <b style="color:#ffffff">🔴 Live Data — {_live_data['dealer_name']}</b><br>
+                                    💰 <b style="color:#facc15">Live Price: {_live_data['price_formatted']}</b>
+                                    {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>" + _tc_label + "</span>" if _tc else ""}<br>
+                                    📞 <a href="tel:{_live_data['phone']}" style="font-size:16px;font-weight:bold;color:#60a5fa">{_live_data['phone']}</a><br>
+                                    🛣 <span style="color:#d1d5db">Mileage: <b>{_live_data['mileage']:,} mi</b></span><br>
+                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank' style='color:#34d399'>📄 View on auto.dev →</a>" if _live_data['listing_url'] else ""}
                                 </div>
                                 """,
                                 unsafe_allow_html=True,

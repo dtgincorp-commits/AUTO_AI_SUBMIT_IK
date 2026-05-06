@@ -42,6 +42,7 @@ class CarListing(BaseModel):
     match_score: Optional[float] = None
     score_breakdown: Optional[dict] = None
     source: Optional[str] = None
+    vin: Optional[str] = None
 
 
 class DimensionResult(BaseModel):

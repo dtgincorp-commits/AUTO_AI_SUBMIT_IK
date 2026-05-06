@@ -671,7 +671,7 @@ def _search_autodev(
                         continue
 
                 vin = item.get("vin") or vehicle.get("vin") or ""
-                vdp_url = f"https://www.google.com/search?q={vin}+for+sale" if vin else ""
+                vdp_url = ""  # resolved live via VIN endpoint on user request
 
                 title_parts = [str(year), vmake, vmodel]
                 if trim:
@@ -690,6 +690,7 @@ def _search_autodev(
                     location=location,
                     listing_url=vdp_url or None,
                     source="auto.dev",
+                    vin=vin or None,
                 ))
             except Exception:
                 continue
@@ -700,6 +701,57 @@ def _search_autodev(
             break
 
     return listings
+
+
+# ---------------------------------------------------------------------------
+# auto.dev live VIN lookup — called on demand from the UI
+# ---------------------------------------------------------------------------
+
+def fetch_autodev_live(vin: str) -> dict:
+    """Fetch real-time listing data for a VIN from auto.dev.
+    Returns a dict with phone, live price, price history, features, listing URL.
+    """
+    if not AUTODEV_API_KEY or not vin:
+        return {"error": "No API key or VIN"}
+    headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
+    try:
+        resp = requests.get(
+            f"{AUTODEV_BASE}/listings/{vin}",
+            headers=headers,
+            timeout=15,
+        )
+        if resp.status_code == 404:
+            return {"error": "Listing no longer available — car may be sold"}
+        resp.raise_for_status()
+        d = resp.json()
+
+        vdp_path = d.get("vdpUrl") or ""
+        listing_url = f"https://auto.dev{vdp_path}" if vdp_path else ""
+
+        price_history = []
+        for ch in (d.get("realTimePriceChanges") or []):
+            price_history.append({
+                "date": ch.get("dateFormatted", ""),
+                "price": ch.get("price", 0),
+                "delta": ch.get("delta"),
+            })
+
+        return {
+            "phone": d.get("phone") or "",
+            "dealer_name": d.get("dealerName") or "",
+            "price": d.get("price") or 0,
+            "price_formatted": d.get("priceFormatted") or "",
+            "mileage": d.get("mileage") or 0,
+            "total_price_change": d.get("totalPriceChange") or 0,
+            "recent_price_drop": d.get("recentPriceDrop", False),
+            "original_price": d.get("originalPrice") or 0,
+            "listing_url": listing_url,
+            "features": (d.get("features") or [])[:15],
+            "price_history": price_history,
+            "photo_url": d.get("thumbnailUrlLarge") or d.get("thumbnailUrl") or "",
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # ---------------------------------------------------------------------------

@@ -457,6 +457,7 @@ if _last_result:
                 source_color = "#e67e22" if source in ("AI Simulated", "Unknown") else "#2ecc71"
                 source_badge = f'<span style="background:{source_color};color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">{source}</span>'
                 view_link = f'<a href="{listing.listing_url}" target="_blank">View Listing →</a>' if listing.listing_url else ""
+                _live_key = f"live_{listing.vin or i}"
 
                 ask  = listing.asking_price if listing.asking_price is not None else 0
                 msrp = listing.msrp
@@ -494,7 +495,7 @@ if _last_result:
 
                 st.markdown(
                     f"""
-                    <div style="border:1px solid #ddd; border-radius:10px; padding:16px; margin-bottom:12px;">
+                    <div style="border:1px solid #ddd; border-radius:10px; padding:16px; margin-bottom:4px;">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start">
                             <h4 style="margin:0">{listing.title}</h4>
                             {source_badge}
@@ -511,6 +512,46 @@ if _last_result:
                     """,
                     unsafe_allow_html=True,
                 )
+
+                # Live Check button for auto.dev listings
+                if listing.source == "auto.dev" and listing.vin:
+                    _live_data = st.session_state.get(_live_key)
+                    if _live_data:
+                        if "error" in _live_data:
+                            st.error(_live_data["error"])
+                        else:
+                            _tc = _live_data["total_price_change"]
+                            _tc_color = "#27ae60" if _tc < 0 else "#e74c3c"
+                            _tc_label = f"${abs(_tc):,} price drop" if _tc < 0 else f"${abs(_tc):,} price increase"
+                            st.markdown(
+                                f"""
+                                <div style="border:1px solid #2563eb;border-radius:8px;padding:12px;margin-bottom:12px;background:#f0f7ff">
+                                    <b>🔴 Live Data — {_live_data['dealer_name']}</b><br>
+                                    💰 <b>Live Price: {_live_data['price_formatted']}</b>
+                                    {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>▼ " + _tc_label + " since listed</span>" if _tc else ""}<br>
+                                    📞 <a href="tel:{_live_data['phone']}" style="font-size:16px;font-weight:bold">{_live_data['phone']}</a><br>
+                                    🛣 Current mileage: <b>{_live_data['mileage']:,} mi</b><br>
+                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank'>📄 View on auto.dev →</a>" if _live_data['listing_url'] else ""}
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                            if _live_data.get("price_history"):
+                                with st.expander("Price History"):
+                                    for ph in _live_data["price_history"]:
+                                        delta = ph["delta"]
+                                        delta_str = (f" &nbsp;<span style='color:#27ae60'>▼ ${abs(delta):,}</span>" if delta and delta < 0
+                                                     else f" &nbsp;<span style='color:#e74c3c'>▲ ${delta:,}</span>" if delta and delta > 0 else "")
+                                        st.markdown(f"{ph['date']} — **${ph['price']:,}**{delta_str}", unsafe_allow_html=True)
+                            if _live_data.get("features"):
+                                with st.expander("Features"):
+                                    st.markdown("  \n".join(f"• {f}" for f in _live_data["features"]))
+                    else:
+                        if st.button("🔴 Live Check", key=f"btn_{_live_key}", use_container_width=True):
+                            from agents.search_agent import fetch_autodev_live
+                            with st.spinner("Fetching live data..."):
+                                st.session_state[_live_key] = fetch_autodev_live(listing.vin)
+                            st.rerun()
                 if listing.score_breakdown:
                     with st.expander("Why this score?"):
                         bd = listing.score_breakdown

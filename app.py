@@ -533,7 +533,7 @@ if _last_result:
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
                             {view_link}
-                            <a href="{_autotrader_url}" target="_blank" style="font-size:13px;color:#e67e22;font-weight:600">🔎 Search AutoTrader →</a>
+                            <a href="{_autotrader_url.replace('&', '&amp;')}" target="_blank" style="font-size:13px;color:#e67e22;font-weight:600">🔎 Search AutoTrader →</a>
                         </div>
                     </div>
                     """,

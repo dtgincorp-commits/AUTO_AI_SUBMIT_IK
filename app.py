@@ -590,8 +590,8 @@ if _last_result:
                 def _hurl(u): return u.replace("&", "&amp;")
                 _view_a = (
                     f'<a href="{_hurl(listing.listing_url)}" target="_blank" '
-                    f'style="background:#2563eb;color:#fff;padding:3px 11px;border-radius:5px;'
-                    f'font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">'
+                    f'style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;'
+                    f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
                     f'View Listing →</a>' if listing.listing_url else ""
                 )
                 _dsite_a = ""
@@ -609,8 +609,8 @@ if _last_result:
                     f'<a href="{_hurl(_cargurus_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚗 CarGurus →</a>',
                 ]))
                 _stc.html(
-                    f'<div style="font-family:sans-serif;font-size:13px;padding:4px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;line-height:1.8">{_links_html}</div>',
-                    height=65,
+                    f'<div style="font-family:sans-serif;font-size:11px;padding:2px 0;display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow:hidden;white-space:nowrap">{_links_html}</div>',
+                    height=30,
                 )
 
                 # Live Check button for auto.dev listings

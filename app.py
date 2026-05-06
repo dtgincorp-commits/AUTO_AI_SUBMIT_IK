@@ -63,8 +63,8 @@ div[data-testid="stTextInput"]:has(input[aria-label="nl"]) input:focus {
     border-color: #1d4ed8 !important;
     box-shadow: 0 0 22px rgba(37,99,235,0.75) !important;
 }
-div[data-testid="stColumn"]:last-child button,
-div[data-testid="stColumn"]:last-child button:focus {
+div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button,
+div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:focus {
     background: linear-gradient(135deg, #f97316 0%, #dc2626 100%) !important;
     color: #ffffff !important;
     font-size: 17px !important;
@@ -77,11 +77,11 @@ div[data-testid="stColumn"]:last-child button:focus {
     text-transform: uppercase !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
-div[data-testid="stColumn"]:last-child button:hover {
+div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:hover {
     transform: scale(1.04) !important;
     box-shadow: 0 6px 28px rgba(220, 38, 38, 0.8) !important;
 }
-div[data-testid="stColumn"]:last-child button:active {
+div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:active {
     transform: scale(0.97) !important;
 }
 div[data-testid="stForm"] { border: none !important; padding: 0 !important; }

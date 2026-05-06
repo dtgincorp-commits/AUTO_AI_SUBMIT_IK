@@ -467,8 +467,10 @@ if _last_result:
             f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_make_slug}/{_at_model_slug}"
             + ("?" + "&".join(_at_qp) if _at_qp else "")
         )
-        # CarGurus search URL (entity IDs not needed for zip/price/distance filters)
-        _cg_qp = ["showNegotiable=true", "sortDir=ASC", "sortType=PRICE"]
+        # CarGurus new /search endpoint — make/model require internal entity IDs
+        # (not public), so we pre-fill location/price/distance and open their
+        # search page; user selects make+model in the CarGurus sidebar (one click).
+        _cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
         if _at_zip:
             _cg_qp.append(f"zip={_at_zip}")
         if _prefs:
@@ -476,12 +478,9 @@ if _last_result:
             if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
             if _prefs.price_max:    _cg_qp.append(f"maxPrice={_prefs.price_max}")
             if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
-            if _condition == "New":  _cg_qp.append("listingTypes=NEW")
+            if _condition == "New":   _cg_qp.append("listingTypes=NEW")
             elif _condition == "Used": _cg_qp.append("listingTypes=USED")
-        _cargurus_url = (
-            "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action?"
-            + "&".join(_cg_qp)
-        )
+        _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
 
         # ── Car listing cards ────────────────────────────────────────────────
         st.subheader(f"Top Matches — Page {page + 1}")

@@ -724,8 +724,14 @@ def fetch_autodev_live(vin: str) -> dict:
         resp.raise_for_status()
         d = resp.json()
 
-        vdp_path = d.get("vdpUrl") or ""
-        listing_url = f"https://auto.dev{vdp_path}" if vdp_path else ""
+        # auto.dev vdpUrl is a broken internal path — build a dealer Google search instead
+        dealer = d.get("dealerName") or ""
+        city   = d.get("city") or ""
+        state  = d.get("state") or ""
+        listing_url = (
+            f"https://www.google.com/search?q={requests.utils.quote(dealer + ' ' + city + ' ' + state + ' inventory')}"
+            if dealer else ""
+        )
 
         price_history = []
         for ch in (d.get("realTimePriceChanges") or []):
@@ -735,11 +741,18 @@ def fetch_autodev_live(vin: str) -> dict:
                 "delta": ch.get("delta"),
             })
 
+        phone_raw = d.get("phone") or ""
+        phone_tel = d.get("phoneTel") or d.get("phoneTelRegional") or ""
+        phone = phone_raw or (f"({str(phone_tel)[:3]}) {str(phone_tel)[3:6]}-{str(phone_tel)[6:]}" if len(str(phone_tel)) == 10 else str(phone_tel))
+
+        price = d.get("price") or d.get("basePrice") or d.get("priceWithListimate") or 0
+        price_fmt = d.get("priceFormatted") or (f"${price:,}" if price else "")
+
         return {
-            "phone": d.get("phone") or "",
+            "phone": phone,
             "dealer_name": d.get("dealerName") or "",
-            "price": d.get("price") or 0,
-            "price_formatted": d.get("priceFormatted") or "",
+            "price": price,
+            "price_formatted": price_fmt,
             "mileage": d.get("mileage") or 0,
             "total_price_change": d.get("totalPriceChange") or 0,
             "recent_price_drop": d.get("recentPriceDrop", False),

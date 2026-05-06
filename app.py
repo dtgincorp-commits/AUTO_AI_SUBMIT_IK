@@ -531,7 +531,7 @@ if _last_result:
                                     {"&nbsp;&nbsp;<span style='color:" + _tc_color + ";font-weight:bold'>" + _tc_label + "</span>" if _tc else ""}<br>
                                     📞 <a href="tel:{_live_data['phone']}" style="font-size:16px;font-weight:bold;color:#60a5fa">{_live_data['phone']}</a><br>
                                     🛣 <span style="color:#d1d5db">Mileage: <b>{_live_data['mileage']:,} mi</b></span><br>
-                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank' style='color:#34d399'>📄 View on auto.dev →</a>" if _live_data['listing_url'] else ""}
+                                    {"<a href='" + _live_data['listing_url'] + "' target='_blank' style='color:#34d399'>🔍 Find dealer inventory →</a>" if _live_data['listing_url'] else ""}
                                 </div>
                                 """,
                                 unsafe_allow_html=True,

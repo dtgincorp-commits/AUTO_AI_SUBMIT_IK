@@ -169,7 +169,7 @@ Version 2.0 upgrades the original 3-agent pipeline into a full agentic system wi
   - **Craigslist** — direct web scrape; no API key required
 - Results deduplicated by listing URL (preferred) or (title, price, dealer) tuple
 - Relevance filter applied to scraped sources (CarGurus, Craigslist, eBay) — title must contain make or model
-- **Condition enforcement:** when `condition = "New"`, Craigslist results are excluded entirely (private-seller platform — new dealer inventory never appears there; also reports `mileage=0` for all listings, which would inflate ranking scores)
+- **Condition enforcement:** when `condition = "New"`, two filters are applied: (1) Craigslist excluded entirely — private-seller platform with no new dealer inventory; (2) all sources filtered to `mileage ≤ 500` — Marketcheck and auto.dev can return demo/loaner vehicles tagged "new" in their systems despite having 10,000–25,000+ miles of actual use. The 500 mi threshold allows legitimate delivery mileage (port-to-dealer transport)
 - **Haversine distance** calculated from buyer coordinates to each auto.dev listing; stored on `CarListing.distance_miles`
 - If all sources return 0 results → clear error message surfaced in UI; **no AI-simulated data is ever generated**
 
@@ -882,13 +882,17 @@ When a user clicks any external link (AutoTrader, Cars.com, CarGurus, Dealer Sit
 
 ---
 
-### 22.3 — New Car Search: Craigslist Excluded
+### 22.3 — New Car Search: Strict Mileage ≤ 500 Filter Applied to All Sources
 
-When a user searches with `condition = "New"`, Craigslist results are excluded entirely from the pipeline.
+When a user searches with `condition = "New"`, two enforcements apply:
 
-**Reason:** Craigslist is a private-seller classifieds platform. New cars from authorized dealers are not listed there. Including Craigslist results in a "New" search would surface used private-party listings that are not remotely relevant.
+**1. Craigslist excluded entirely** — private-seller platform; new dealer inventory never appears there. Also reports `mileage=0` (unknown) for all listings, which inflates scores.
 
-**Secondary reason:** Craigslist never reports mileage in search results (stored as `mileage=0`). A used car with unknown mileage stored as 0 would be scored at 30/30 mileage points, giving it an artificially inflated match score (observed as 99% match for a clearly used car in production).
+**2. All sources filtered to `mileage ≤ 500`** — confirmed in production: a search for "new BMW X5" returned Marketcheck listings with 18,294 miles and 25,564 miles. These were demo and loaner vehicles that Marketcheck tags as "new" in their inventory system because they were never titled to a retail customer, but they are not new in any practical sense.
+
+**Threshold: 500 miles** — allows legitimate port-to-dealer delivery mileage (cars are driven off the transport and around the lot). Any listing above 500 miles with a "new" condition tag is a demo, loaner, or data quality issue — excluded.
+
+**Result count caveat:** After applying this filter, fewer results may appear than are available on AutoTrader/Cars.com (which index more dealers and include demos). The app prioritizes result quality over quantity — showing 5 truly new cars is better than 20 mixed new/used/demo cars.
 
 ---
 

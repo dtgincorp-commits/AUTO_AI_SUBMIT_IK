@@ -881,18 +881,14 @@ def run_search_agent(
         or model_lc in l.title.lower()
     ]
 
-    # Client-side "New" condition filter.
-    # Craigslist is excluded entirely for new-car searches — it's a private-seller platform
-    # that never carries new dealer inventory, and it reports mileage=0 for all listings
-    # (unknown, not actually 0 mi) which inflates match scores artificially.
-    # CarGurus and eBay are kept but filtered by mileage ≤ 500.
+    # Client-side "New" condition filter — applied to ALL sources.
+    # Craigslist excluded entirely: private-seller platform with no new dealer inventory.
+    # All other sources filtered to mileage ≤ 500: Marketcheck and auto.dev can return
+    # demo/loaner cars tagged "new" in their systems despite having 10,000–25,000+ miles.
+    # 500 mi threshold allows legitimate delivery mileage (port → dealer transport).
     if prefs.condition == "New":
         unique = [l for l in unique if l.source != "Craigslist"]
-        _MILEAGE_FILTER_SOURCES = {"CarGurus", "eBay Motors"}
-        unique = [
-            l for l in unique
-            if l.source not in _MILEAGE_FILTER_SOURCES or l.mileage <= 500
-        ]
+        unique = [l for l in unique if l.mileage <= 500]
 
     # Update source_errors to reflect post-dedup / post-filter counts.
     # Marketcheck listings carry their upstream source name (e.g. "autotrader"), not "Marketcheck",

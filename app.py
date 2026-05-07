@@ -564,6 +564,7 @@ if _last_result:
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}{f' &nbsp;<span style="color:#9ca3af;font-size:11px">({listing.distance_miles:.1f} mi away)</span>' if listing.distance_miles is not None else ''}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
+                        {f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">VIN: {listing.vin}</p>' if listing.vin else ''}
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -571,8 +572,8 @@ if _last_result:
                 # Link row — rendered via components.html() so onclick JS works natively
                 import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Copy VIN only to clipboard on link click (fallback to title if no VIN)
-                _clip_text = listing.vin or listing.title
+                # Copy VIN to clipboard on link click — only when VIN is available
+                _clip_text = listing.vin or ""
                 _clip_js = _clip_text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes
@@ -583,19 +584,20 @@ if _last_result:
                     f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
                     f'View Listing →</a>' if listing.listing_url else ""
                 )
+                _onclick = f'onclick="_cpv(`{_clip_js}`)" ' if _clip_js else ""
                 _dsite_a = ""
                 if listing.dealer_name:
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
                     _dsite_a = (
                         f'<a href="https://www.google.com/search?q={_dsite_q}" target="_blank" '
-                        f'onclick="_cpv(`{_clip_js}`)" '
+                        f'{_onclick}'
                         f'style="color:#10b981;font-weight:600;text-decoration:none">🌐 Dealer site</a>'
                     )
                 _links_html = '<span style="color:#555;margin:0 1px">·</span>'.join(filter(None, [
                     _view_a, _dsite_a,
-                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
-                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
-                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
+                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" {_onclick}style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
+                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" {_onclick}style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
+                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" {_onclick}style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
                 ]))
                 _stc.html(
                     f"""<script>

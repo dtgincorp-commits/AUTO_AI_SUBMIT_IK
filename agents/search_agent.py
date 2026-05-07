@@ -881,11 +881,13 @@ def run_search_agent(
         or model_lc in l.title.lower()
     ]
 
-    # Client-side "New" condition filter — only applied to scraped sources whose server-side
-    # condition filtering is unreliable. Marketcheck already sends inventory_type=new and its
-    # results (source = "autotrader", "cars.com", "cargurus", etc.) are trusted as-is.
-    # Craigslist never reports mileage in search results so it's also exempt.
+    # Client-side "New" condition filter.
+    # Craigslist is excluded entirely for new-car searches — it's a private-seller platform
+    # that never carries new dealer inventory, and it reports mileage=0 for all listings
+    # (unknown, not actually 0 mi) which inflates match scores artificially.
+    # CarGurus and eBay are kept but filtered by mileage ≤ 500.
     if prefs.condition == "New":
+        unique = [l for l in unique if l.source != "Craigslist"]
         _MILEAGE_FILTER_SOURCES = {"CarGurus", "eBay Motors"}
         unique = [
             l for l in unique

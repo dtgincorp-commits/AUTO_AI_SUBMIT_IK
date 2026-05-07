@@ -27,7 +27,14 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
         }
 
         # Mileage (30 points max)
-        if prefs.max_mileage and listing.mileage <= prefs.max_mileage:
+        # Scraped sources (Craigslist, CarGurus, eBay) return mileage=0 when unknown,
+        # not when the car actually has 0 miles. Treat 0 as unknown → half credit.
+        _SCRAPED = {"CarGurus", "Craigslist", "eBay Motors"}
+        mileage_unknown = listing.mileage == 0 and listing.source in _SCRAPED
+        if mileage_unknown:
+            mileage_pts = 15.0
+            reason = "Mileage not reported by this source — partial credit"
+        elif prefs.max_mileage and listing.mileage <= prefs.max_mileage:
             mileage_pts = round(30 * (1 - listing.mileage / prefs.max_mileage), 1)
             reason = f"{listing.mileage:,} mi is {prefs.max_mileage - listing.mileage:,} mi under your {prefs.max_mileage:,} mi cap"
         elif prefs.max_mileage and listing.mileage > prefs.max_mileage:

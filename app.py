@@ -150,17 +150,17 @@ if _nl_btn:
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_last_parsed_query"] = _nl_query.strip()
+            _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
+            if not _has_required:
+                _missing = [f for f, v in [("make", _parsed.get("make")), ("model", _parsed.get("model")), ("location", _parsed.get("location"))] if not v]
+                st.session_state["nl_parse_msg"] = (
+                    "warning",
+                    f"Please also specify **{', '.join(_missing)}** — filled what I could, check the sidebar.",
+                )
+                st.rerun()
 
-        _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
-        if _has_required:
-            st.session_state["_nl_auto_run"] = True
-        else:
-            _missing = [f for f, v in [("make", _parsed.get("make")), ("model", _parsed.get("model")), ("location", _parsed.get("location"))] if not v]
-            st.session_state["nl_parse_msg"] = (
-                "warning",
-                f"Please also specify **{', '.join(_missing)}** — filled what I could, check the sidebar.",
-            )
-            st.rerun()
+        # Query unchanged — sidebar already has valid fields from the previous parse; run directly
+        st.session_state["_nl_auto_run"] = True
     else:
         st.warning("Please type something first.")
 

@@ -195,7 +195,7 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
     }
     if prefs.trim and prefs.trim.lower() != "any":
         params["trim"] = prefs.trim
-    if prefs.max_mileage:
+    if prefs.max_mileage and prefs.condition != "New":
         params["mileage_max"] = prefs.max_mileage
     if prefs.exterior_color and prefs.exterior_color.lower() != "any":
         params["exterior_color"] = prefs.exterior_color.lower()

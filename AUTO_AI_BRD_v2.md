@@ -1,16 +1,34 @@
 # AUTO AI — Car Discovery & Outreach Agent
-## Business Requirements Document v2.0
+## Business Requirements Document v2.1
 
 | | |
 |---|---|
 | **Document Type** | Business Requirements Document (BRD) |
-| **Version** | 2.0 |
-| **Date** | April 22, 2026 |
+| **Version** | 2.1 |
+| **Date** | May 7, 2026 |
 | **Author** | Neeraj Nagpal |
-| **Status** | Active Development |
+| **Status** | Live — In Active Professional Use |
 | **Classification** | Confidential |
 
-**Powered By:** LangChain · OpenAI GPT-4o-mini · Marketcheck · Twilio · SendGrid · Streamlit · ChromaDB · LangSmith · DeepEval
+**Powered By:** LangChain · OpenAI GPT-4o-mini · auto.dev · Marketcheck · eBay Motors · CarGurus · Craigslist · Twilio · SendGrid · Streamlit · ChromaDB · LangSmith · DeepEval
+
+---
+
+## What's New in v2.1
+
+This version documents production hardening and UI enhancements added after the app was deployed for professional office use:
+
+- **Multi-source parallel search** — 5 live data sources (auto.dev, Marketcheck, eBay Motors, CarGurus, Craigslist) queried simultaneously; results merged, deduplicated, and relevance-filtered
+- **AI simulation fallback fully removed** — app never returns fake listings; returns a clear error message when no real data is found
+- **VIN + Stock Number on listing cards** — VIN displayed when available; Stock # shown as fallback; both extracted from structured API sources
+- **Smart clipboard copy** — clicking any external link copies: VIN if available, otherwise `{title} {stock#} {dealer_name}` — optimized for Google/dealer-site search
+- **One-click search links** — AutoTrader, Cars.com, and CarGurus pre-filtered search links on every card (make, model, color, price, mileage, condition, ZIP)
+- **Dealer site link** — Google search link for the specific dealer on every card
+- **Live Check** — on-demand VIN lookup via auto.dev for real-time price, phone, price history, and features
+- **Distance calculation** — haversine distance from buyer location to each dealer; "Distance: Closest First" sort option added
+- **Condition filter enforcement** — Craigslist excluded entirely for New car searches; mileage=0 from scraped sources treated as unknown (half credit) not perfect
+- **New CarListing fields** — `vin`, `stock_number`, `distance_miles`, `asking_price`, `msrp`, `dealer_phone`, `dealer_email`
+- **New env vars** — `AUTODEV_API_KEY`, `EBAY_APP_ID`, `SCRAPERAPI_KEY`
 
 ---
 
@@ -53,6 +71,7 @@ This version documents significant enhancements added as part of the AI Agent Ca
 | 19 | Agent Deep Dive |
 | 20 | Evaluation Framework |
 | 21 | Curriculum Concepts Applied |
+| **22** | **Business Rules & Design Decisions** |
 
 ---
 
@@ -78,7 +97,9 @@ Version 2.0 upgrades the original 3-agent pipeline into a full agentic system wi
 | 6 | Automatically revise search parameters when quality is insufficient | High *(new)* |
 | 7 | Ground AI-generated content in verified car knowledge via RAG | Medium *(new)* |
 | 8 | Provide full pipeline observability via LangSmith tracing | Medium *(new)* |
-| 9 | Provide graceful fallback to AI-simulated listings when live data is unavailable | Low |
+| 9 | Surface VIN, stock number, and dealer links on every listing card | High *(v2.1)* |
+| 10 | Enable one-click search on AutoTrader, Cars.com, CarGurus from each card | High *(v2.1)* |
+| 11 | Copy the best available car identifier to clipboard on every external link click | Medium *(v2.1)* |
 
 ---
 
@@ -86,7 +107,7 @@ Version 2.0 upgrades the original 3-agent pipeline into a full agentic system wi
 
 ### In Scope
 - Web-based user interface for entering car preferences (Streamlit)
-- Real-time car inventory search via Marketcheck API
+- **Multi-source parallel inventory search: auto.dev, Marketcheck, eBay Motors, CarGurus (scraper), Craigslist**
 - AI-powered make/model name normalization (handles user misspellings)
 - Multi-factor listing ranking engine (price, mileage, color match)
 - **Critic Agent with 4-dimension quality evaluation and Green/Amber/Red badge**
@@ -96,7 +117,13 @@ Version 2.0 upgrades the original 3-agent pipeline into a full agentic system wi
 - **DeepEval test suite — rule-based + LLM-as-Judge metrics**
 - Automated email delivery via SendGrid with GPT-generated content
 - Automated SMS delivery via Twilio with GPT-generated content
-- Graceful fallback to GPT-simulated listings if live API is unavailable
+- **VIN and Stock Number displayed on listing cards**
+- **Live Check — on-demand VIN lookup for real-time price, phone, and price history (auto.dev)**
+- **One-click search links to AutoTrader, Cars.com, CarGurus — pre-filtered by make/model/price/color/ZIP**
+- **Dealer site Google search link on every card**
+- **Smart clipboard copy — VIN if available, else title + stock# + dealer name**
+- **Distance from buyer location calculated and displayed; "Distance: Closest First" sort option**
+- **Condition enforcement — Craigslist excluded for New car searches**
 
 ### Out of Scope
 - User account management / authentication / login
@@ -133,21 +160,30 @@ Version 2.0 upgrades the original 3-agent pipeline into a full agentic system wi
 ### 4.2 Search Agent
 - Accepts user preferences as structured Pydantic model (`CarPreferences`)
 - Normalizes make/model spelling using GPT-4o-mini before API call
-- Queries Marketcheck API (`GET /v2/search/car/active`) with full filter set
-- Parses response: title, price, mileage, year, colors, dealer, location, URL, source domain
-- **If RAG knowledge base is available, retrieves car spec and market data context to ground GPT fallback**
-- Falls back to GPT-simulated listings if Marketcheck key is absent or API fails
-- Surfaces a warning banner in the UI when fallback mode is triggered
+- Single Nominatim geocode call resolves buyer location to ZIP + lat/lon for all sources
+- **Queries up to 5 sources in parallel (ThreadPoolExecutor, 55s wall-clock limit):**
+  - **auto.dev** — structured dealer inventory API; provides VIN, stock number, colors, distance coords
+  - **Marketcheck** — structured dealer inventory API; provides stock number, MSRP, listing URL
+  - **eBay Motors** — Finding API; price and mileage when available
+  - **CarGurus** — web scrape via ScraperAPI JS-render proxy (requires `SCRAPERAPI_KEY`)
+  - **Craigslist** — direct web scrape; no API key required
+- Results deduplicated by listing URL (preferred) or (title, price, dealer) tuple
+- Relevance filter applied to scraped sources (CarGurus, Craigslist, eBay) — title must contain make or model
+- **Condition enforcement:** when `condition = "New"`, Craigslist results are excluded entirely (private-seller platform — new dealer inventory never appears there; also reports `mileage=0` for all listings, which would inflate ranking scores)
+- **Haversine distance** calculated from buyer coordinates to each auto.dev listing; stored on `CarListing.distance_miles`
+- If all sources return 0 results → clear error message surfaced in UI; **no AI-simulated data is ever generated**
 
 ### 4.3 Ranking Agent — Scoring Formula
 
 | Factor | Max Points | Scoring Logic |
 |---|---|---|
 | Price Proximity | 40 pts | Closer to midpoint of budget range = higher score |
-| Mileage | 30 pts | Lower mileage relative to max = higher score |
+| Mileage | 30 pts | Lower mileage relative to max = higher score; **mileage=0 from scraped sources = 15 pts (unknown), not 30 pts** |
 | Exterior Color Match | 15 pts | Substring match between preference and listing |
 | Interior Color Match | 15 pts | Substring match between preference and listing |
-| **TOTAL** | **100 pts** | **Top 5 listings returned, sorted descending** |
+| **TOTAL** | **100 pts** | **Top listings returned sorted descending (up to MAX_RESULTS)** |
+
+**Important mileage rule:** Craigslist, CarGurus, and eBay do not report mileage in search results — they return `mileage=0`. This `0` means *unknown*, not *zero miles driven*. Treating it as 0 miles would give full mileage points and artificially inflate scores (seen as 99% match for clearly-used cars). These listings receive 15/30 mileage points (neutral) instead.
 
 - **If RAG knowledge base is available, market context for the make/model/region is attached to each listing's score breakdown**
 
@@ -292,18 +328,25 @@ Four ChromaDB collections populated by `knowledge_base/build_index.py`:
 ### CarListing
 | Field | Type | Description |
 |---|---|---|
-| title | str | Listing headline |
-| price | int | Listed price in USD |
-| mileage | int | Odometer reading in miles |
+| title | str | Listing headline (Year Make Model Trim) |
+| price | int | Effective price used for ranking |
+| asking_price | int? | Raw dealer asking price (0 = not published) |
+| msrp | int? | Manufacturer suggested retail price |
+| mileage | int | Odometer reading in miles (0 = unknown for scraped sources) |
 | year | int | Model year |
 | exterior_color | str? | Exterior color |
 | interior_color | str? | Interior color |
 | dealer_name | str? | Selling dealer name |
+| dealer_phone | str? | Dealer phone number |
+| dealer_email | str? | Dealer email address |
 | location | str? | Dealer city and state |
 | listing_url | str? | Direct link to listing page |
 | match_score | float? | Computed relevance score (0–100) |
 | score_breakdown | dict? | Per-factor points and reasons |
-| source | str? | Origin — Marketcheck or AI Simulated |
+| source | str? | Origin: auto.dev / Marketcheck / eBay Motors / CarGurus / Craigslist |
+| vin | str? | 17-character Vehicle Identification Number — globally unique, follows car for life |
+| stock_number | str? | Dealer-internal stock reference — meaningful only at that specific dealership |
+| distance_miles | float? | Haversine distance from buyer location to dealer (auto.dev only) |
 
 ### DimensionResult *(new in v2.0)*
 | Field | Type | Description |
@@ -329,15 +372,19 @@ Four ChromaDB collections populated by `knowledge_base/build_index.py`:
 
 | API | Status | Base URL | Auth Method | Primary Use |
 |---|---|---|---|---|
-| Marketcheck | Active | api.marketcheck.com/v2 | api_key param | Car inventory search |
-| OpenAI | Active | api.openai.com/v1 | Bearer token | Normalization, content generation, LLM-as-Judge |
+| **auto.dev** | **Active** | **auto.dev/api** | **Bearer token** | **Primary inventory source — VIN, stock#, distance, live VIN lookup** |
+| Marketcheck | Active | api.marketcheck.com/v2 | api_key param | Secondary inventory source — structured dealer listings |
+| eBay Motors | Active | svcs.ebay.com/services/search/FindingService/v1 | EBAY_APP_ID param | Tertiary source — auction and private sales |
+| CarGurus | Active (scrape) | cargurus.com | ScraperAPI proxy | Web-scraped inventory — requires SCRAPERAPI_KEY |
+| Craigslist | Active (scrape) | {city}.craigslist.org | None | Web-scraped private listings — excluded for New condition searches |
+| Nominatim (OSM) | Active | nominatim.openstreetmap.org | None (free) | Single geocode call to resolve buyer location to ZIP + lat/lon |
+| OpenAI | Active | api.openai.com/v1 | Bearer token | Normalization, email/SMS generation, LLM-as-Judge |
 | SendGrid | Active | api.sendgrid.com/v3 | API key header | Email delivery |
 | Twilio | Active | api.twilio.com | AccountSID + Token | SMS delivery |
-| **fueleconomy.gov** | **Active** | **fueleconomy.gov/ws/rest** | **None (free)** | **Real trim and MPG data for knowledge base** |
+| **fueleconomy.gov** | **Active** | **fueleconomy.gov/ws/rest** | **None (free)** | **Real trim and MPG data for RAG knowledge base** |
 | **LangSmith** | **Active** | **api.smith.langchain.com** | **API key** | **Pipeline tracing and run monitoring** |
-| AutoDev | Reserved | api.auto.dev | Bearer token | Future VIN enrichment |
-| AutoTrader | N/A | No public API | Enterprise only | Not integrated |
-| CarGurus | N/A | No inventory endpoint | Contact required | Not integrated |
+| AutoTrader | N/A | No public API | Enterprise only | Not integrated — search links generated client-side |
+| Cars.com | N/A | No public API | N/A | Not integrated — search links generated client-side |
 
 ---
 
@@ -346,8 +393,10 @@ Four ChromaDB collections populated by `knowledge_base/build_index.py`:
 | Variable | Required | Description |
 |---|---|---|
 | OPENAI_API_KEY | Yes | OpenAI API key for GPT-4o-mini |
-| MARKETCHECK_API_KEY | Recommended | Marketcheck key — enables real listings |
-| AUTODEV_API_KEY | No | AutoDev key — reserved for future VIN enrichment |
+| AUTODEV_API_KEY | Recommended | auto.dev key — primary inventory source; also enables Live Check VIN lookup |
+| MARKETCHECK_API_KEY | Recommended | Marketcheck key — secondary structured inventory source |
+| EBAY_APP_ID | Optional | eBay Finding API app ID — tertiary inventory source |
+| SCRAPERAPI_KEY | Optional | ScraperAPI key — enables CarGurus web-scraped results |
 | TWILIO_ACCOUNT_SID | If SMS | Twilio account SID |
 | TWILIO_AUTH_TOKEN | If SMS | Twilio auth token |
 | TWILIO_PHONE_NUMBER | If SMS | Twilio outbound phone number |
@@ -382,10 +431,15 @@ Four ChromaDB collections populated by `knowledge_base/build_index.py`:
 
 | Limitation | Detail |
 |---|---|
-| AutoTrader / CarGurus data | Not available — both block third-party scraping; no public APIs exist |
+| AutoTrader / Cars.com direct data | No public inventory API — search links are generated client-side (pre-filtered by make/model/price/color/ZIP) |
+| CarGurus scraping reliability | ScraperAPI JS-render is intermittent; retried once automatically; returns 0 silently if unavailable |
+| Craigslist mileage | Craigslist never reports mileage in search results — stored as 0 (unknown); scored at 15/30 pts |
+| Stock number availability | Stock numbers are only available from structured API sources (auto.dev, Marketcheck); scraped sources (Craigslist, CarGurus, eBay) never provide them |
+| VIN availability | VINs only come from auto.dev listings; Marketcheck, eBay, CarGurus, and Craigslist do not include VINs in search results |
+| Stock number portability | A stock number is dealer-internal only — searching it on any external marketplace (AutoTrader, Cars.com, etc.) will return unrelated results. It is only useful when communicating directly with that specific dealer |
 | Marketcheck price filter | API may return listings slightly outside price range; ranking agent re-prioritizes |
-| Free tier API limits | Marketcheck free tier has monthly call volume limits |
-| Location input | Works best with ZIP code; city/state parsing may be less precise |
+| Free tier API limits | auto.dev and Marketcheck free tiers have monthly call volume limits |
+| Location input | Works best with ZIP code; city/state parsing uses Nominatim geocoding which may be less precise |
 | No persistent storage | Search results are not saved between sessions |
 | Python 3.9 compatibility | `str \| None` union syntax not supported — uses `Optional[]` instead |
 | **OpenAI key required** | **Email/SMS generation, make/model normalization, and LLM-as-Judge all need a valid key** |
@@ -786,4 +840,128 @@ This section maps capstone AI curriculum concepts to their implementation in AUT
 
 ---
 
-*AUTO AI BRD v2.0 — Confidential — Neeraj Nagpal — April 22, 2026*
+---
+
+## SECTION 22 — Business Rules & Design Decisions
+
+This section documents the non-obvious business logic decisions that govern how the app behaves in production. These rules exist because of real-world data quality issues discovered during professional use.
+
+---
+
+### 22.1 — VIN vs. Stock Number: What They Are and When to Use Each
+
+| | VIN | Stock Number |
+|---|---|---|
+| **Full name** | Vehicle Identification Number | Dealer stock / inventory number |
+| **Length** | Always 17 characters | Variable (e.g. P12345, U8823) |
+| **Assigned by** | Manufacturer, at factory | Individual dealership, on arrival |
+| **Unique scope** | Globally unique — one car, ever | Only unique within one dealership |
+| **Changes?** | Never | Yes — if car moves to another dealer |
+| **Useful for** | CarFax, recall checks, any marketplace search, title/registration, insurance | Calling or emailing that specific dealer |
+| **Searchable on AutoTrader/Cars.com/CarGurus?** | Yes — returns exact car | No — returns random unrelated results |
+
+**Key rule:** Never use a stock number to search on external marketplace sites. It will find the wrong car. Stock numbers are only meaningful in a conversation with the specific dealer that issued them.
+
+---
+
+### 22.2 — Clipboard Copy Strategy
+
+When a user clicks any external link (AutoTrader, Cars.com, CarGurus, Dealer Site) on a listing card, the app automatically copies the best available identifier to the clipboard. The user can then paste it into any search box or share it.
+
+**Priority order:**
+
+| Priority | Condition | What is copied | Best used for |
+|---|---|---|---|
+| 1 | VIN available | VIN only (e.g. `1HGBH41JXMN109186`) | Any marketplace, Google, CarFax |
+| 2 | No VIN, stock# and/or dealer available | `{title} {stock#} {dealer_name}` (e.g. `2024 BMW X5 sDrive40i P12345 BMW of Culver City`) | Google search → finds exact VDP on dealer site or aggregator |
+| 3 | No VIN, no stock#, no dealer | Title only (e.g. `2024 BMW X5 sDrive40i`) | General marketplace search |
+
+**Why not copy stock number alone?** Pasting a bare stock number (e.g. `P12345`) into Google or any marketplace returns random unrelated results. It only makes sense in the context of the dealer's name — hence the combined string.
+
+**Why not copy stock number to clipboard for external search?** Confirmed in production testing: stock numbers match completely different vehicles on external sites. The combination of title + stock# + dealer is optimized for Google to surface that dealer's own VDP page.
+
+---
+
+### 22.3 — New Car Search: Craigslist Excluded
+
+When a user searches with `condition = "New"`, Craigslist results are excluded entirely from the pipeline.
+
+**Reason:** Craigslist is a private-seller classifieds platform. New cars from authorized dealers are not listed there. Including Craigslist results in a "New" search would surface used private-party listings that are not remotely relevant.
+
+**Secondary reason:** Craigslist never reports mileage in search results (stored as `mileage=0`). A used car with unknown mileage stored as 0 would be scored at 30/30 mileage points, giving it an artificially inflated match score (observed as 99% match for a clearly used car in production).
+
+---
+
+### 22.4 — Mileage = 0 from Scraped Sources Means "Unknown"
+
+Craigslist, CarGurus, and eBay Motors do not include mileage in their search result pages (it appears only on the individual listing detail page, which the app does not load during search).
+
+The app stores `mileage=0` for these listings. In the ranking agent, `mileage=0` from a scraped source is treated as **unknown** and receives **15/30 mileage points** (neutral, half credit). It is not treated as "0 miles driven" (which would give full 30/30 points).
+
+**Sources affected:** CarGurus, Craigslist, eBay Motors  
+**Sources not affected:** auto.dev, Marketcheck — both return actual mileage from structured APIs
+
+---
+
+### 22.5 — No AI-Simulated Data in Production
+
+The app never generates fake car listings. There is no GPT fallback that invents listings when real data is unavailable. This was removed in v2.1 before the app was deployed for professional office use.
+
+**What happens when no listings are found:**
+- No valid API keys configured → error: *"No API key configured. Add AUTODEV_API_KEY or MARKETCHECK_API_KEY to .env."*
+- API keys valid but no matching inventory found → warning: *"No listings found. Try widening your price range, increasing the radius, or relaxing filters."*
+
+**No orange "AI Simulated" badge will ever appear.** All results shown are real dealer listings from live inventory.
+
+---
+
+### 22.6 — New Cars Are Listed on AutoTrader, Cars.com, and CarGurus
+
+Franchise dealers (BMW, Toyota, Honda, etc.) pay to list their full new inventory on AutoTrader, Cars.com, and CarGurus as a core part of their marketing. New car inventory is often *more* complete on these platforms than used.
+
+**Coverage:** 95%+ of new dealer inventory for mainstream brands in any major metro area is listed on at least one of these three platforms.
+
+**Lag:** A car that just arrived on the lot may take 24–48 hours to appear on aggregators; it will appear on the dealer's own website first.
+
+**Implication for this app:** The AutoTrader/Cars.com/CarGurus search links generated on each card (pre-filtered by make, model, condition, color, price, ZIP) are valid and useful for new car searches. The auto.dev and Marketcheck API sources also include new dealer inventory directly.
+
+---
+
+### 22.7 — External Search Link Generation
+
+Each listing card includes three pre-filtered search links that open in a new browser tab. These are not links to specific listings — they are marketplace search pages pre-filtered to show cars matching the buyer's criteria.
+
+**AutoTrader URL format:**
+```
+https://www.autotrader.com/cars-for-sale/{condition}/{color}/{make}/{model}?zip=...&startPrice=...&endPrice=...&maxMileage=...
+```
+
+**Cars.com URL format:**
+```
+https://www.cars.com/shopping/results/?stock_type={condition}&makes[]={make}&models[]={make}-{model}&exterior_color_slugs[]={color}&zip=...&maximum_distance=...&list_price_max=...&maximum_mileage=...
+```
+
+**CarGurus URL format:**
+```
+https://www.cargurus.com/search?zip=...&distance=...&minPrice=...&maxPrice=...&maxMileage=...&listingTypes=...&exteriorColor=...&sortType=PRICE&sortDirection=ASC
+```
+
+CarGurus does not support make/model as URL parameters in their public search endpoint — results are filtered by the buyer's location and price/mileage/condition/color parameters only.
+
+---
+
+### 22.8 — Live Check (auto.dev VIN Lookup)
+
+For auto.dev listings that have a VIN, a "Live Check" button appears on the card. Clicking it makes a real-time API call to `auto.dev/api/listings/{vin}` and surfaces:
+
+- Current asking price and price history
+- Dealer phone number
+- Dealer website link (or Google search fallback)
+- Recent price drops
+- Vehicle features (up to 15)
+
+**ClickOff dealers:** Some dealers have opted out of direct contact through auto.dev's platform. For these, the Live Check will display: *"This dealer has opted out of direct contact — visit the dealership in person or call their main line."*
+
+---
+
+*AUTO AI BRD v2.1 — Confidential — Neeraj Nagpal — May 7, 2026*

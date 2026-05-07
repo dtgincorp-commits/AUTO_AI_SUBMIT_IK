@@ -664,9 +664,10 @@ def _search_autodev(
                 # Client-side distance filter using coordinates auto.dev provides
                 # location field is [longitude, latitude]
                 coords = item.get("location")
+                dist_miles = None
                 if search_coords and coords and isinstance(coords, list) and len(coords) == 2:
-                    dist = _haversine_miles(search_coords[0], search_coords[1], coords[1], coords[0])
-                    if dist > prefs.radius_miles:
+                    dist_miles = round(_haversine_miles(search_coords[0], search_coords[1], coords[1], coords[0]), 1)
+                    if dist_miles > prefs.radius_miles:
                         continue
 
                 vin = item.get("vin") or vehicle.get("vin") or ""
@@ -690,6 +691,7 @@ def _search_autodev(
                     listing_url=vdp_url or None,
                     source="auto.dev",
                     vin=vin or None,
+                    distance_miles=dist_miles,
                 ))
             except Exception:
                 continue

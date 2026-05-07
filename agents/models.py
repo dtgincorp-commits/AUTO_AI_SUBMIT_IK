@@ -43,6 +43,7 @@ class CarListing(BaseModel):
     score_breakdown: Optional[dict] = None
     source: Optional[str] = None
     vin: Optional[str] = None
+    distance_miles: Optional[float] = None
 
 
 class DimensionResult(BaseModel):

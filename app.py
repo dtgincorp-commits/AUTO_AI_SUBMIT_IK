@@ -396,6 +396,7 @@ if _last_result:
         # ── Sort control ─────────────────────────────────────────────────────
         _SORT_OPTIONS = {
             "Match Score (Best First)":   lambda l: (-(l.match_score or 0)),
+            "Distance: Closest First":    lambda l: (l.distance_miles if l.distance_miles is not None else 9999),
             "Price: Low → High":          lambda l: l.price,
             "Price: High → Low":          lambda l: -l.price,
             "Mileage: Low → High":        lambda l: l.mileage,
@@ -561,7 +562,7 @@ if _last_result:
                         <p style="margin:2px 0">🛣 Mileage: <b>{listing.mileage:,} mi</b></p>
                         <p style="margin:2px 0">🎨 Ext: {listing.exterior_color or "N/A"} &nbsp;|&nbsp; Int: {listing.interior_color or "N/A"}</p>
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
-                        <p style="margin:2px 0">📍 {listing.location or _location}</p>
+                        <p style="margin:2px 0">📍 {listing.location or _location}{f' &nbsp;<span style="color:#9ca3af;font-size:11px">({listing.distance_miles:.1f} mi away)</span>' if listing.distance_miles is not None else ''}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
                     </div>
                     """,

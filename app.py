@@ -572,8 +572,8 @@ if _last_result:
                 # Link row — rendered via components.html() so onclick JS works natively
                 import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Copy VIN to clipboard on link click — only when VIN is available
-                _clip_text = listing.vin or ""
+                # Copy VIN to clipboard on link click; fall back to title when VIN unavailable
+                _clip_text = listing.vin or listing.title
                 _clip_js = _clip_text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes
@@ -584,7 +584,7 @@ if _last_result:
                     f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
                     f'View Listing →</a>' if listing.listing_url else ""
                 )
-                _onclick = f'onclick="_cpv(`{_clip_js}`)" ' if _clip_js else ""
+                _onclick = f'onclick="_cpv(`{_clip_js}`)" '
                 _dsite_a = ""
                 if listing.dealer_name:
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())

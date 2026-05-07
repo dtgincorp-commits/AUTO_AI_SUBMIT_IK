@@ -572,8 +572,16 @@ if _last_result:
                 # Link row — rendered via components.html() so onclick JS works natively
                 import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Copy VIN → stock number → title (best available identifier)
-                _clip_text = listing.vin or listing.stock_number or listing.title
+                # VIN if available; otherwise combine title + stock# + dealer for a strong Google query
+                if listing.vin:
+                    _clip_text = listing.vin
+                else:
+                    _clip_parts = [listing.title]
+                    if listing.stock_number:
+                        _clip_parts.append(listing.stock_number)
+                    if listing.dealer_name:
+                        _clip_parts.append(listing.dealer_name)
+                    _clip_text = " ".join(_clip_parts)
                 _clip_js = _clip_text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes

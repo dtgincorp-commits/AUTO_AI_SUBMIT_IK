@@ -564,7 +564,7 @@ if _last_result:
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}{f' &nbsp;<span style="color:#9ca3af;font-size:11px">({listing.distance_miles:.1f} mi away)</span>' if listing.distance_miles is not None else ''}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
-                        {f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">VIN: {listing.vin}</p>' if listing.vin else ''}
+                        {f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">VIN: {listing.vin}</p>' if listing.vin else (f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">Stock #: {listing.stock_number}</p>' if listing.stock_number else '')}
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -572,8 +572,8 @@ if _last_result:
                 # Link row — rendered via components.html() so onclick JS works natively
                 import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Copy VIN to clipboard on link click; fall back to title when VIN unavailable
-                _clip_text = listing.vin or listing.title
+                # Copy VIN → stock number → title (best available identifier)
+                _clip_text = listing.vin or listing.stock_number or listing.title
                 _clip_js = _clip_text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes

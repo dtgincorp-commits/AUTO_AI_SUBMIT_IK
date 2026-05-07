@@ -256,6 +256,7 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
             location=loc or prefs.location,
             listing_url=item.get("vdp_url"),
             source=display_source,
+            stock_number=item.get("stock_no") or None,
         ))
     return listings
 
@@ -671,6 +672,7 @@ def _search_autodev(
                         continue
 
                 vin = item.get("vin") or vehicle.get("vin") or ""
+                stock_no = retail.get("stockNumber") or retail.get("stock_no") or item.get("stockNumber") or ""
                 vdp_url = ""  # resolved live via VIN endpoint on user request
 
                 title_parts = [str(year), vmake, vmodel]
@@ -691,6 +693,7 @@ def _search_autodev(
                     listing_url=vdp_url or None,
                     source="auto.dev",
                     vin=vin or None,
+                    stock_number=stock_no or None,
                     distance_miles=dist_miles,
                 ))
             except Exception:

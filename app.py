@@ -304,6 +304,7 @@ if find_btn or _nl_auto_run:
 
     # Store results in session state and reset to page 1
     st.session_state["_last_result"] = result
+    st.session_state["vin_added_listings"] = []   # clear on new search
     st.session_state["_last_meta"] = {
         "make": make, "model": model, "condition": condition, "location": location,
         "prefs": prefs, "delivery_email": delivery_email, "delivery_sms": delivery_sms,
@@ -358,41 +359,88 @@ if _last_result:
         if search_warning:
             st.warning(f"⚠️ {search_warning}")
 
-        # ── Critic badge ────────────────────────────────────────────────────
-        if critic:
-            badge_colors = {"green": "#27ae60", "amber": "#f39c12", "red": "#e74c3c"}
-            badge_labels = {
-                "green": "Green — High quality results",
-                "amber": "Amber — Partial quality, review carefully",
-                "red":   "Red — Low quality, consider revising preferences",
-            }
-            badge = critic.badge
-            color = badge_colors.get(badge, "#95a5a6")
-            label = badge_labels.get(badge, badge)
-            st.markdown(
-                f"""
-                <div style="background:{color};color:#fff;border-radius:8px;
-                            padding:12px 20px;font-size:18px;font-weight:bold;
-                            display:inline-block;margin-bottom:12px">
-                    {label} &nbsp;·&nbsp; {critic.overall_score:.0f}/100
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if revision_count > 0:
-                st.info(f"Search improved after {revision_count} revision(s).")
-            with st.expander("Critic Agent — Quality Breakdown"):
-                for dim_key, dim in critic.dimensions.items():
-                    icon = "✅" if dim.passed else ("⚠️" if dim.flag == "amber" else "❌")
-                    dim_label = dim_key.replace("_", " ").title()
-                    bar = int((dim.score / 25) * 100)
-                    st.markdown(
-                        f"**{icon} {dim_label}** — {dim.score:.0f}/25 pts  \n"
-                        f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
-                        f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
-                        f"<small style='color:#6b7280'>{dim.reason}</small>",
-                        unsafe_allow_html=True,
+        # ── Critic badge + inline VIN lookup ────────────────────────────────
+        _badge_col, _vin_col = st.columns([1, 1])
+
+        with _badge_col:
+            if critic:
+                badge_colors = {"green": "#27ae60", "amber": "#f39c12", "red": "#e74c3c"}
+                badge_labels = {
+                    "green": "Green — High quality results",
+                    "amber": "Amber — Partial quality, review carefully",
+                    "red":   "Red — Low quality, consider revising preferences",
+                }
+                badge = critic.badge
+                color = badge_colors.get(badge, "#95a5a6")
+                label = badge_labels.get(badge, badge)
+                st.markdown(
+                    f"""
+                    <div style="background:{color};color:#fff;border-radius:8px;
+                                padding:12px 20px;font-size:18px;font-weight:bold;
+                                display:inline-block;margin-bottom:12px">
+                        {label} &nbsp;·&nbsp; {critic.overall_score:.0f}/100
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                if revision_count > 0:
+                    st.info(f"Search improved after {revision_count} revision(s).")
+                with st.expander("Critic Agent — Quality Breakdown"):
+                    for dim_key, dim in critic.dimensions.items():
+                        icon = "✅" if dim.passed else ("⚠️" if dim.flag == "amber" else "❌")
+                        dim_label = dim_key.replace("_", " ").title()
+                        bar = int((dim.score / 25) * 100)
+                        st.markdown(
+                            f"**{icon} {dim_label}** — {dim.score:.0f}/25 pts  \n"
+                            f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
+                            f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
+                            f"<small style='color:#6b7280'>{dim.reason}</small>",
+                            unsafe_allow_html=True,
+                        )
+
+        with _vin_col:
+            with st.container(border=True):
+                st.markdown("**📌 Pin a car by VIN**")
+                st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
+                _vc1, _vc2 = st.columns([3, 1])
+                with _vc1:
+                    _vin_input = st.text_input(
+                        "VIN", placeholder="e.g. 5UX13EU03T9384714",
+                        label_visibility="collapsed", key="vin_lookup_input",
                     )
+                with _vc2:
+                    _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
+
+                if _vin_btn and _vin_input:
+                    with st.spinner("Decoding VIN..."):
+                        from agents.search_agent import lookup_vin_listing
+                        from agents.ranking_agent import run_ranking_agent as _rank
+                        _vin_listing, _vin_err = lookup_vin_listing(_vin_input.strip(), _prefs)
+                    if _vin_err:
+                        st.error(_vin_err)
+                    else:
+                        _vin_scored = _rank(_prefs, [_vin_listing])
+                        _vin_listing = _vin_scored[0] if _vin_scored else _vin_listing
+                        _added = st.session_state.setdefault("vin_added_listings", [])
+                        if not any(l.vin == _vin_listing.vin for l in _added):
+                            _added.append(_vin_listing)
+                            st.success(f"Added: **{_vin_listing.title}** — shown at the top of results.")
+                            st.rerun()
+                        else:
+                            st.info("This VIN is already in your results.")
+
+                _added_list = st.session_state.get("vin_added_listings", [])
+                if _added_list:
+                    st.markdown(f"**{len(_added_list)} car(s) added:**")
+                    for _av in _added_list:
+                        _av_col1, _av_col2 = st.columns([4, 1])
+                        with _av_col1:
+                            _price_str = f"${_av.asking_price:,}" if _av.asking_price else "Price not in auto.dev"
+                            st.markdown(f"• **{_av.title}** &nbsp; {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
+                        with _av_col2:
+                            if st.button("✕", key=f"rm_vin_{_av.vin}", help="Remove"):
+                                st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
+                                st.rerun()
 
         # ── Source status ────────────────────────────────────────────────────
         if source_errors:
@@ -422,6 +470,8 @@ if _last_result:
                 key="results_sort",
                 label_visibility="collapsed",
             )
+        # Prepend any VIN-added listings (pinned at top, not sorted/paginated)
+        _vin_added = st.session_state.get("vin_added_listings", [])
         sorted_listings = sorted(listings, key=_SORT_OPTIONS[sort_choice])
 
         # ── Pagination setup ─────────────────────────────────────────────────
@@ -516,6 +566,48 @@ if _last_result:
         _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
 
         # ── Car listing cards ────────────────────────────────────────────────
+        # ── VIN-pinned cards (shown above regular results, page 1 only) ────────
+        if _vin_added and page == 0:
+            st.markdown("#### 📌 Added by VIN")
+            _vin_cols = st.columns(3)
+            for _vi, _vl in enumerate(_vin_added):
+                with _vin_cols[_vi % 3]:
+                    _vsc = "green" if (_vl.match_score or 0) >= 70 else "orange"
+                    _vprice_str = (f"${_vl.asking_price:,} asking price" if _vl.asking_price
+                                   else "Price not in auto.dev — check AutoTrader link")
+                    st.markdown(
+                        f"""<div style="border:2px solid #2563eb;border-radius:10px;padding:16px;margin-bottom:4px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                            <h4 style="margin:0">{_vl.title}</h4>
+                            <span style="background:#2563eb;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">VIN Lookup</span>
+                        </div>
+                        <p style="margin:4px 0;color:#f97316;font-weight:bold">{_vprice_str}</p>
+                        <p style="margin:2px 0">📅 Year: <b>{_vl.year or "—"}</b></p>
+                        <p style="margin:2px 0">🛣 Mileage: <b>{f"{_vl.mileage:,} mi" if _vl.mileage else "—"}</b></p>
+                        <p style="margin:2px 0">🏢 {_vl.dealer_name or "Dealer not in auto.dev"}</p>
+                        <p style="margin:6px 0">Match score: <b style="color:{_vsc}">{_vl.match_score}/100</b></p>
+                        <p style="margin:2px 0;font-size:11px;color:#9ca3af">VIN: {_vl.vin}</p>
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+                    import streamlit.components.v1 as _stc2
+                    _vlcj = (_vl.vin or "").replace("`", "\\`")
+                    _at_vin = f"https://www.autotrader.com/cars-for-sale/all-cars?vin={_vl.vin}&searchRadius=500"
+                    _cm_vin = f"https://www.cars.com/vehicledetail/{_vl.vin}/"
+                    _gg_vin = f"https://www.google.com/search?q={_vl.vin}"
+                    _stc2.html(
+                        f"""<script>
+function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cssText='position:fixed;opacity:0;top:-9999px';document.body.appendChild(e);e.focus();e.select();try{{document.execCommand('copy')}}catch(x){{}}document.body.removeChild(e);}}
+</script>
+<div style="font-family:sans-serif;font-size:11px;padding:2px 0;display:flex;gap:4px;flex-wrap:nowrap;align-items:center">
+<a href="{_at_vin}" target="_blank" onclick="_cpv2(`{_vlcj}`)" style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;text-decoration:none">View on AutoTrader →</a>
+<a href="{_cm_vin}" target="_blank" onclick="_cpv2(`{_vlcj}`)" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>
+<a href="{_gg_vin}" target="_blank" onclick="_cpv2(`{_vlcj}`)" style="color:#60a5fa;text-decoration:none">🔎 Google VIN</a>
+</div>""",
+                        height=30,
+                    )
+            st.divider()
+
         st.subheader(f"Top Matches — Page {page + 1}")
         cols = st.columns(3)
 

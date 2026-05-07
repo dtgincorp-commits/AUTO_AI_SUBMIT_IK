@@ -785,6 +785,82 @@ def fetch_autodev_live(vin: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# VIN lookup — NHTSA decode + auto.dev live data
+# ---------------------------------------------------------------------------
+
+def lookup_vin_listing(vin: str, prefs: "CarPreferences") -> tuple:
+    """Decode a VIN via NHTSA (free, no key) and enrich with auto.dev live data.
+
+    Returns (CarListing, error_message). On success error_message is empty.
+    Used when the user pastes a VIN they found on AutoTrader or another site.
+    """
+    vin = vin.strip().upper()
+    if len(vin) != 17:
+        return None, "VIN must be exactly 17 characters."
+
+    # Step 1 — NHTSA free VIN decode (year / make / model / trim)
+    try:
+        resp = requests.get(
+            f"https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/{vin}?format=json",
+            timeout=10,
+        )
+        resp.raise_for_status()
+        fields = {r["Variable"]: (r["Value"] or "").strip()
+                  for r in resp.json().get("Results", [])}
+
+        _na = {"", "0", "Not Applicable", "null", "None"}
+        year_raw = fields.get("Model Year", "")
+        make     = fields.get("Make", "")  if fields.get("Make",  "") not in _na else ""
+        model    = fields.get("Model", "") if fields.get("Model", "") not in _na else ""
+        trim     = fields.get("Trim",  "") if fields.get("Trim",  "") not in _na else ""
+        year     = int(year_raw) if year_raw.isdigit() else 0
+
+        if not make or not model:
+            return None, "Could not decode this VIN — NHTSA returned no make/model. Check the VIN and try again."
+    except Exception as e:
+        return None, f"NHTSA decode failed: {e}"
+
+    # Step 2 — auto.dev live lookup for price / mileage / dealer
+    price       = 0
+    mileage     = 0
+    dealer_name = None
+    location    = None
+    listing_url = None
+
+    if AUTODEV_API_KEY:
+        live = fetch_autodev_live(vin)
+        if "error" not in live:
+            price       = live.get("price") or 0
+            mileage     = live.get("mileage") or 0
+            dealer_name = live.get("dealer_name") or None
+
+    # Build title
+    title_parts = [str(year) if year else "", make, model, trim]
+    title = " ".join(p for p in title_parts if p)
+
+    # Direct VIN search links (set as listing_url → "View Listing →" button)
+    at_url = f"https://www.autotrader.com/cars-for-sale/all-cars?vin={vin}&searchRadius=500"
+
+    # Use budget midpoint as price placeholder when live price unavailable
+    placeholder_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+
+    from agents.models import CarListing
+    listing = CarListing(
+        title=title,
+        price=placeholder_price,
+        asking_price=price if price > 0 else None,
+        mileage=mileage,
+        year=year,
+        dealer_name=dealer_name,
+        location=location,
+        listing_url=at_url,
+        source="VIN Lookup",
+        vin=vin,
+    )
+    return listing, ""
+
+
+# ---------------------------------------------------------------------------
 # Main entry point — parallel multi-source search
 # ---------------------------------------------------------------------------
 

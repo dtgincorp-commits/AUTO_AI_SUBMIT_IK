@@ -16,7 +16,9 @@ _PARSE_PROMPT = ChatPromptTemplate.from_messages([
         "max_mileage (int), "
         "location (str — use 5-digit ZIP or 'City, ST' format e.g. 'Irvine, CA'; never county names like 'Orange County'), "
         "radius_miles (int). "
-        "Rules: if only one price mentioned treat it as price_max and set price_min = round(price_max * 0.7, -3). "
+        "Rules: "
+        "ONLY include price_min/price_max if the user EXPLICITLY stated a price or budget — NEVER infer or guess a price from the car type or condition. "
+        "If only one price is explicitly mentioned, treat it as price_max and set price_min = round(price_max * 0.7, -3). "
         "Default radius_miles to 50 if not mentioned. "
         "No markdown, no explanation — raw JSON only."
     )),

@@ -571,22 +571,10 @@ if _last_result:
                 # Link row — rendered via components.html() so onclick JS works natively
                 import streamlit.components.v1 as _stc
                 from urllib.parse import quote as _url_quote
-                # Clipboard text for this card
+                # Copy VIN only to clipboard on link click (fallback to title if no VIN)
+                _clip_text = listing.vin or listing.title
+                _clip_js = _clip_text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
                 _ask = listing.asking_price or listing.price
-                _clip_text = "\n".join(filter(None, [
-                    listing.title,
-                    f"Year:     {listing.year}",
-                    f"Price:    ${_ask:,}" if _ask else None,
-                    f"Mileage:  {listing.mileage:,} mi",
-                    f"Exterior: {listing.exterior_color or 'N/A'}  |  Interior: {listing.interior_color or 'N/A'}",
-                    f"Dealer:   {listing.dealer_name}" if listing.dealer_name else None,
-                    f"Location: {listing.location or _location}",
-                    f"VIN:      {listing.vin}" if listing.vin else None,
-                ]))
-                _clip_js = (_clip_text
-                    .replace("\\", "\\\\").replace("`", "\\`")
-                    .replace("${", "\\${").replace("\n", "\\n")
-                )
                 # Encode & as &amp; for HTML href attributes
                 def _hurl(u): return u.replace("&", "&amp;")
                 _view_a = (

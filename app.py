@@ -511,8 +511,8 @@ if _last_result:
             with col:
                 score_color = "green" if (listing.match_score or 0) >= 70 else "orange"
                 source = listing.source or "Unknown"
-                source_color = "#e67e22" if source in ("AI Simulated", "Unknown") else "#2ecc71"
-                badge_text = listing.dealer_name if listing.dealer_name and source not in ("AI Simulated", "Unknown") else source
+                source_color = "#2ecc71"
+                badge_text = listing.dealer_name if listing.dealer_name else source
                 source_badge = f'<span style="background:{source_color};color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:bold">{badge_text}</span>'
                 _live_key = f"live_{listing.vin or i}"
 

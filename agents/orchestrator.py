@@ -50,12 +50,6 @@ def run_pipeline(
         avg_score = (
             sum(l.match_score or 0 for l in ranked) / len(ranked) if ranked else 0
         )
-        all_simulated = all(l.source == "AI Simulated" for l in ranked) if ranked else False
-
-        if all_simulated:
-            # Can't fix missing API data by retrying — stop here
-            pre_outreach_critic = critic
-            break
 
         if len(ranked) < 3 and working_prefs.radius_miles < 100:
             adjustment["radius_miles"] = min(working_prefs.radius_miles + 25, 100)

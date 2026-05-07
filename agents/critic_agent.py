@@ -66,13 +66,7 @@ def _check_data_source_trust(listings: list) -> DimensionResult:
             name="data_source_trust", passed=False, score=0.0, flag="fail",
             reason="No listings returned.",
         )
-    all_simulated = all(l.source == "AI Simulated" for l in listings)
-    if all_simulated:
-        return DimensionResult(
-            name="data_source_trust", passed=False, score=12.0, flag="amber",
-            reason="All listings are AI-simulated (no real API data available).",
-        )
-    sources = list({l.source for l in listings if l.source and l.source != "AI Simulated"})
+    sources = list({l.source for l in listings if l.source})
     return DimensionResult(
         name="data_source_trust", passed=True, score=25.0, flag="pass",
         reason=f"Real inventory data from: {', '.join(sources) or 'Marketcheck'}.",

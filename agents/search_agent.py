@@ -782,30 +782,6 @@ def fetch_autodev_live(vin: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# GPT fallback (unused in production — kept for reference)
-# ---------------------------------------------------------------------------
-
-_SEARCH_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are a car marketplace search agent. Return a JSON array of exactly 5 realistic "
-        "car listings matching the criteria. Each listing must have: title (string), price (int), "
-        "mileage (int), year (int), exterior_color, interior_color, dealer_name, location, "
-        "listing_url (use a real Cars.com or CarGurus search URL format)."
-    )),
-    ("human", (
-        "Find cars matching these preferences:\n"
-        "Make: {make}, Model: {model}\n"
-        "Price range: ${price_min:,} - ${price_max:,}\n"
-        "Max mileage: {max_mileage} miles\n"
-        "Exterior color: {exterior_color}\n"
-        "Interior color: {interior_color}\n"
-        "Location: {location} (within {radius_miles} miles)\n\n"
-        "Return ONLY a valid JSON array, no markdown, no code fences."
-    )),
-])
-
-
-# ---------------------------------------------------------------------------
 # Main entry point — parallel multi-source search
 # ---------------------------------------------------------------------------
 

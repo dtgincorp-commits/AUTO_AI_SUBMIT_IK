@@ -605,9 +605,9 @@ if _last_result:
                     )
                 _links_html = '<span style="color:#555;margin:0 1px">·</span>'.join(filter(None, [
                     _view_a, _dsite_a,
-                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
-                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
-                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
+                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
+                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
+                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
                 ]))
                 _stc.html(
                     f'<div style="font-family:sans-serif;font-size:11px;padding:2px 0;display:flex;gap:2px;flex-wrap:nowrap;align-items:center;overflow:hidden;white-space:nowrap">{_links_html}</div>',

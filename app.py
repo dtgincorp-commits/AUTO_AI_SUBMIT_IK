@@ -120,6 +120,16 @@ if _nl_btn:
         _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
         _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
         _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
+        # Reset all optional fields to clean defaults before applying parsed values.
+        # Prevents stale values from a previous search bleeding into this one.
+        st.session_state["p_price_min"]      = 1000
+        st.session_state["p_price_max"]      = 999000
+        st.session_state["p_condition"]      = "Any"
+        st.session_state["p_exterior_color"] = "Any"
+        st.session_state["p_interior_color"] = "Any"
+        st.session_state["p_max_mileage"]    = 500000
+        st.session_state["p_trim"]           = ""
+        st.session_state["p_radius_miles"]   = 50
         if _parsed.get("make"):         st.session_state["p_make"]          = _parsed["make"]
         if _parsed.get("model"):        st.session_state["p_model"]         = _parsed["model"]
         if _parsed.get("trim"):         st.session_state["p_trim"]          = _parsed["trim"]

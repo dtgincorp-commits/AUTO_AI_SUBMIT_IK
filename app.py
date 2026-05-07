@@ -588,17 +588,20 @@ if _last_result:
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
                     _dsite_a = (
                         f'<a href="https://www.google.com/search?q={_dsite_q}" target="_blank" '
-                        f'onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" '
+                        f'onclick="_cpv(`{_clip_js}`)" '
                         f'style="color:#10b981;font-weight:600;text-decoration:none">🌐 Dealer site</a>'
                     )
                 _links_html = '<span style="color:#555;margin:0 1px">·</span>'.join(filter(None, [
                     _view_a, _dsite_a,
-                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
-                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
-                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" onclick="navigator.clipboard.writeText(`{_clip_js}`).catch(function(){{}})" style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
+                    f'<a href="{_hurl(_autotrader_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🔎 AutoTrader</a>',
+                    f'<a href="{_hurl(_carsdotcom_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🚙 Cars.com</a>',
+                    f'<a href="{_hurl(_cargurus_url)}" target="_blank" onclick="_cpv(`{_clip_js}`)" style="color:#60a5fa;text-decoration:none">🚗 CarGurus</a>',
                 ]))
                 _stc.html(
-                    f'<div style="font-family:sans-serif;font-size:11px;padding:2px 0;display:flex;gap:2px;flex-wrap:nowrap;align-items:center;overflow:hidden;white-space:nowrap">{_links_html}</div>',
+                    f"""<script>
+function _cpv(t){{var e=document.createElement('textarea');e.value=t;e.style.cssText='position:fixed;opacity:0;top:-9999px';document.body.appendChild(e);e.focus();e.select();try{{document.execCommand('copy')}}catch(x){{}}document.body.removeChild(e);}}
+</script>
+<div style="font-family:sans-serif;font-size:11px;padding:2px 0;display:flex;gap:2px;flex-wrap:nowrap;align-items:center;overflow:hidden;white-space:nowrap">{_links_html}</div>""",
                     height=30,
                 )
 

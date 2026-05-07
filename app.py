@@ -111,42 +111,45 @@ if "nl_parse_msg" in st.session_state:
 
 if _nl_btn:
     if _nl_query.strip():
-        with st.spinner("Understanding your request..."):
-            from agents.nl_parser import parse_query as _parse_query
-            _parsed, _parse_err = _parse_query(_nl_query.strip())
-        if _parse_err:
-            st.error(f"Could not parse your request: {_parse_err}")
-            st.stop()
-        _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
-        _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
-        _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
-        # Reset all optional fields to clean defaults before applying parsed values.
-        # Prevents stale values from a previous search bleeding into this one.
-        st.session_state["p_price_min"]      = 1000
-        st.session_state["p_price_max"]      = 999000
-        st.session_state["p_condition"]      = "Any"
-        st.session_state["p_exterior_color"] = "Any"
-        st.session_state["p_interior_color"] = "Any"
-        st.session_state["p_max_mileage"]    = 500000
-        st.session_state["p_trim"]           = ""
-        st.session_state["p_radius_miles"]   = 50
-        if _parsed.get("make"):         st.session_state["p_make"]          = _parsed["make"]
-        if _parsed.get("model"):        st.session_state["p_model"]         = _parsed["model"]
-        if _parsed.get("trim"):         st.session_state["p_trim"]          = _parsed["trim"]
-        if _parsed.get("price_min"):    st.session_state["p_price_min"]     = int(_parsed["price_min"])
-        if _parsed.get("price_max"):    st.session_state["p_price_max"]     = int(_parsed["price_max"])
-        if _parsed.get("condition") and _parsed["condition"] in _COND:
-            st.session_state["p_condition"] = _parsed["condition"]
-        if _parsed.get("exterior_color") and _parsed["exterior_color"] in _COLOR_EXT:
-            st.session_state["p_exterior_color"] = _parsed["exterior_color"]
-        if _parsed.get("interior_color") and _parsed["interior_color"] in _COLOR_INT:
-            st.session_state["p_interior_color"] = _parsed["interior_color"]
-        if _parsed.get("max_mileage"):
-            st.session_state["p_max_mileage"]   = int(_parsed["max_mileage"])
-        if _parsed.get("location"):
-            st.session_state["p_location"]      = _parsed["location"]
-        if _parsed.get("radius_miles"):
-            st.session_state["p_radius_miles"]  = max(10, min(100, int(_parsed["radius_miles"])))
+        _query_changed = _nl_query.strip() != st.session_state.get("_last_parsed_query", "")
+        if _query_changed:
+            with st.spinner("Understanding your request..."):
+                from agents.nl_parser import parse_query as _parse_query
+                _parsed, _parse_err = _parse_query(_nl_query.strip())
+            if _parse_err:
+                st.error(f"Could not parse your request: {_parse_err}")
+                st.stop()
+            _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
+            _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
+            _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
+            # Reset all optional fields to clean defaults before applying parsed values.
+            # Prevents stale values from a previous search bleeding into this one.
+            st.session_state["p_price_min"]      = 1000
+            st.session_state["p_price_max"]      = 999000
+            st.session_state["p_condition"]      = "Any"
+            st.session_state["p_exterior_color"] = "Any"
+            st.session_state["p_interior_color"] = "Any"
+            st.session_state["p_max_mileage"]    = 500000
+            st.session_state["p_trim"]           = ""
+            st.session_state["p_radius_miles"]   = 50
+            if _parsed.get("make"):         st.session_state["p_make"]          = _parsed["make"]
+            if _parsed.get("model"):        st.session_state["p_model"]         = _parsed["model"]
+            if _parsed.get("trim"):         st.session_state["p_trim"]          = _parsed["trim"]
+            if _parsed.get("price_min"):    st.session_state["p_price_min"]     = int(_parsed["price_min"])
+            if _parsed.get("price_max"):    st.session_state["p_price_max"]     = int(_parsed["price_max"])
+            if _parsed.get("condition") and _parsed["condition"] in _COND:
+                st.session_state["p_condition"] = _parsed["condition"]
+            if _parsed.get("exterior_color") and _parsed["exterior_color"] in _COLOR_EXT:
+                st.session_state["p_exterior_color"] = _parsed["exterior_color"]
+            if _parsed.get("interior_color") and _parsed["interior_color"] in _COLOR_INT:
+                st.session_state["p_interior_color"] = _parsed["interior_color"]
+            if _parsed.get("max_mileage"):
+                st.session_state["p_max_mileage"]   = int(_parsed["max_mileage"])
+            if _parsed.get("location"):
+                st.session_state["p_location"]      = _parsed["location"]
+            if _parsed.get("radius_miles"):
+                st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
+            st.session_state["_last_parsed_query"] = _nl_query.strip()
 
         _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
         if _has_required:

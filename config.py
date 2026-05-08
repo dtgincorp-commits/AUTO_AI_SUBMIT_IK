@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 _ENV_PATH = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
-# Disable LangSmith tracing to prevent 403 noise
-os.environ["LANGCHAIN_TRACING_V2"] = "false"
-os.environ["LANGSMITH_TRACING"] = "false"
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGCHAIN_PROJECT"] = "AUTO_AI"
 
 def _get(key: str) -> str:
     val = os.getenv(key)

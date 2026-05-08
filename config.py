@@ -35,3 +35,18 @@ SCRAPERAPI_KEY = _get("SCRAPERAPI_KEY")
 LLM_MODEL = "gpt-4o-mini"
 MAX_RESULTS = 500
 MAX_REVISION_CYCLES = 2
+
+# ── Search jargon glossary ──────────────────────────────────────────────────
+# Add shorthand terms here — the NL parser expands them before extracting
+# search parameters. No code changes needed, just add a new entry below.
+JARGON = {
+    "black-on-black":  "black exterior and black interior",
+    "white-on-black":  "white exterior and black interior",
+    "black-on-tan":    "black exterior and beige interior",
+    "red-on-black":    "red exterior and black interior",
+    "silver-on-black": "silver exterior and black interior",
+    "CPO":             "Certified Pre-Owned condition",
+    "OTD":             "out-the-door price, treat as price_max",
+    "loaded":          "fully optioned trim, ignore for filtering",
+}
+

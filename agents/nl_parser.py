@@ -28,6 +28,8 @@ def _build_prompt() -> ChatPromptTemplate:
             "Rules: "
             "ONLY include price_min/price_max if the user EXPLICITLY stated a price or budget — NEVER infer or guess a price from the car type or condition. "
             "If only one price is explicitly mentioned, treat it as price_max and set price_min = round(price_max * 0.7, -3). "
+            "'k' always means thousands (e.g. '30k' = 30000, '10K' = 10000). "
+            "Phrases like 'under X', 'below X', 'up to X', 'no more than X', 'less than X', 'max X', 'X budget', 'budget of X' all set price_max = X (one price → apply the 0.7 rule for price_min). "
             "Default radius_miles to 50 if not mentioned. "
             "No markdown, no explanation — raw JSON only."
         )),

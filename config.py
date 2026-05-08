@@ -21,6 +21,13 @@ def _get(key: str) -> str:
     except Exception:
         return ""
 
+# Push LangSmith key from st.secrets into os.environ so LangChain finds it
+# on Streamlit Cloud (LangChain reads os.environ directly, not st.secrets)
+_langsmith_key = _get("LANGSMITH_API_KEY")
+if _langsmith_key:
+    os.environ["LANGSMITH_API_KEY"] = _langsmith_key
+    os.environ["LANGCHAIN_API_KEY"] = _langsmith_key
+
 OPENAI_API_KEY = _get("OPENAI_API_KEY")
 TWILIO_ACCOUNT_SID = _get("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = _get("TWILIO_AUTH_TOKEN")

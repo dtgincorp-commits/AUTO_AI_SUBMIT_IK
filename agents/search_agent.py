@@ -622,7 +622,15 @@ def _search_autodev(
     listings = []
     for page in range(1, 6):   # up to 5 pages = 500 results
         params = {**base_params, "page": page}
-        resp = requests.get(f"{AUTODEV_BASE}/listings", params=params, headers=headers, timeout=20)
+        for _attempt in range(2):   # retry once on timeout
+            try:
+                resp = requests.get(f"{AUTODEV_BASE}/listings", params=params, headers=headers, timeout=20)
+                break
+            except requests.exceptions.Timeout:
+                if _attempt == 0:
+                    import time; time.sleep(3)
+                else:
+                    raise
         resp.raise_for_status()
         data = resp.json()
 

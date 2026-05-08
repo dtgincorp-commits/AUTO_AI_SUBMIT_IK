@@ -691,22 +691,11 @@ function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cs
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes
                 def _hurl(u): return u.replace("&", "&amp;")
-                # Prefer VIN-based AutoTrader URL — avoids stale/wrong-franchise
-                # dealer URLs that Marketcheck sometimes stores (e.g. same dealer
-                # group but wrong location). VIN search always finds the exact car.
-                # No VIN → Google search for dealer + stock# as next best option.
-                if listing.vin:
-                    _view_url = f"https://www.autotrader.com/cars-for-sale/all-cars?vin={listing.vin}&searchRadius=500"
-                elif listing.stock_number and listing.dealer_name:
-                    _vq = _url_quote(f'"{listing.dealer_name}" "{listing.stock_number}"')
-                    _view_url = f"https://www.google.com/search?q={_vq}"
-                else:
-                    _view_url = listing.listing_url or ""
                 _view_a = (
-                    f'<a href="{_hurl(_view_url)}" target="_blank" '
+                    f'<a href="{_hurl(listing.listing_url)}" target="_blank" '
                     f'style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;'
                     f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
-                    f'View Listing →</a>' if _view_url else ""
+                    f'View Listing →</a>' if listing.listing_url else ""
                 )
                 _onclick = f'onclick="_cpv(`{_clip_js}`)" '
                 _dsite_a = ""

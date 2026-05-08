@@ -668,8 +668,7 @@ function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cs
                         <p style="margin:2px 0">🎨 Ext: {listing.exterior_color or "N/A"} &nbsp;|&nbsp; Int: {listing.interior_color or "N/A"}</p>
                         <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}{f' &nbsp;<span style="color:#9ca3af;font-size:11px">({listing.distance_miles:.1f} mi away)</span>' if listing.distance_miles is not None else ''}</p>
-                        <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b></p>
-                        {f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">VIN: {listing.vin}</p>' if listing.vin else (f'<p style="margin:2px 0;font-size:11px;color:#9ca3af">Stock #: {listing.stock_number}</p>' if listing.stock_number else '')}
+                        <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b>{f' &nbsp;<span style="color:#9ca3af;font-size:11px">· VIN: {listing.vin}</span>' if listing.vin else (f' &nbsp;<span style="color:#9ca3af;font-size:11px">· Stock #: {listing.stock_number}</span>' if listing.stock_number else '')}</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -691,12 +690,18 @@ function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cs
                 _ask = listing.asking_price or listing.price
                 # Encode & as &amp; for HTML href attributes
                 def _hurl(u): return u.replace("&", "&amp;")
-                _view_a = (
-                    f'<a href="{_hurl(listing.listing_url)}" target="_blank" '
-                    f'style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;'
-                    f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
-                    f'View Listing →</a>' if listing.listing_url else ""
-                )
+                if listing.listing_url:
+                    from urllib.parse import urlparse as _urlparse
+                    _view_domain = _urlparse(listing.listing_url).netloc.replace("www.", "")
+                    _view_a = (
+                        f'<a href="{_hurl(listing.listing_url)}" target="_blank" '
+                        f'style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:5px;'
+                        f'font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">'
+                        f'View Listing →</a>'
+                        f'<span style="font-size:10px;color:#9ca3af;margin-left:4px">{_view_domain}</span>'
+                    )
+                else:
+                    _view_a = ""
                 _onclick = f'onclick="_cpv(`{_clip_js}`)" '
                 _dsite_a = ""
                 if listing.dealer_name:

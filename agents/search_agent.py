@@ -180,38 +180,69 @@ def _location_to_craigslist_site(location: str) -> str:
 # Marketcheck
 # ---------------------------------------------------------------------------
 
-def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
-    make, model = _normalize_make_model(prefs.make, prefs.model)
+def _marketcheck_cache_available() -> bool:
+    try:
+        import streamlit as st
+        return True
+    except Exception:
+        return False
+
+def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
+                            certified_only, trim, max_mileage, exterior_color,
+                            zip_code, location_str):
+    """Raw Marketcheck API call — wrapped in cache below."""
     params = {
         "api_key": MARKETCHECK_API_KEY,
         "make": make,
         "model": model,
-        "price_min": prefs.price_min,
-        "price_max": prefs.price_max,
-        "radius": min(prefs.radius_miles, 200),
+        "price_min": price_min,
+        "price_max": price_max,
+        "radius": min(radius, 200),
         "rows": 100,
         "sort_by": "price",
         "sort_order": "asc",
     }
-    if prefs.trim and prefs.trim.lower() != "any":
-        params["trim"] = prefs.trim
-    if prefs.max_mileage and prefs.condition != "New":
-        params["mileage_max"] = prefs.max_mileage
-    if prefs.exterior_color and prefs.exterior_color.lower() != "any":
-        params["exterior_color"] = prefs.exterior_color.lower()
-    if prefs.certified_only:
+    if trim and trim.lower() != "any":
+        params["trim"] = trim
+    if max_mileage and condition != "New":
+        params["mileage_max"] = max_mileage
+    if exterior_color and exterior_color.lower() != "any":
+        params["exterior_color"] = exterior_color.lower()
+    if certified_only:
         params["inventory_type"] = "certified"
-    elif prefs.condition and prefs.condition != "Any":
-        params["inventory_type"] = prefs.condition.lower()
-
+    elif condition and condition != "Any":
+        params["inventory_type"] = condition.lower()
     if zip_code:
         params["zip"] = zip_code
-    else:
-        params.update(_parse_location(prefs.location))
-
+    elif location_str:
+        params.update(_parse_location(location_str))
     resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
     resp.raise_for_status()
-    data = resp.json()
+    return resp.json()
+
+# Wrap with st.cache_data (2-hour TTL) when running inside Streamlit.
+# Falls back to direct call when running outside Streamlit (e.g. unit tests).
+try:
+    import streamlit as st
+    _fetch_marketcheck_cached = st.cache_data(ttl=7200, show_spinner=False)(_fetch_marketcheck_raw)
+except Exception:
+    _fetch_marketcheck_cached = _fetch_marketcheck_raw
+
+
+def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    make, model = _normalize_make_model(prefs.make, prefs.model)
+    data = _fetch_marketcheck_cached(
+        make, model,
+        prefs.price_min, prefs.price_max,
+        prefs.radius_miles,
+        prefs.condition or "Any",
+        prefs.certified_only,
+        prefs.trim or "",
+        prefs.max_mileage or 0,
+        prefs.exterior_color or "Any",
+        zip_code or "",
+        prefs.location,
+    )
 
     import datetime
     current_year = datetime.date.today().year

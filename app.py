@@ -412,6 +412,44 @@ if _last_result:
     if not listings:
         st.warning(f"No results found — {search_warning}" if search_warning else "No results found.")
         st.info("Try widening your price range, increasing the search radius, or removing color/mileage filters.")
+
+        import streamlit.components.v1 as _stc_z
+        def _hurl_z(u): return u.replace("&", "&amp;")
+        _stc_z.html(f"""
+<div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
+            border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:16px 0">
+  <div style="font-size:16px;font-weight:700;color:#f0f4ff;margin-bottom:6px">
+    🔍 &nbsp;Continue your search — filters already applied
+  </div>
+  <div style="font-size:12px;color:#93c5fd;margin-bottom:16px">
+    {_make} {_model} &nbsp;·&nbsp; {_condition} &nbsp;·&nbsp; near {_location}
+    {"&nbsp;·&nbsp; up to $" + f"{_prefs.price_max:,}" if _prefs and _prefs.price_max < 999000 else ""}
+    {"&nbsp;·&nbsp; max " + f"{_prefs.max_mileage:,} mi" if _prefs and _prefs.max_mileage and _prefs.max_mileage < 500000 else ""}
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <a href="{_hurl_z(_autotrader_url)}" target="_blank"
+       style="background:#2563eb;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
+      🔎 &nbsp;AutoTrader
+    </a>
+    <a href="{_hurl_z(_carsdotcom_url)}" target="_blank"
+       style="background:#16a34a;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
+      🚙 &nbsp;Cars.com
+    </a>
+    <a href="{_hurl_z(_cargurus_url)}" target="_blank"
+       style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
+      🚗 &nbsp;CarGurus
+    </a>
+    <a href="{_hurl_z(_google_url)}" target="_blank"
+       style="background:#d97706;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
+      🌐 &nbsp;Google
+    </a>
+  </div>
+</div>""", height=140)
+
         if source_errors:
             with st.expander("Source Status — click to see why"):
                 for src_name, src_status in source_errors.items():
@@ -422,30 +460,6 @@ if _last_result:
                         f"<span style='color:{color}'>{icon} <b>{src_name}</b></span> — {src_status}",
                         unsafe_allow_html=True,
                     )
-        with st.expander("🔍 Search on other platforms — your filters pre-filled"):
-            import streamlit.components.v1 as _stc_z
-            def _hurl_z(u): return u.replace("&", "&amp;")
-            _stc_z.html(f"""
-<div style="font-family:sans-serif;padding:12px 4px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-  <span style="font-size:13px;color:#9ca3af;margin-right:4px">Continue your search with your filters already applied:</span>
-  <a href="{_hurl_z(_autotrader_url)}" target="_blank"
-     style="background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
-     🔎 AutoTrader
-  </a>
-  <a href="{_hurl_z(_carsdotcom_url)}" target="_blank"
-     style="background:#16a34a;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
-     🚙 Cars.com
-  </a>
-  <a href="{_hurl_z(_cargurus_url)}" target="_blank"
-     style="background:#dc2626;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
-     🚗 CarGurus
-  </a>
-  <a href="{_hurl_z(_google_url)}" target="_blank"
-     style="background:#f59e0b;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
-     🌐 Google
-  </a>
-</div>""", height=60)
-
         with st.expander("Debug — Search parameters sent to API"):
             if _prefs:
                 st.json(_prefs.model_dump())

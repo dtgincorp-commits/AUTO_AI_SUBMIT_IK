@@ -30,6 +30,10 @@ def _build_prompt() -> ChatPromptTemplate:
             "If the user gives only an upper limit ('under X', 'below X', 'up to X', 'no more than X', 'less than X', 'max X', 'X budget', 'budget of X'), set only price_max = X — do NOT set price_min. "
             "Only set both price_min and price_max if the user explicitly states a range (e.g. 'between 20k and 50k'). "
             "'k' always means thousands (e.g. '30k' = 30000, '10K' = 10000). "
+            "Model field rules: strip drivetrain/AWD badges from the model name — these are never part of the model in dealer databases. "
+            "Badges to strip: 4MATIC, 4MATIC+, xDrive, sDrive, xLine, quattro, AWD, RWD, FWD, eAWD, PHEV, 4WD, 4x4. "
+            "Examples: 'GLS 450 4MATIC' → model='GLS 450'; 'X5 xDrive40i' → model='X5'; 'Q7 quattro' → model='Q7'; 'RAV4 AWD' → model='RAV4'. "
+            "If the badge implies a trim (e.g. xDrive40i), put the full badge in trim instead: 'X5 xDrive40i' → model='X5', trim='xDrive40i'. "
             "Default radius_miles to 50 if not mentioned. "
             "No markdown, no explanation — raw JSON only."
         )),

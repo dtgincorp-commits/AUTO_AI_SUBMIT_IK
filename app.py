@@ -450,7 +450,7 @@ if _last_result:
       🌐 &nbsp;Google
     </a>
   </div>
-</div>""", height=140)
+</div>""", height=170)
 
         if source_errors:
             with st.expander("Source Status — click to see why"):

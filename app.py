@@ -352,6 +352,59 @@ if _last_result:
     _user_email = _last_meta.get("user_email")
     _user_phone = _last_meta.get("user_phone")
 
+    # ── External search URLs (built once, used in both 0-result and card views) ──
+    import re as _re
+    _at_cond_seg = (
+        "used-cars" if _condition == "Used" else
+        "new-cars"  if _condition == "New"  else
+        "all-cars"
+    )
+    _at_make_slug  = _make.lower().replace(" ", "-")
+    _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
+    _zip_m = _re.search(r"\b(\d{5})\b", _location)
+    _at_zip = _zip_m.group(1) if _zip_m else ""
+    _ext_color = (_prefs.exterior_color or "") if _prefs else ""
+    _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
+    _at_qp = []
+    if _at_zip:
+        _at_qp.append(f"zip={_at_zip}")
+    if _prefs:
+        if _prefs.price_min:    _at_qp.append(f"startPrice={_prefs.price_min}")
+        if _prefs.price_max:    _at_qp.append(f"endPrice={_prefs.price_max}")
+        if _prefs.max_mileage:  _at_qp.append(f"maxMileage={_prefs.max_mileage}")
+    _autotrader_url = (
+        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_color_seg}{_at_make_slug}/{_at_model_slug}"
+        + ("?" + "&".join(_at_qp) if _at_qp else "")
+    )
+    _cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
+    if _at_zip:
+        _cg_qp.append(f"zip={_at_zip}")
+    if _prefs:
+        if _prefs.radius_miles: _cg_qp.append(f"distance={min(_prefs.radius_miles, 100)}")
+        if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
+        if _prefs.price_max:    _cg_qp.append(f"maxPrice={_prefs.price_max}")
+        if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
+        if _condition == "New":    _cg_qp.append("listingTypes=NEW")
+        elif _condition == "Used": _cg_qp.append("listingTypes=USED")
+        if _ext_color and _ext_color.lower() not in ("any", "other", ""):
+            _cg_qp.append(f"exteriorColor={_ext_color.lower()}")
+    _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
+    _cm_make  = _make.lower().replace(" ", "-")
+    _cm_model = (_make + "-" + _model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
+    _cm_stock = "used" if _condition == "Used" else "new" if _condition == "New" else "all"
+    _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
+    if _at_zip:          _cm_qp.append(f"zip={_at_zip}")
+    if _prefs:
+        if _prefs.radius_miles: _cm_qp.append(f"maximum_distance={_prefs.radius_miles}")
+        if _prefs.price_min:    _cm_qp.append(f"price_min={_prefs.price_min}")
+        if _prefs.price_max:    _cm_qp.append(f"price_max={_prefs.price_max}")
+        if _prefs.max_mileage:  _cm_qp.append(f"mileage_max={_prefs.max_mileage}")
+        if _ext_color and _ext_color.lower() not in ("any", "other", ""):
+            _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
+    _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
+    from urllib.parse import quote as _url_quote
+    _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"
+
     # ── No results ──────────────────────────────────────────────────────────
     if not listings:
         st.warning(f"No results found — {search_warning}" if search_warning else "No results found.")
@@ -366,6 +419,30 @@ if _last_result:
                         f"<span style='color:{color}'>{icon} <b>{src_name}</b></span> — {src_status}",
                         unsafe_allow_html=True,
                     )
+        with st.expander("🔍 Search on other platforms — your filters pre-filled"):
+            import streamlit.components.v1 as _stc_z
+            def _hurl_z(u): return u.replace("&", "&amp;")
+            _stc_z.html(f"""
+<div style="font-family:sans-serif;padding:12px 4px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+  <span style="font-size:13px;color:#9ca3af;margin-right:4px">Continue your search with your filters already applied:</span>
+  <a href="{_hurl_z(_autotrader_url)}" target="_blank"
+     style="background:#2563eb;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
+     🔎 AutoTrader
+  </a>
+  <a href="{_hurl_z(_carsdotcom_url)}" target="_blank"
+     style="background:#16a34a;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
+     🚙 Cars.com
+  </a>
+  <a href="{_hurl_z(_cargurus_url)}" target="_blank"
+     style="background:#dc2626;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
+     🚗 CarGurus
+  </a>
+  <a href="{_hurl_z(_google_url)}" target="_blank"
+     style="background:#f59e0b;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
+     🌐 Google
+  </a>
+</div>""", height=60)
+
         with st.expander("Debug — Search parameters sent to API"):
             if _prefs:
                 st.json(_prefs.model_dump())
@@ -523,62 +600,6 @@ if _last_result:
                     st.rerun()
 
         _pagination_controls("top")
-
-        # ── AutoTrader search URL (built once from search prefs) ────────────
-        import re as _re
-        _at_cond_seg = (
-            "used-cars" if _condition == "Used" else
-            "new-cars"  if _condition == "New"  else
-            "all-cars"
-        )
-        _at_make_slug  = _make.lower().replace(" ", "-")
-        _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
-        _zip_m = _re.search(r"\b(\d{5})\b", _location)
-        _at_zip = _zip_m.group(1) if _zip_m else ""
-        # Color slot goes between condition and make in AutoTrader path
-        _ext_color = (_prefs.exterior_color or "") if _prefs else ""
-        _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
-        _at_qp = []
-        if _at_zip:
-            _at_qp.append(f"zip={_at_zip}")
-        if _prefs:
-            if _prefs.price_min:    _at_qp.append(f"startPrice={_prefs.price_min}")
-            if _prefs.price_max:    _at_qp.append(f"endPrice={_prefs.price_max}")
-            if _prefs.max_mileage:  _at_qp.append(f"maxMileage={_prefs.max_mileage}")
-        _autotrader_url = (
-            f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_color_seg}{_at_make_slug}/{_at_model_slug}"
-            + ("?" + "&".join(_at_qp) if _at_qp else "")
-        )
-        # CarGurus new /search endpoint — make/model require internal entity IDs
-        # (not public), so we pre-fill location/price/distance and open their
-        # search page; user selects make+model in the CarGurus sidebar (one click).
-        _cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
-        if _at_zip:
-            _cg_qp.append(f"zip={_at_zip}")
-        if _prefs:
-            if _prefs.radius_miles: _cg_qp.append(f"distance={min(_prefs.radius_miles, 100)}")
-            if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
-            if _prefs.price_max:    _cg_qp.append(f"maxPrice={_prefs.price_max}")
-            if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
-            if _condition == "New":   _cg_qp.append("listingTypes=NEW")
-            elif _condition == "Used": _cg_qp.append("listingTypes=USED")
-            if _ext_color and _ext_color.lower() not in ("any", "other", ""):
-                _cg_qp.append(f"exteriorColor={_ext_color.lower()}")
-        _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
-        # Cars.com — supports plain-text make/model slugs like AutoTrader
-        _cm_make  = _make.lower().replace(" ", "-")
-        _cm_model = (_make + "-" + _model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
-        _cm_stock = "used" if _condition == "Used" else "new" if _condition == "New" else "all"
-        _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
-        if _at_zip:          _cm_qp.append(f"zip={_at_zip}")
-        if _prefs:
-            if _prefs.radius_miles: _cm_qp.append(f"maximum_distance={_prefs.radius_miles}")
-            if _prefs.price_min:    _cm_qp.append(f"price_min={_prefs.price_min}")
-            if _prefs.price_max:    _cm_qp.append(f"price_max={_prefs.price_max}")
-            if _prefs.max_mileage:  _cm_qp.append(f"mileage_max={_prefs.max_mileage}")
-            if _ext_color and _ext_color.lower() not in ("any", "other", ""):
-                _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
-        _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
 
         # ── Car listing cards ────────────────────────────────────────────────
         # ── VIN-pinned cards (shown above regular results, page 1 only) ────────

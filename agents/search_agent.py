@@ -958,10 +958,7 @@ def run_search_agent(
     all_candidates.append(("Craigslist",  lambda p=prefs: _search_craigslist(p)))
 
     # Filter to only selected sources when the caller specifies a subset
-    if selected_sources:
-        sources = [(n, fn) for n, fn in all_candidates if n in selected_sources]
-    else:
-        sources = all_candidates
+    sources = [(n, fn) for n, fn in all_candidates if n in selected_sources] if selected_sources else all_candidates
 
     all_listings: list[CarListing] = []
     source_errors: dict = {}

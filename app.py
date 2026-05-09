@@ -307,6 +307,9 @@ if find_btn or _nl_auto_run:
         ("CarGurus",    src_cargurus),
         ("Craigslist",  src_craigslist),
     ] if on]
+    if not selected_sources:
+        st.error("Please enable at least one search source in the sidebar.")
+        st.stop()
 
     try:
         result = run_pipeline(prefs, on_status=on_status, selected_sources=selected_sources)

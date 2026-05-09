@@ -641,6 +641,19 @@ def _search_craigslist(prefs: CarPreferences) -> list[CarListing]:
 # auto.dev — structured listings API (1-4M inventory, $0.002/call)
 # ---------------------------------------------------------------------------
 
+# auto.dev stores Mercedes-Benz SUVs as 3-letter class only (GLS, GLE, GLC…)
+# with the number in the trim field. Sedans use E-Class/C-Class/S-Class.
+# This differs from Marketcheck which uses full names like "GLS 450".
+_AUTODEV_MB_SUV_PREFIXES = {"GLS", "GLE", "GLC", "GLB", "GLA", "EQS", "EQE", "EQB", "EQC"}
+
+def _normalize_model_for_autodev(make: str, model: str) -> str:
+    if "mercedes" in make.lower():
+        base = model.strip().split()[0].upper()
+        if base in _AUTODEV_MB_SUV_PREFIXES:
+            return base
+    return model
+
+
 def _search_autodev(
     prefs: CarPreferences,
     zip_code: Optional[str] = None,
@@ -650,6 +663,7 @@ def _search_autodev(
         return []
 
     make, model = _normalize_make_model(prefs.make, prefs.model)
+    model = _normalize_model_for_autodev(make, model)
     headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
 
     base_params: dict = {

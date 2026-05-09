@@ -421,7 +421,9 @@ if _last_result:
   <div style="font-size:16px;font-weight:700;color:#f0f4ff;margin-bottom:6px">
     🔍 &nbsp;Continue your search — filters already applied
   </div>
-  <div style="font-size:12px;color:#93c5fd;margin-bottom:16px">
+  <div style="display:inline-block;font-size:12px;color:#e0f0ff;font-weight:600;
+              border:1px solid #3b82f6;border-radius:6px;
+              padding:5px 12px;margin-bottom:16px;background:rgba(59,130,246,0.15)">
     {_make} {_model} &nbsp;·&nbsp; {_condition} &nbsp;·&nbsp; near {_location}
     {"&nbsp;·&nbsp; up to $" + f"{_prefs.price_max:,}" if _prefs and _prefs.price_max < 999000 else ""}
     {"&nbsp;·&nbsp; max " + f"{_prefs.max_mileage:,} mi" if _prefs and _prefs.max_mileage and _prefs.max_mileage < 500000 else ""}

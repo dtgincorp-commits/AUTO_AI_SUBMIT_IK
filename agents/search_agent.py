@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
-from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY, EBAY_APP_ID, SCRAPERAPI_KEY
+from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY, EBAY_APP_ID, SCRAPERAPI_KEY, get_langfuse_callbacks
 
 MARKETCHECK_BASE = "https://api.marketcheck.com/v2"
 EBAY_FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
@@ -40,7 +40,8 @@ def _normalize_make_model(make: str, model: str) -> tuple:
     llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
     chain = _NORMALIZE_PROMPT | llm | StrOutputParser()
     try:
-        raw = chain.invoke({"make": make, "model": model})
+        _cb = get_langfuse_callbacks()
+        raw = chain.invoke({"make": make, "model": model}, config={"callbacks": _cb} if _cb else {})
         data = json.loads(raw)
         return data.get("make", make), data.get("model", model)
     except Exception:

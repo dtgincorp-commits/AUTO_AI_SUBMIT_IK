@@ -42,6 +42,26 @@ AUTODEV_API_KEY = _get("AUTODEV_API_KEY")
 EBAY_APP_ID = _get("EBAY_APP_ID")
 SCRAPERAPI_KEY = _get("SCRAPERAPI_KEY")
 
+LANGFUSE_PUBLIC_KEY = _get("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_SECRET_KEY = _get("LANGFUSE_SECRET_KEY")
+LANGFUSE_HOST       = _get("LANGFUSE_HOST") or "https://cloud.langfuse.com"
+
+
+def get_langfuse_callbacks() -> list:
+    """Return a LangFuse CallbackHandler list if keys are configured, else []."""
+    if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
+        return []
+    try:
+        from langfuse.callback import CallbackHandler
+        return [CallbackHandler(
+            public_key=LANGFUSE_PUBLIC_KEY,
+            secret_key=LANGFUSE_SECRET_KEY,
+            host=LANGFUSE_HOST,
+        )]
+    except Exception:
+        return []
+
+
 LLM_MODEL = "gpt-4o-mini"
 MAX_RESULTS = 500
 MAX_REVISION_CYCLES = 2

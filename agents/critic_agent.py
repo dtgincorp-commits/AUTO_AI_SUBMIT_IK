@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing, DimensionResult, CriticResult
-from config import LLM_MODEL, OPENAI_API_KEY
+from config import LLM_MODEL, OPENAI_API_KEY, get_langfuse_callbacks
 
 _PERSONALIZATION_JUDGE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
@@ -86,16 +86,20 @@ def _check_outreach_personalization(prefs: CarPreferences, outreach_result: dict
     try:
         llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
         chain = _PERSONALIZATION_JUDGE_PROMPT | llm | StrOutputParser()
-        raw = chain.invoke({
-            "make": prefs.make,
-            "model": prefs.model,
-            "price_min": f"{prefs.price_min:,}",
-            "price_max": f"{prefs.price_max:,}",
-            "location": prefs.location,
-            "exterior_color": prefs.exterior_color or "Any",
-            "max_mileage": prefs.max_mileage or "Any",
-            "content": content[:3000],
-        })
+        _cb = get_langfuse_callbacks()
+        raw = chain.invoke(
+            {
+                "make": prefs.make,
+                "model": prefs.model,
+                "price_min": f"{prefs.price_min:,}",
+                "price_max": f"{prefs.price_max:,}",
+                "location": prefs.location,
+                "exterior_color": prefs.exterior_color or "Any",
+                "max_mileage": prefs.max_mileage or "Any",
+                "content": content[:3000],
+            },
+            config={"callbacks": _cb} if _cb else {},
+        )
         data = json.loads(raw)
         llm_score = int(data.get("score", 3))
         llm_score = max(1, min(5, llm_score))

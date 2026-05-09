@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
 from config import LLM_MODEL, OPENAI_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
-from config import SENDGRID_API_KEY, SENDGRID_FROM_EMAIL
+from config import SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, get_langfuse_callbacks
 import json
 
 
@@ -82,15 +82,19 @@ def generate_email_content(prefs: CarPreferences, listings: list[CarListing], cr
         prompt = _EMAIL_PROMPT
     chain = prompt | llm | StrOutputParser()
     listings_data = [l.model_dump() for l in listings]
-    return chain.invoke({
-        "name": prefs.user_email or "Car Buyer",
-        "make": prefs.make,
-        "model": prefs.model,
-        "price_min": prefs.price_min,
-        "price_max": prefs.price_max,
-        "location": prefs.location,
-        "listings_json": json.dumps(listings_data, indent=2),
-    })
+    _cb = get_langfuse_callbacks()
+    return chain.invoke(
+        {
+            "name": prefs.user_email or "Car Buyer",
+            "make": prefs.make,
+            "model": prefs.model,
+            "price_min": prefs.price_min,
+            "price_max": prefs.price_max,
+            "location": prefs.location,
+            "listings_json": json.dumps(listings_data, indent=2),
+        },
+        config={"callbacks": _cb} if _cb else {},
+    )
 
 
 def generate_sms_content(prefs: CarPreferences, listings: list[CarListing], critic_feedback: str = None) -> str:
@@ -108,12 +112,16 @@ def generate_sms_content(prefs: CarPreferences, listings: list[CarListing], crit
         prompt = _SMS_PROMPT
     chain = prompt | llm | StrOutputParser()
     top3 = [l.model_dump() for l in listings[:3]]
-    return chain.invoke({
-        "make": prefs.make,
-        "model": prefs.model,
-        "location": prefs.location,
-        "listings_json": json.dumps(top3, indent=2),
-    })
+    _cb = get_langfuse_callbacks()
+    return chain.invoke(
+        {
+            "make": prefs.make,
+            "model": prefs.model,
+            "location": prefs.location,
+            "listings_json": json.dumps(top3, indent=2),
+        },
+        config={"callbacks": _cb} if _cb else {},
+    )
 
 
 def send_sms(to_number: str, message: str) -> dict:
@@ -154,6 +162,8 @@ def run_dealer_outreach(prefs: CarPreferences, listings: list[CarListing]) -> li
     broker_email = prefs.broker_email or ""
     broker_phone = prefs.broker_phone or ""
 
+    _cb = get_langfuse_callbacks()
+    _cb_cfg = {"callbacks": _cb} if _cb else {}
     results = []
     for listing in listings[:3]:  # contact top 3 dealers only
         dealer_label = listing.dealer_name or "Dealer"
@@ -173,7 +183,7 @@ def run_dealer_outreach(prefs: CarPreferences, listings: list[CarListing]) -> li
                 "broker_name": broker_name,
                 "broker_email": broker_email,
                 "broker_phone": broker_phone,
-            })
+            }, config=_cb_cfg)
 
             sms_chain = _DEALER_SMS_PROMPT | llm | StrOutputParser()
             sms_body = sms_chain.invoke({
@@ -183,7 +193,7 @@ def run_dealer_outreach(prefs: CarPreferences, listings: list[CarListing]) -> li
                 "model": prefs.model,
                 "price": listing.price,
                 "broker_phone": broker_phone,
-            })
+            }, config=_cb_cfg)
 
             entry = {
                 "dealer_name": dealer_label,

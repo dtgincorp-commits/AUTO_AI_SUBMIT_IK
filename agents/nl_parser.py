@@ -2,7 +2,7 @@ import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from config import LLM_MODEL, OPENAI_API_KEY, JARGON
+from config import LLM_MODEL, OPENAI_API_KEY, JARGON, get_langfuse_callbacks
 
 def _build_prompt() -> ChatPromptTemplate:
     glossary_section = ""
@@ -46,7 +46,8 @@ def parse_query(query: str) -> tuple[dict, str]:
     llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
     chain = _build_prompt() | llm | StrOutputParser()
     try:
-        raw = chain.invoke({"query": query}).strip()
+        _cb = get_langfuse_callbacks()
+        raw = chain.invoke({"query": query}, config={"callbacks": _cb} if _cb else {}).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         return json.loads(raw.strip()), ""

@@ -18,7 +18,21 @@ CARGURUS_BASE = "https://www.cargurus.com"
 AUTODEV_BASE = "https://auto.dev/api"
 
 _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", "Return ONLY a JSON object with keys 'make' and 'model', corrected to their exact official names. No extra text."),
+    ("system", (
+        "Return ONLY a JSON object with keys 'make' and 'model', corrected to their exact "
+        "official names as used in dealer inventory databases. No extra text. "
+        "Mercedes-Benz sedan/coupe naming rules (critical — dealer DBs use class names, not number codes): "
+        "E450/E350/E300/E63 → model='E-Class'; "
+        "C300/C350/C43/C63 → model='C-Class'; "
+        "S450/S500/S580/S63/S650 → model='S-Class'; "
+        "A220/A35 → model='A-Class'; "
+        "G550/G63 → model='G-Class'; "
+        "CLA250/CLA45 → model='CLA'; "
+        "CLS450/CLS53 → model='CLS'; "
+        "SUVs keep full names: GLS 450, GLE 350, GLC 300, GLB 250, GLA 250 stay as-is. "
+        "BMW: X5/X3/X7 stay as-is; 3 Series/5 Series/7 Series use 'X Series' format. "
+        "Always return the make as the full official brand name e.g. 'Mercedes-Benz' not 'Mercedes'."
+    )),
     ("human", "Correct this car make and model: make='{make}', model='{model}'"),
 ])
 

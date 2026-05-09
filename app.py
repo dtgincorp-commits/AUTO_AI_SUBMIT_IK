@@ -139,7 +139,7 @@ if _nl_btn:
             _COND = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
             # Reset all optional fields to clean defaults before applying parsed values.
             # Prevents stale values from a previous search bleeding into this one.
-            st.session_state["p_price_min"]      = 1000
+            st.session_state["p_price_min"]      = 0
             st.session_state["p_price_max"]      = 999000
             st.session_state["p_condition"]      = "Any"
             st.session_state["p_exterior_color"] = "Any"

@@ -1,7 +1,22 @@
 from dotenv import load_dotenv
 load_dotenv(override=True)  # override=True ensures .env always wins over shell environment
 
+import os
 import streamlit as st
+
+# Push LangSmith secrets into os.environ before any LangChain imports.
+# On Streamlit Cloud secrets live in st.secrets, not os.environ — LangChain
+# reads os.environ directly so we bridge them here first.
+try:
+    _ls_key = st.secrets.get("LANGSMITH_API_KEY") or st.secrets.get("LANGCHAIN_API_KEY")
+    if _ls_key:
+        os.environ["LANGSMITH_API_KEY"]    = _ls_key
+        os.environ["LANGCHAIN_API_KEY"]    = _ls_key
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGSMITH_TRACING"]    = "true"
+        os.environ["LANGCHAIN_PROJECT"]    = st.secrets.get("LANGCHAIN_PROJECT", "AUTO_AI")
+except Exception:
+    pass
 from agents.models import CarPreferences
 from agents.orchestrator import run_pipeline
 

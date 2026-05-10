@@ -82,7 +82,7 @@ div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button,
 div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:focus {
     background: linear-gradient(135deg, #f97316 0%, #dc2626 100%) !important;
     color: #ffffff !important;
-    font-size: 17px !important;
+    font-size: 16px !important;
     font-weight: 800 !important;
     border: none !important;
     border-radius: 10px !important;
@@ -99,6 +99,27 @@ div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:hover {
 div[data-testid="stForm"] div[data-testid="stColumn"]:last-child button:active {
     transform: scale(0.97) !important;
 }
+div[data-testid="stForm"] div[data-testid="stColumn"]:nth-last-child(2) button,
+div[data-testid="stForm"] div[data-testid="stColumn"]:nth-last-child(2) button:focus {
+    background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%) !important;
+    color: #ffffff !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    min-height: 52px !important;
+    box-shadow: 0 4px 18px rgba(99, 102, 241, 0.55) !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+div[data-testid="stForm"] div[data-testid="stColumn"]:nth-last-child(2) button:hover {
+    transform: scale(1.04) !important;
+    box-shadow: 0 6px 28px rgba(99, 102, 241, 0.8) !important;
+}
+div[data-testid="stForm"] div[data-testid="stColumn"]:nth-last-child(2) button:active {
+    transform: scale(0.97) !important;
+}
 div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 </style>
 
@@ -106,7 +127,7 @@ div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 """, unsafe_allow_html=True)
 
 with st.form("nl_form", clear_on_submit=False):
-    _nl_col, _build_col, _btn_col = st.columns([5, 1.3, 1])
+    _nl_col, _build_col, _btn_col = st.columns([5, 1.2, 1.2])
     with _nl_col:
         _nl_query = st.text_input(
             "nl",

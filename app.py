@@ -126,6 +126,10 @@ if "nl_parse_msg" in st.session_state:
     else:
         st.warning(_msg_text)
 
+_RADIUS_SNAP = [10, 25, 50, 75, 100, 200, 300, 400, 500]
+def _snap_radius(r: int) -> int:
+    return min(_RADIUS_SNAP, key=lambda v: abs(v - r))
+
 if _build_btn:
     if _nl_query.strip():
         with st.spinner("Understanding your request..."):
@@ -162,7 +166,7 @@ if _build_btn:
             if _parsed.get("location"):
                 st.session_state["p_location"]    = _parsed["location"]
             if _parsed.get("radius_miles"):
-                st.session_state["p_radius_miles"] = max(10, min(200, int(_parsed["radius_miles"])))
+                st.session_state["p_radius_miles"] = _snap_radius(int(_parsed["radius_miles"]))
             st.session_state["_search_builder"] = {
                 "make":          st.session_state["p_make"],
                 "model":         st.session_state["p_model"],
@@ -267,15 +271,21 @@ if _sb:
     _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
     _sb_zip_m     = _re2.search(r"\b(\d{5})\b", _sb_location)
     _sb_zip       = _sb_zip_m.group(1) if _sb_zip_m else ""
+    _sb_loc_text  = _re2.sub(r'\b\d{5}\b', '', _sb_location).strip().strip(',').strip()
+    _sb_loc_seg   = ("-".join(_re2.sub(r'[^\w\s]', '', _sb_loc_text).lower().split()) + "/") if _sb_loc_text else ""
+    _sb_price_seg = f"cars-under-{_sb_price_max}/" if _sb_price_max < 999000 else ""
     _sb_color_seg = (_sb_color.lower().replace(" ", "-") + "/") if _sb_color and _sb_color.lower() not in ("any", "other", "") else ""
     _sb_at_qp     = []
-    if _sb_zip:           _sb_at_qp.append(f"zip={_sb_zip}")
+    if _sb_zip:    _sb_at_qp.append(f"zip={_sb_zip}")
+    if _sb_radius and _sb_radius < 500: _sb_at_qp.append(f"searchRadius={_sb_radius}")
     if _sb_price_min:     _sb_at_qp.append(f"startPrice={_sb_price_min}")
     if _sb_price_max < 999000: _sb_at_qp.append(f"endPrice={_sb_price_max}")
     if _sb_mileage:       _sb_at_qp.append(f"maxMileage={_sb_mileage}")
+    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
+        _sb_at_qp.append(f"intColorSimple={_sb_int_color.upper()}")
     _sb_at_url = (
-        f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_color_seg}"
-        f"{_sb_make.lower().replace(' ','-')}/{_sb_model.lower().replace(' ','-').replace('/.','-')}"
+        f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
+        f"{_sb_make.lower().replace(' ','-')}/{_sb_model.lower().replace(' ','-').replace('/','-')}/{_sb_loc_seg}"
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     _sb_cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
@@ -374,7 +384,13 @@ with st.sidebar:
 
     st.subheader("Location")
     location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
-    radius_miles = st.slider("Search Radius (miles)", min_value=10, max_value=200, key="p_radius_miles")
+    _RADIUS_OPTS = [10, 25, 50, 75, 100, 200, 300, 400, 500, 0]
+    radius_miles = st.selectbox(
+        "Search Radius",
+        _RADIUS_OPTS,
+        format_func=lambda x: "Nationwide" if x == 0 else f"{x} Miles",
+        key="p_radius_miles",
+    )
 
     st.subheader("Search Sources")
     from config import AUTODEV_API_KEY as _AUTODEV_KEY
@@ -429,7 +445,7 @@ if find_btn or _nl_auto_run:
         interior_color=None if interior_color == "Any" else interior_color,
         max_mileage=int(max_mileage) if max_mileage else None,
         location=location,
-        radius_miles=radius_miles,
+        radius_miles=500 if radius_miles == 0 else radius_miles,  # 0 = Nationwide
         certified_only=certified_only,
         condition=None if condition in ("Any", "Certified Pre-Owned (CPO)") else condition,
         delivery_email=delivery_email,
@@ -527,17 +543,25 @@ if _last_result:
     _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
     _zip_m = _re.search(r"\b(\d{5})\b", _location)
     _at_zip = _zip_m.group(1) if _zip_m else ""
+    # City/state slug (e.g. "Irvine, CA" → "irvine-ca"); omitted for ZIP-only inputs
+    _loc_text = _re.sub(r'\b\d{5}\b', '', _location).strip().strip(',').strip()
+    _at_loc_seg = ("-".join(_re.sub(r'[^\w\s]', '', _loc_text).lower().split()) + "/") if _loc_text else ""
     _ext_color = (_prefs.exterior_color or "") if _prefs else ""
+    _int_color = (_prefs.interior_color or "") if _prefs else ""
+    _at_price_seg = (f"cars-under-{_prefs.price_max}/" if _prefs and _prefs.price_max < 999000 else "")
     _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
     _at_qp = []
-    if _at_zip:
-        _at_qp.append(f"zip={_at_zip}")
+    if _at_zip:   _at_qp.append(f"zip={_at_zip}")
     if _prefs:
-        if _prefs.price_min:    _at_qp.append(f"startPrice={_prefs.price_min}")
-        if _prefs.price_max:    _at_qp.append(f"endPrice={_prefs.price_max}")
-        if _prefs.max_mileage:  _at_qp.append(f"maxMileage={_prefs.max_mileage}")
+        _at_radius = _prefs.radius_miles
+        if _at_radius and _at_radius < 500: _at_qp.append(f"searchRadius={_at_radius}")
+        if _prefs.price_min:   _at_qp.append(f"startPrice={_prefs.price_min}")
+        if _prefs.price_max < 999000: _at_qp.append(f"endPrice={_prefs.price_max}")
+        if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
+        if _int_color and _int_color.lower() not in ("any", "other", ""):
+            _at_qp.append(f"intColorSimple={_int_color.upper()}")
     _autotrader_url = (
-        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_color_seg}{_at_make_slug}/{_at_model_slug}"
+        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/{_at_model_slug}/{_at_loc_seg}"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
     )
     _cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]

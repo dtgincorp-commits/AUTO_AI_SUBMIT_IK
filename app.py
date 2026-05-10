@@ -134,30 +134,59 @@ if _build_btn:
         if _parse_err:
             st.error(f"Could not parse your request: {_parse_err}")
         else:
+            _COLOR_EXT = ["Any", "White", "Black", "Silver", "Gray", "Red", "Blue", "Green", "Other"]
+            _COLOR_INT = ["Any", "Black", "Beige", "Gray", "Brown", "White", "Red", "Other"]
+            _COND      = ["Any", "Used", "New", "Certified Pre-Owned (CPO)"]
+            # Sync sidebar fields — same logic as Find Cars
+            st.session_state["p_price_min"]      = 0
+            st.session_state["p_price_max"]      = 999000
+            st.session_state["p_condition"]      = "Any"
+            st.session_state["p_exterior_color"] = "Any"
+            st.session_state["p_interior_color"] = "Any"
+            st.session_state["p_max_mileage"]    = 500000
+            st.session_state["p_trim"]           = ""
+            st.session_state["p_radius_miles"]   = 50
+            if _parsed.get("make"):      st.session_state["p_make"]          = _parsed["make"]
+            if _parsed.get("model"):     st.session_state["p_model"]         = _parsed["model"]
+            if _parsed.get("trim"):      st.session_state["p_trim"]          = _parsed["trim"]
+            if _parsed.get("price_min"): st.session_state["p_price_min"]     = int(_parsed["price_min"])
+            if _parsed.get("price_max"): st.session_state["p_price_max"]     = int(_parsed["price_max"])
+            if _parsed.get("condition") and _parsed["condition"] in _COND:
+                st.session_state["p_condition"] = _parsed["condition"]
+            if _parsed.get("exterior_color") and _parsed["exterior_color"] in _COLOR_EXT:
+                st.session_state["p_exterior_color"] = _parsed["exterior_color"]
+            if _parsed.get("interior_color") and _parsed["interior_color"] in _COLOR_INT:
+                st.session_state["p_interior_color"] = _parsed["interior_color"]
+            if _parsed.get("max_mileage"):
+                st.session_state["p_max_mileage"] = int(_parsed["max_mileage"])
+            if _parsed.get("location"):
+                st.session_state["p_location"]    = _parsed["location"]
+            if _parsed.get("radius_miles"):
+                st.session_state["p_radius_miles"] = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_search_builder"] = {
-                "make":       _parsed.get("make", ""),
-                "model":      _parsed.get("model", ""),
-                "condition":  _parsed.get("condition", "Any"),
-                "location":   _parsed.get("location", ""),
-                "price_min":  int(_parsed["price_min"]) if _parsed.get("price_min") else 0,
-                "price_max":  int(_parsed["price_max"]) if _parsed.get("price_max") else 999000,
-                "max_mileage": int(_parsed["max_mileage"]) if _parsed.get("max_mileage") else None,
-                "exterior_color": _parsed.get("exterior_color"),
-                "radius_miles": int(_parsed.get("radius_miles", 50)),
+                "make":          st.session_state["p_make"],
+                "model":         st.session_state["p_model"],
+                "condition":     st.session_state["p_condition"],
+                "location":      st.session_state["p_location"],
+                "price_min":     st.session_state["p_price_min"],
+                "price_max":     st.session_state["p_price_max"],
+                "max_mileage":   st.session_state["p_max_mileage"] if st.session_state["p_max_mileage"] < 500000 else None,
+                "exterior_color": st.session_state["p_exterior_color"],
+                "radius_miles":  st.session_state["p_radius_miles"],
             }
             st.rerun()
     else:
-        # Use current sidebar values
+        # No NL query — build from current sidebar values as-is
         st.session_state["_search_builder"] = {
-            "make": st.session_state.get("p_make", ""),
-            "model": st.session_state.get("p_model", ""),
-            "condition": st.session_state.get("p_condition", "Any"),
-            "location": st.session_state.get("p_location", ""),
-            "price_min": st.session_state.get("p_price_min", 0),
-            "price_max": st.session_state.get("p_price_max", 999000),
-            "max_mileage": st.session_state.get("p_max_mileage"),
+            "make":          st.session_state.get("p_make", ""),
+            "model":         st.session_state.get("p_model", ""),
+            "condition":     st.session_state.get("p_condition", "Any"),
+            "location":      st.session_state.get("p_location", ""),
+            "price_min":     st.session_state.get("p_price_min", 0),
+            "price_max":     st.session_state.get("p_price_max", 999000),
+            "max_mileage":   st.session_state.get("p_max_mileage"),
             "exterior_color": st.session_state.get("p_exterior_color"),
-            "radius_miles": st.session_state.get("p_radius_miles", 50),
+            "radius_miles":  st.session_state.get("p_radius_miles", 50),
         }
         st.rerun()
 

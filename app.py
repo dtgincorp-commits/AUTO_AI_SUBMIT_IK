@@ -290,21 +290,29 @@ if _sb:
     )
     _sb_cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
     if _sb_zip:    _sb_cg_qp.append(f"zip={_sb_zip}")
-    _sb_cg_qp.append(f"distance={min(_sb_radius, 100)}")
+    if _sb_radius and _sb_radius < 500: _sb_cg_qp.append(f"distance={_sb_radius}")
     if _sb_price_min:     _sb_cg_qp.append(f"minPrice={_sb_price_min}")
     if _sb_price_max < 999000: _sb_cg_qp.append(f"maxPrice={_sb_price_max}")
     if _sb_mileage:       _sb_cg_qp.append(f"maxMileage={_sb_mileage}")
-    if _sb_condition == "New":   _sb_cg_qp.append("listingTypes=NEW")
+    if _sb_condition == "New":    _sb_cg_qp.append("listingTypes=NEW")
     elif _sb_condition == "Used": _sb_cg_qp.append("listingTypes=USED")
+    if _sb_color and _sb_color.lower() not in ("any", "other", ""):
+        _sb_cg_qp.append(f"exteriorColor={_sb_color.lower()}")
+    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
+        _sb_cg_qp.append(f"interiorColor={_sb_int_color.lower()}")
     _sb_cg_url = "https://www.cargurus.com/search?" + "&".join(_sb_cg_qp)
     _sb_cm_model = (_sb_make + "-" + _sb_model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
     _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
                  f"makes[]={_sb_make.lower().replace(' ','-')}", f"models[]={_sb_cm_model}"]
     if _sb_zip:    _sb_cm_qp.append(f"zip={_sb_zip}")
-    _sb_cm_qp.append(f"maximum_distance={_sb_radius}")
+    if _sb_radius and _sb_radius < 500: _sb_cm_qp.append(f"maximum_distance={_sb_radius}")
     if _sb_price_min:     _sb_cm_qp.append(f"price_min={_sb_price_min}")
     if _sb_price_max < 999000: _sb_cm_qp.append(f"price_max={_sb_price_max}")
     if _sb_mileage:       _sb_cm_qp.append(f"mileage_max={_sb_mileage}")
+    if _sb_color and _sb_color.lower() not in ("any", "other", ""):
+        _sb_cm_qp.append(f"exterior_color_slugs[]={_sb_color.lower()}")
+    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
+        _sb_cm_qp.append(f"interior_color_slugs[]={_sb_int_color.lower()}")
     _sb_cm_url = "https://www.cars.com/shopping/results/?" + "&".join(_sb_cm_qp)
     from urllib.parse import quote as _sb_quote
     _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
@@ -568,14 +576,16 @@ if _last_result:
     if _at_zip:
         _cg_qp.append(f"zip={_at_zip}")
     if _prefs:
-        if _prefs.radius_miles: _cg_qp.append(f"distance={min(_prefs.radius_miles, 100)}")
+        if _prefs.radius_miles < 500: _cg_qp.append(f"distance={_prefs.radius_miles}")
         if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
-        if _prefs.price_max:    _cg_qp.append(f"maxPrice={_prefs.price_max}")
+        if _prefs.price_max < 999000: _cg_qp.append(f"maxPrice={_prefs.price_max}")
         if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
         if _condition == "New":    _cg_qp.append("listingTypes=NEW")
         elif _condition == "Used": _cg_qp.append("listingTypes=USED")
         if _ext_color and _ext_color.lower() not in ("any", "other", ""):
             _cg_qp.append(f"exteriorColor={_ext_color.lower()}")
+        if _int_color and _int_color.lower() not in ("any", "other", ""):
+            _cg_qp.append(f"interiorColor={_int_color.lower()}")
     _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
     _cm_make  = _make.lower().replace(" ", "-")
     _cm_model = (_make + "-" + _model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
@@ -583,12 +593,14 @@ if _last_result:
     _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
     if _at_zip:          _cm_qp.append(f"zip={_at_zip}")
     if _prefs:
-        if _prefs.radius_miles: _cm_qp.append(f"maximum_distance={_prefs.radius_miles}")
+        if _prefs.radius_miles < 500: _cm_qp.append(f"maximum_distance={_prefs.radius_miles}")
         if _prefs.price_min:    _cm_qp.append(f"price_min={_prefs.price_min}")
-        if _prefs.price_max:    _cm_qp.append(f"price_max={_prefs.price_max}")
+        if _prefs.price_max < 999000: _cm_qp.append(f"price_max={_prefs.price_max}")
         if _prefs.max_mileage:  _cm_qp.append(f"mileage_max={_prefs.max_mileage}")
         if _ext_color and _ext_color.lower() not in ("any", "other", ""):
             _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
+        if _int_color and _int_color.lower() not in ("any", "other", ""):
+            _cm_qp.append(f"interior_color_slugs[]={_int_color.lower()}")
     _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
     from urllib.parse import quote as _url_quote
     _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"

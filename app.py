@@ -106,7 +106,7 @@ div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 """, unsafe_allow_html=True)
 
 with st.form("nl_form", clear_on_submit=False):
-    _nl_col, _btn_col = st.columns([5, 1])
+    _nl_col, _build_col, _btn_col = st.columns([5, 1.3, 1])
     with _nl_col:
         _nl_query = st.text_input(
             "nl",
@@ -114,6 +114,8 @@ with st.form("nl_form", clear_on_submit=False):
             label_visibility="collapsed",
             key="nl_query_input",
         )
+    with _build_col:
+        _build_btn = st.form_submit_button("🗺️ Build Search", use_container_width=True)
     with _btn_col:
         _nl_btn = st.form_submit_button("🔍 Find Cars", use_container_width=True)
 
@@ -123,6 +125,41 @@ if "nl_parse_msg" in st.session_state:
         st.success(_msg_text)
     else:
         st.warning(_msg_text)
+
+if _build_btn:
+    if _nl_query.strip():
+        with st.spinner("Understanding your request..."):
+            from agents.nl_parser import parse_query as _parse_query
+            _parsed, _parse_err = _parse_query(_nl_query.strip())
+        if _parse_err:
+            st.error(f"Could not parse your request: {_parse_err}")
+        else:
+            st.session_state["_search_builder"] = {
+                "make":       _parsed.get("make", ""),
+                "model":      _parsed.get("model", ""),
+                "condition":  _parsed.get("condition", "Any"),
+                "location":   _parsed.get("location", ""),
+                "price_min":  int(_parsed["price_min"]) if _parsed.get("price_min") else 0,
+                "price_max":  int(_parsed["price_max"]) if _parsed.get("price_max") else 999000,
+                "max_mileage": int(_parsed["max_mileage"]) if _parsed.get("max_mileage") else None,
+                "exterior_color": _parsed.get("exterior_color"),
+                "radius_miles": int(_parsed.get("radius_miles", 50)),
+            }
+            st.rerun()
+    else:
+        # Use current sidebar values
+        st.session_state["_search_builder"] = {
+            "make": st.session_state.get("p_make", ""),
+            "model": st.session_state.get("p_model", ""),
+            "condition": st.session_state.get("p_condition", "Any"),
+            "location": st.session_state.get("p_location", ""),
+            "price_min": st.session_state.get("p_price_min", 0),
+            "price_max": st.session_state.get("p_price_max", 999000),
+            "max_mileage": st.session_state.get("p_max_mileage"),
+            "exterior_color": st.session_state.get("p_exterior_color"),
+            "radius_miles": st.session_state.get("p_radius_miles", 50),
+        }
+        st.rerun()
 
 if _nl_btn:
     if _nl_query.strip():
@@ -180,6 +217,93 @@ if _nl_btn:
         st.warning("Please type something first.")
 
 st.divider()
+
+# ── Build Search card (shown when user clicks "Build Search") ───────────────
+_sb = st.session_state.get("_search_builder")
+if _sb:
+    import re as _re2
+    _sb_make      = _sb.get("make", "")
+    _sb_model     = _sb.get("model", "")
+    _sb_condition = _sb.get("condition", "Any")
+    _sb_location  = _sb.get("location", "")
+    _sb_price_min = _sb.get("price_min", 0)
+    _sb_price_max = _sb.get("price_max", 999000)
+    _sb_mileage   = _sb.get("max_mileage")
+    _sb_color     = _sb.get("exterior_color") or ""
+    _sb_radius    = _sb.get("radius_miles", 50)
+
+    _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
+    _sb_zip_m     = _re2.search(r"\b(\d{5})\b", _sb_location)
+    _sb_zip       = _sb_zip_m.group(1) if _sb_zip_m else ""
+    _sb_color_seg = (_sb_color.lower().replace(" ", "-") + "/") if _sb_color and _sb_color.lower() not in ("any", "other", "") else ""
+    _sb_at_qp     = []
+    if _sb_zip:           _sb_at_qp.append(f"zip={_sb_zip}")
+    if _sb_price_min:     _sb_at_qp.append(f"startPrice={_sb_price_min}")
+    if _sb_price_max < 999000: _sb_at_qp.append(f"endPrice={_sb_price_max}")
+    if _sb_mileage:       _sb_at_qp.append(f"maxMileage={_sb_mileage}")
+    _sb_at_url = (
+        f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_color_seg}"
+        f"{_sb_make.lower().replace(' ','-')}/{_sb_model.lower().replace(' ','-').replace('/.','-')}"
+        + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
+    )
+    _sb_cg_qp = ["sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
+    if _sb_zip:    _sb_cg_qp.append(f"zip={_sb_zip}")
+    _sb_cg_qp.append(f"distance={min(_sb_radius, 100)}")
+    if _sb_price_min:     _sb_cg_qp.append(f"minPrice={_sb_price_min}")
+    if _sb_price_max < 999000: _sb_cg_qp.append(f"maxPrice={_sb_price_max}")
+    if _sb_mileage:       _sb_cg_qp.append(f"maxMileage={_sb_mileage}")
+    if _sb_condition == "New":   _sb_cg_qp.append("listingTypes=NEW")
+    elif _sb_condition == "Used": _sb_cg_qp.append("listingTypes=USED")
+    _sb_cg_url = "https://www.cargurus.com/search?" + "&".join(_sb_cg_qp)
+    _sb_cm_model = (_sb_make + "-" + _sb_model).lower().replace(" ", "-").replace("/", "-").replace(".", "")
+    _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
+                 f"makes[]={_sb_make.lower().replace(' ','-')}", f"models[]={_sb_cm_model}"]
+    if _sb_zip:    _sb_cm_qp.append(f"zip={_sb_zip}")
+    _sb_cm_qp.append(f"maximum_distance={_sb_radius}")
+    if _sb_price_min:     _sb_cm_qp.append(f"price_min={_sb_price_min}")
+    if _sb_price_max < 999000: _sb_cm_qp.append(f"price_max={_sb_price_max}")
+    if _sb_mileage:       _sb_cm_qp.append(f"mileage_max={_sb_mileage}")
+    _sb_cm_url = "https://www.cars.com/shopping/results/?" + "&".join(_sb_cm_qp)
+    from urllib.parse import quote as _sb_quote
+    _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
+
+    def _hurl_sb(u): return u.replace("&", "&amp;")
+    _sb_pill = f"{_sb_make} {_sb_model}".strip() or "Any"
+    _sb_pill += f" &nbsp;·&nbsp; {_sb_condition}"
+    if _sb_location: _sb_pill += f" &nbsp;·&nbsp; near {_sb_location}"
+    if _sb_price_max < 999000: _sb_pill += f" &nbsp;·&nbsp; up to ${_sb_price_max:,}"
+    if _sb_mileage and _sb_mileage < 500000: _sb_pill += f" &nbsp;·&nbsp; max {_sb_mileage:,} mi"
+
+    import streamlit.components.v1 as _stc_sb
+    _stc_sb.html(f"""
+<div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
+            border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:4px 0 16px">
+  <div style="font-size:16px;font-weight:700;color:#f0f4ff;margin-bottom:10px">
+    🗺️ &nbsp;Your search — ready to go on any platform
+  </div>
+  <div style="display:inline-block;font-size:12px;color:#e0f0ff;font-weight:600;
+              border:1px solid #3b82f6;border-radius:6px;
+              padding:5px 12px;margin-bottom:16px;background:rgba(59,130,246,0.15)">
+    {_sb_pill}
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <a href="{_hurl_sb(_sb_at_url)}" target="_blank"
+       style="background:#2563eb;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
+    <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
+       style="background:#16a34a;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank"
+       style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
+    <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
+       style="background:#d97706;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
+  </div>
+</div>""", height=170)
+    if st.button("✕ Clear", key="clear_search_builder"):
+        del st.session_state["_search_builder"]
+        st.rerun()
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
@@ -417,7 +541,7 @@ if _last_result:
         def _hurl_z(u): return u.replace("&", "&amp;")
         _stc_z.html(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
-            border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:16px 0">
+            border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:4px 0">
   <div style="font-size:16px;font-weight:700;color:#f0f4ff;margin-bottom:6px">
     🔍 &nbsp;Continue your search — filters already applied
   </div>

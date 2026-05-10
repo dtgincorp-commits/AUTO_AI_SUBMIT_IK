@@ -170,23 +170,25 @@ if _build_btn:
                 "location":      st.session_state["p_location"],
                 "price_min":     st.session_state["p_price_min"],
                 "price_max":     st.session_state["p_price_max"],
-                "max_mileage":   st.session_state["p_max_mileage"] if st.session_state["p_max_mileage"] < 500000 else None,
+                "max_mileage":    st.session_state["p_max_mileage"] if st.session_state["p_max_mileage"] < 500000 else None,
                 "exterior_color": st.session_state["p_exterior_color"],
-                "radius_miles":  st.session_state["p_radius_miles"],
+                "interior_color": st.session_state["p_interior_color"],
+                "radius_miles":   st.session_state["p_radius_miles"],
             }
             st.rerun()
     else:
         # No NL query — build from current sidebar values as-is
         st.session_state["_search_builder"] = {
-            "make":          st.session_state.get("p_make", ""),
-            "model":         st.session_state.get("p_model", ""),
-            "condition":     st.session_state.get("p_condition", "Any"),
-            "location":      st.session_state.get("p_location", ""),
-            "price_min":     st.session_state.get("p_price_min", 0),
-            "price_max":     st.session_state.get("p_price_max", 999000),
-            "max_mileage":   st.session_state.get("p_max_mileage"),
+            "make":           st.session_state.get("p_make", ""),
+            "model":          st.session_state.get("p_model", ""),
+            "condition":      st.session_state.get("p_condition", "Any"),
+            "location":       st.session_state.get("p_location", ""),
+            "price_min":      st.session_state.get("p_price_min", 0),
+            "price_max":      st.session_state.get("p_price_max", 999000),
+            "max_mileage":    st.session_state.get("p_max_mileage"),
             "exterior_color": st.session_state.get("p_exterior_color"),
-            "radius_miles":  st.session_state.get("p_radius_miles", 50),
+            "interior_color": st.session_state.get("p_interior_color"),
+            "radius_miles":   st.session_state.get("p_radius_miles", 50),
         }
         st.rerun()
 
@@ -259,6 +261,7 @@ if _sb:
     _sb_price_max = _sb.get("price_max", 999000)
     _sb_mileage   = _sb.get("max_mileage")
     _sb_color     = _sb.get("exterior_color") or ""
+    _sb_int_color = _sb.get("interior_color") or ""
     _sb_radius    = _sb.get("radius_miles", 50)
 
     _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
@@ -299,9 +302,14 @@ if _sb:
     def _hurl_sb(u): return u.replace("&", "&amp;")
     _sb_pill = f"{_sb_make} {_sb_model}".strip() or "Any"
     _sb_pill += f" &nbsp;·&nbsp; {_sb_condition}"
-    if _sb_location: _sb_pill += f" &nbsp;·&nbsp; near {_sb_location}"
+    if _sb_location:  _sb_pill += f" &nbsp;·&nbsp; near {_sb_location}"
+    if _sb_radius != 50: _sb_pill += f" &nbsp;·&nbsp; {_sb_radius} mi radius"
     if _sb_price_max < 999000: _sb_pill += f" &nbsp;·&nbsp; up to ${_sb_price_max:,}"
     if _sb_mileage and _sb_mileage < 500000: _sb_pill += f" &nbsp;·&nbsp; max {_sb_mileage:,} mi"
+    if _sb_color and _sb_color.lower() not in ("any", "other", ""):
+        _sb_pill += f" &nbsp;·&nbsp; {_sb_color} ext"
+    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
+        _sb_pill += f" &nbsp;·&nbsp; {_sb_int_color} int"
 
     import streamlit.components.v1 as _stc_sb
     _stc_sb.html(f"""
@@ -329,7 +337,7 @@ if _sb:
        style="background:#d97706;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
   </div>
-</div>""", height=170)
+</div>""", height=185)
     if st.button("✕ Clear", key="clear_search_builder"):
         del st.session_state["_search_builder"]
         st.rerun()
@@ -578,8 +586,11 @@ if _last_result:
               border:1px solid #3b82f6;border-radius:6px;
               padding:5px 12px;margin-bottom:16px;background:rgba(59,130,246,0.15)">
     {_make} {_model} &nbsp;·&nbsp; {_condition} &nbsp;·&nbsp; near {_location}
+    {"&nbsp;·&nbsp; " + str(_prefs.radius_miles) + " mi radius" if _prefs and _prefs.radius_miles != 50 else ""}
     {"&nbsp;·&nbsp; up to $" + f"{_prefs.price_max:,}" if _prefs and _prefs.price_max < 999000 else ""}
     {"&nbsp;·&nbsp; max " + f"{_prefs.max_mileage:,} mi" if _prefs and _prefs.max_mileage and _prefs.max_mileage < 500000 else ""}
+    {"&nbsp;·&nbsp; " + _prefs.exterior_color + " ext" if _prefs and _prefs.exterior_color and _prefs.exterior_color.lower() not in ("any","other") else ""}
+    {"&nbsp;·&nbsp; " + _prefs.interior_color + " int" if _prefs and _prefs.interior_color and _prefs.interior_color.lower() not in ("any","other") else ""}
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:10px">
     <a href="{_hurl_z(_autotrader_url)}" target="_blank"
@@ -603,7 +614,7 @@ if _last_result:
       🌐 &nbsp;Google
     </a>
   </div>
-</div>""", height=170)
+</div>""", height=185)
 
         if source_errors:
             with st.expander("Source Status — click to see why"):

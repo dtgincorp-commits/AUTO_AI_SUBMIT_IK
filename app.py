@@ -188,33 +188,11 @@ if _build_btn:
                 st.session_state["p_location"]    = _parsed["location"]
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"] = _snap_radius(int(_parsed["radius_miles"]))
-            st.session_state["_search_builder"] = {
-                "make":          st.session_state["p_make"],
-                "model":         st.session_state["p_model"],
-                "condition":     st.session_state["p_condition"],
-                "location":      st.session_state["p_location"],
-                "price_min":     st.session_state["p_price_min"],
-                "price_max":     st.session_state["p_price_max"],
-                "max_mileage":    st.session_state["p_max_mileage"] if st.session_state["p_max_mileage"] < 500000 else None,
-                "exterior_color": st.session_state["p_exterior_color"],
-                "interior_color": st.session_state["p_interior_color"],
-                "radius_miles":   st.session_state["p_radius_miles"],
-            }
+            st.session_state["_search_builder"] = True
             st.rerun()
     else:
-        # No NL query — build from current sidebar values as-is
-        st.session_state["_search_builder"] = {
-            "make":           st.session_state.get("p_make", ""),
-            "model":          st.session_state.get("p_model", ""),
-            "condition":      st.session_state.get("p_condition", "Any"),
-            "location":       st.session_state.get("p_location", ""),
-            "price_min":      st.session_state.get("p_price_min", 0),
-            "price_max":      st.session_state.get("p_price_max", 999000),
-            "max_mileage":    st.session_state.get("p_max_mileage"),
-            "exterior_color": st.session_state.get("p_exterior_color"),
-            "interior_color": st.session_state.get("p_interior_color"),
-            "radius_miles":   st.session_state.get("p_radius_miles", 50),
-        }
+        # No NL query — just show the card using current sidebar values
+        st.session_state["_search_builder"] = True
         st.rerun()
 
 if _nl_btn:
@@ -275,19 +253,21 @@ if _nl_btn:
 st.divider()
 
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
-_sb = st.session_state.get("_search_builder")
-if _sb:
+# Always reads live from sidebar session state so any sidebar change
+# immediately reflects in the card without re-clicking Build Search.
+if st.session_state.get("_search_builder"):
     import re as _re2
-    _sb_make      = _sb.get("make", "")
-    _sb_model     = _sb.get("model", "")
-    _sb_condition = _sb.get("condition", "Any")
-    _sb_location  = _sb.get("location", "")
-    _sb_price_min = _sb.get("price_min", 0)
-    _sb_price_max = _sb.get("price_max", 999000)
-    _sb_mileage   = _sb.get("max_mileage")
-    _sb_color     = _sb.get("exterior_color") or ""
-    _sb_int_color = _sb.get("interior_color") or ""
-    _sb_radius    = _sb.get("radius_miles", 50)
+    _sb_make      = st.session_state.get("p_make", "")
+    _sb_model     = st.session_state.get("p_model", "")
+    _sb_condition = st.session_state.get("p_condition", "Any")
+    _sb_location  = st.session_state.get("p_location", "")
+    _sb_price_min = st.session_state.get("p_price_min", 0)
+    _sb_price_max = st.session_state.get("p_price_max", 999000)
+    _sb_mileage   = st.session_state.get("p_max_mileage")
+    if _sb_mileage and _sb_mileage >= 500000: _sb_mileage = None
+    _sb_color     = st.session_state.get("p_exterior_color") or ""
+    _sb_int_color = st.session_state.get("p_interior_color") or ""
+    _sb_radius    = st.session_state.get("p_radius_miles", 50)
 
     _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
     _sb_zip_m     = _re2.search(r"\b(\d{5})\b", _sb_location)

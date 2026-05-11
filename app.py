@@ -377,48 +377,78 @@ if st.session_state.get("_search_builder"):
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_pill += f" &nbsp;·&nbsp; {_sb_int_color} int"
 
-    def _render_sb_card(compact: bool = False) -> None:
-        pad   = "12px 16px" if compact else "20px 24px"
-        tsz   = "13px"      if compact else "16px"
-        psz   = "11px"      if compact else "12px"
-        bpad  = "6px 12px"  if compact else "9px 20px"
-        bsz   = "12px"      if compact else "14px"
+    # Two-column layout: card left, VIN pin right
+    _sb_left, _sb_right = st.columns(2)
+
+    with _sb_left:
         st.markdown(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
-            border:1px solid #2563eb;border-radius:12px;padding:{pad};margin:4px 0 8px">
-  <div style="font-size:{tsz};font-weight:700;color:#f0f4ff;margin-bottom:8px">
+            border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px">
+  <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:8px">
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>
-  <div style="display:inline-block;font-size:{psz};color:#e0f0ff;font-weight:600;
+  <div style="display:inline-block;font-size:11px;color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;
               padding:4px 10px;margin-bottom:12px;background:rgba(59,130,246,0.15)">
     {_sb_pill}
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:8px">
     <a href="{_hurl_sb(_sb_at_url)}" target="_blank"
-       style="background:#2563eb;color:#fff;padding:{bpad};border-radius:7px;
-              font-size:{bsz};font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
+       style="background:#2563eb;color:#fff;padding:6px 12px;border-radius:7px;
+              font-size:12px;font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
     <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
-       style="background:#16a34a;color:#fff;padding:{bpad};border-radius:7px;
-              font-size:{bsz};font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
-    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google (CarGurus does not support make/model URL deep-links)"
-       style="background:#dc2626;color:#fff;padding:{bpad};border-radius:7px;
-              font-size:{bsz};font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
+       style="background:#16a34a;color:#fff;padding:6px 12px;border-radius:7px;
+              font-size:12px;font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google"
+       style="background:#dc2626;color:#fff;padding:6px 12px;border-radius:7px;
+              font-size:12px;font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
-       style="background:#d97706;color:#fff;padding:{bpad};border-radius:7px;
-              font-size:{bsz};font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
+       style="background:#d97706;color:#fff;padding:6px 12px;border-radius:7px;
+              font-size:12px;font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
   </div>
 </div>""", unsafe_allow_html=True)
-
-    # Always render as two columns: compact card left, VIN widget right.
-    _sb_left, _sb_right = st.columns([1, 1], vertical_alignment="top")
-    with _sb_left:
-        _render_sb_card(compact=True)
         if st.button("✕ Clear", key="clear_search_builder"):
             del st.session_state["_search_builder"]
             st.rerun()
+
     with _sb_right:
-        _render_vin_widget(_last_meta.get("prefs"), key_prefix="sb_")
+        st.markdown("**📌 Pin a car by VIN**")
+        st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
+        _sb_vin_val = st.text_input(
+            "VIN", placeholder="e.g. 5UX13EU03T9384714",
+            label_visibility="collapsed", key="sb_vin_lookup_input",
+        )
+        _sb_vin_btn = st.button("Look Up VIN", key="sb_vin_lookup_btn", use_container_width=True)
+        if _sb_vin_btn and _sb_vin_val:
+            _sb_prefs = _last_meta.get("prefs")
+            if not _sb_prefs:
+                st.warning("Run a search first so VIN results can be scored.")
+            else:
+                with st.spinner("Decoding VIN..."):
+                    from agents.search_agent import lookup_vin_listing
+                    from agents.ranking_agent import run_ranking_agent as _rank_sb
+                    _sb_listing, _sb_err = lookup_vin_listing(_sb_vin_val.strip(), _sb_prefs)
+                if _sb_err:
+                    st.error(_sb_err)
+                else:
+                    _sb_scored = _rank_sb(_sb_prefs, [_sb_listing])
+                    _sb_listing = _sb_scored[0] if _sb_scored else _sb_listing
+                    _sb_added = st.session_state.setdefault("vin_added_listings", [])
+                    if not any(l.vin == _sb_listing.vin for l in _sb_added):
+                        _sb_added.append(_sb_listing)
+                        st.success(f"Added: **{_sb_listing.title}**")
+                        st.rerun()
+                    else:
+                        st.info("This VIN is already pinned.")
+        _sb_pinned = st.session_state.get("vin_added_listings", [])
+        if _sb_pinned:
+            st.markdown(f"**{len(_sb_pinned)} pinned:**")
+            for _av in _sb_pinned:
+                _pstr = f"${_av.asking_price:,}" if _av.asking_price else "N/A"
+                st.markdown(f"• **{_av.title}** — {_pstr} &nbsp;`{_av.vin}`", unsafe_allow_html=True)
+                if st.button("✕", key=f"sb_rm_{_av.vin}"):
+                    st.session_state["vin_added_listings"] = [l for l in _sb_pinned if l.vin != _av.vin]
+                    st.rerun()
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:

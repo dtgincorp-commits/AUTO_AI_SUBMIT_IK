@@ -290,20 +290,12 @@ if st.session_state.get("_search_builder"):
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    _sb_cg_q = _sb_qp(f"{_sb_make} {_sb_model}".strip())
-    _sb_cg_qp = [f"q={_sb_cg_q}", "sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
-    if _sb_zip:    _sb_cg_qp.append(f"zip={_sb_zip}")
-    if _sb_radius and _sb_radius < 500: _sb_cg_qp.append(f"distance={_sb_radius}")
-    if _sb_price_min:     _sb_cg_qp.append(f"minPrice={_sb_price_min}")
-    if _sb_price_max < 999000: _sb_cg_qp.append(f"maxPrice={_sb_price_max}")
-    if _sb_mileage:       _sb_cg_qp.append(f"maxMileage={_sb_mileage}")
-    if _sb_condition == "New":    _sb_cg_qp.append("listingTypes=NEW")
-    elif _sb_condition == "Used": _sb_cg_qp.append("listingTypes=USED")
-    if _sb_color and _sb_color.lower() not in ("any", "other", ""):
-        _sb_cg_qp.append(f"exteriorColor={_sb_color.lower()}")
-    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
-        _sb_cg_qp.append(f"interiorColor={_sb_int_color.lower()}")
-    _sb_cg_url = "https://www.cargurus.com/search?" + "&".join(_sb_cg_qp)
+    # CarGurus /search ignores q= for make/model; use Google site search instead
+    _sb_cg_parts = [f"{_sb_make} {_sb_model}".strip(), "for sale"]
+    if _sb_location: _sb_cg_parts.append(f"near {_sb_location}")
+    if _sb_price_max < 999000: _sb_cg_parts.append(f"under ${_sb_price_max:,}")
+    if _sb_condition and _sb_condition != "Any": _sb_cg_parts.insert(0, _sb_condition)
+    _sb_cg_url = "https://www.google.com/search?q=" + _sb_quote("site:cargurus.com " + " ".join(_sb_cg_parts))
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
@@ -351,7 +343,7 @@ if st.session_state.get("_search_builder"):
     <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
        style="background:#16a34a;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
-    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank"
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google (direct CarGurus URL doesn't support make/model filters)"
        style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
@@ -575,25 +567,14 @@ if _last_result:
         f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/{_at_model_slug}/{_at_loc_seg}"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
     )
-    # CarGurus: /search requires internal entity IDs for make/model (not public).
-    # Best workaround: prepend make+model as a text search query param.
-    from urllib.parse import quote_plus as _qp
-    _cg_q = _qp(f"{_make} {_model}".strip())
-    _cg_qp = [f"q={_cg_q}", "sortType=PRICE", "sortDirection=ASC", "srpVariation=DEFAULT_SEARCH"]
-    if _at_zip:
-        _cg_qp.append(f"zip={_at_zip}")
-    if _prefs:
-        if _prefs.radius_miles < 500: _cg_qp.append(f"distance={_prefs.radius_miles}")
-        if _prefs.price_min:    _cg_qp.append(f"minPrice={_prefs.price_min}")
-        if _prefs.price_max < 999000: _cg_qp.append(f"maxPrice={_prefs.price_max}")
-        if _prefs.max_mileage:  _cg_qp.append(f"maxMileage={_prefs.max_mileage}")
-        if _condition == "New":    _cg_qp.append("listingTypes=NEW")
-        elif _condition == "Used": _cg_qp.append("listingTypes=USED")
-        if _ext_color and _ext_color.lower() not in ("any", "other", ""):
-            _cg_qp.append(f"exteriorColor={_ext_color.lower()}")
-        if _int_color and _int_color.lower() not in ("any", "other", ""):
-            _cg_qp.append(f"interiorColor={_int_color.lower()}")
-    _cargurus_url = "https://www.cargurus.com/search?" + "&".join(_cg_qp)
+    # CarGurus /search ignores text params for make/model (requires internal entity IDs).
+    # Use Google site:cargurus.com search — returns real CarGurus listings filtered by make/model.
+    from urllib.parse import quote_plus as _qp, quote as _cg_quote
+    _cg_parts = [f"{_make} {_model}".strip(), "for sale"]
+    if _location: _cg_parts.append(f"near {_location}")
+    if _prefs and _prefs.price_max < 999000: _cg_parts.append(f"under ${_prefs.price_max:,}")
+    if _condition and _condition != "Any": _cg_parts.insert(0, _condition)
+    _cargurus_url = "https://www.google.com/search?q=" + _cg_quote("site:cargurus.com " + " ".join(_cg_parts))
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")
     _cm_model = (_make + "_" + _model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
@@ -647,7 +628,7 @@ if _last_result:
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🚙 &nbsp;Cars.com
     </a>
-    <a href="{_hurl_z(_cargurus_url)}" target="_blank"
+    <a href="{_hurl_z(_cargurus_url)}" target="_blank" title="Searches CarGurus listings via Google (CarGurus URL requires internal IDs)"
        style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🚗 &nbsp;CarGurus

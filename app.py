@@ -20,6 +20,49 @@ except Exception:
 from agents.models import CarPreferences
 from agents.orchestrator import run_pipeline
 
+# CarGurus make entity IDs — verified by probing /search?makeModelTrimPaths=m{id}
+# Unknown makes fall back to Google site:cargurus.com search
+_CG_MAKE_IDS = {
+    "chevrolet": 1, "ford": 2, "bmw": 3, "acura": 4, "honda": 6,
+    "toyota": 7, "nissan": 12, "aston martin": 18, "audi": 19,
+    "bentley": 20, "buick": 21, "cadillac": 22, "chrysler": 23,
+    "dodge": 24, "ferrari": 25, "gmc": 26, "hummer": 27, "hyundai": 28,
+    "infiniti": 84, "infinity": 84, "isuzu": 30, "jaguar": 31, "jeep": 32,
+    "kia": 33, "lamborghini": 34, "land rover": 35, "lexus": 37,
+    "lincoln": 38, "lotus": 39, "maserati": 40, "maybach": 41,
+    "mazda": 42, "mercedes-benz": 43, "mercedes": 43, "mercury": 44,
+    "mini": 45, "mitsubishi": 46, "pontiac": 47, "porsche": 48,
+    "rolls-royce": 49, "rolls royce": 49, "saab": 50, "saturn": 51,
+    "scion": 52, "subaru": 53, "suzuki": 54, "volkswagen": 55, "vw": 55,
+    "volvo": 56, "alfa romeo": 94, "alfa": 94, "fiat": 98,
+}
+
+def _cg_url(make: str, zip_code: str, radius: int, price_min: int,
+            price_max: int, mileage: int, condition: str,
+            ext_color: str, int_color: str, quote_fn) -> str:
+    make_id = _CG_MAKE_IDS.get(make.lower().strip())
+    if make_id:
+        qp = ["srpVariation=DEFAULT_SEARCH", "sortType=PRICE", "sortDirection=ASC"]
+        if zip_code:      qp.append(f"zip={zip_code}")
+        if radius and radius < 500: qp.append(f"distance={radius}")
+        if price_min:     qp.append(f"minPrice={price_min}")
+        if price_max < 999000: qp.append(f"maxPrice={price_max}")
+        if mileage:       qp.append(f"maxMileage={mileage}")
+        if condition == "New":    qp.append("listingTypes=NEW")
+        elif condition == "Used": qp.append("listingTypes=USED")
+        if ext_color and ext_color.lower() not in ("any", "other", ""):
+            qp.append(f"exteriorColor={ext_color.lower()}")
+        if int_color and int_color.lower() not in ("any", "other", ""):
+            qp.append(f"interiorColor={int_color.lower()}")
+        qp.append(f"makeModelTrimPaths=m{make_id}")
+        return "https://www.cargurus.com/search?" + "&".join(qp)
+    # Fallback: Google site search scoped to cargurus.com
+    parts = [make, "for sale"]
+    if zip_code: parts.append(f"near {zip_code}")
+    if price_max < 999000: parts.append(f"under ${price_max:,}")
+    if condition and condition != "Any": parts.insert(0, condition)
+    return "https://www.google.com/search?q=" + quote_fn("site:cargurus.com " + " ".join(parts))
+
 st.set_page_config(
     page_title="AUTO AI - Car Discovery",
     page_icon="🚗",
@@ -290,12 +333,11 @@ if st.session_state.get("_search_builder"):
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    # CarGurus /search ignores q= for make/model; use Google site search instead
-    _sb_cg_parts = [f"{_sb_make} {_sb_model}".strip(), "for sale"]
-    if _sb_location: _sb_cg_parts.append(f"near {_sb_location}")
-    if _sb_price_max < 999000: _sb_cg_parts.append(f"under ${_sb_price_max:,}")
-    if _sb_condition and _sb_condition != "Any": _sb_cg_parts.insert(0, _sb_condition)
-    _sb_cg_url = "https://www.google.com/search?q=" + _sb_quote("site:cargurus.com " + " ".join(_sb_cg_parts))
+    _sb_cg_url = _cg_url(
+        _sb_make, _sb_zip, _sb_radius,
+        _sb_price_min, _sb_price_max, _sb_mileage,
+        _sb_condition, _sb_color, _sb_int_color, _sb_quote,
+    )
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
@@ -567,14 +609,15 @@ if _last_result:
         f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/{_at_model_slug}/{_at_loc_seg}"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
     )
-    # CarGurus /search ignores text params for make/model (requires internal entity IDs).
-    # Use Google site:cargurus.com search — returns real CarGurus listings filtered by make/model.
     from urllib.parse import quote_plus as _qp, quote as _cg_quote
-    _cg_parts = [f"{_make} {_model}".strip(), "for sale"]
-    if _location: _cg_parts.append(f"near {_location}")
-    if _prefs and _prefs.price_max < 999000: _cg_parts.append(f"under ${_prefs.price_max:,}")
-    if _condition and _condition != "Any": _cg_parts.insert(0, _condition)
-    _cargurus_url = "https://www.google.com/search?q=" + _cg_quote("site:cargurus.com " + " ".join(_cg_parts))
+    _cargurus_url = _cg_url(
+        _make, _at_zip,
+        _prefs.radius_miles if _prefs else 50,
+        _prefs.price_min if _prefs else 0,
+        _prefs.price_max if _prefs else 999999,
+        _prefs.max_mileage if _prefs else 0,
+        _condition, _ext_color, _int_color, _cg_quote,
+    )
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")
     _cm_model = (_make + "_" + _model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")

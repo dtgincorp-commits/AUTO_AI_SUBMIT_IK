@@ -267,6 +267,55 @@ if _nl_btn:
 
 st.divider()
 
+# Read results/meta early so Build Search card can access them
+_last_result = st.session_state.get("_last_result")
+_last_meta   = st.session_state.get("_last_meta", {})
+
+def _render_vin_widget(prefs):
+    with st.container(border=True):
+        st.markdown("**📌 Pin a car by VIN**")
+        st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
+        _vc1, _vc2 = st.columns([3, 1])
+        with _vc1:
+            _vin_input = st.text_input(
+                "VIN", placeholder="e.g. 5UX13EU03T9384714",
+                label_visibility="collapsed", key="vin_lookup_input",
+            )
+        with _vc2:
+            _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
+        if _vin_btn and _vin_input:
+            if not prefs:
+                st.warning("Run a search first so VIN results can be scored.")
+            else:
+                with st.spinner("Decoding VIN..."):
+                    from agents.search_agent import lookup_vin_listing
+                    from agents.ranking_agent import run_ranking_agent as _rank
+                    _vin_listing, _vin_err = lookup_vin_listing(_vin_input.strip(), prefs)
+                if _vin_err:
+                    st.error(_vin_err)
+                else:
+                    _vin_scored = _rank(prefs, [_vin_listing])
+                    _vin_listing = _vin_scored[0] if _vin_scored else _vin_listing
+                    _added = st.session_state.setdefault("vin_added_listings", [])
+                    if not any(l.vin == _vin_listing.vin for l in _added):
+                        _added.append(_vin_listing)
+                        st.success(f"Added: **{_vin_listing.title}** — shown at the top of results.")
+                        st.rerun()
+                    else:
+                        st.info("This VIN is already in your results.")
+        _added_list = st.session_state.get("vin_added_listings", [])
+        if _added_list:
+            st.markdown(f"**{len(_added_list)} car(s) added:**")
+            for _av in _added_list:
+                _av_col1, _av_col2 = st.columns([4, 1])
+                with _av_col1:
+                    _price_str = f"${_av.asking_price:,}" if _av.asking_price else "Price not in auto.dev"
+                    st.markdown(f"• **{_av.title}** &nbsp; {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
+                with _av_col2:
+                    if st.button("✕", key=f"rm_vin_{_av.vin}", help="Remove"):
+                        st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
+                        st.rerun()
+
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
 # Always reads live from sidebar session state so any sidebar change
 # immediately reflects in the card without re-clicking Build Search.
@@ -371,17 +420,14 @@ if st.session_state.get("_search_builder"):
 </div>""", height=h)
 
     # Always render as two columns: compact card left, VIN widget right.
-    # (When results exist the card also appears next to VIN in the results
-    # section; Streamlit de-duplication is avoided by rendering VIN only here.)
-    if not st.session_state.get("_last_result"):
-        _sb_early_left, _sb_early_right = st.columns([1, 1])
-        with _sb_early_left:
-            _render_sb_card(compact=True)
-            if st.button("✕ Clear", key="clear_search_builder"):
-                del st.session_state["_search_builder"]
-                st.rerun()
-        with _sb_early_right:
-            _render_vin_widget(st.session_state.get("_last_meta", {}).get("prefs"))
+    _sb_left, _sb_right = st.columns([1, 1])
+    with _sb_left:
+        _render_sb_card(compact=True)
+        if st.button("✕ Clear", key="clear_search_builder"):
+            del st.session_state["_search_builder"]
+            st.rerun()
+    with _sb_right:
+        _render_vin_widget(_last_meta.get("prefs"))
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
@@ -540,54 +586,6 @@ if find_btn or _nl_auto_run:
     st.rerun()
 
 # ── Results display ─────────────────────────────────────────────────────────
-_last_result = st.session_state.get("_last_result")
-_last_meta   = st.session_state.get("_last_meta", {})
-
-def _render_vin_widget(prefs):
-    with st.container(border=True):
-        st.markdown("**📌 Pin a car by VIN**")
-        st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
-        _vc1, _vc2 = st.columns([3, 1])
-        with _vc1:
-            _vin_input = st.text_input(
-                "VIN", placeholder="e.g. 5UX13EU03T9384714",
-                label_visibility="collapsed", key="vin_lookup_input",
-            )
-        with _vc2:
-            _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
-        if _vin_btn and _vin_input:
-            if not prefs:
-                st.warning("Run a search first so VIN results can be scored.")
-            else:
-                with st.spinner("Decoding VIN..."):
-                    from agents.search_agent import lookup_vin_listing
-                    from agents.ranking_agent import run_ranking_agent as _rank
-                    _vin_listing, _vin_err = lookup_vin_listing(_vin_input.strip(), prefs)
-                if _vin_err:
-                    st.error(_vin_err)
-                else:
-                    _vin_scored = _rank(prefs, [_vin_listing])
-                    _vin_listing = _vin_scored[0] if _vin_scored else _vin_listing
-                    _added = st.session_state.setdefault("vin_added_listings", [])
-                    if not any(l.vin == _vin_listing.vin for l in _added):
-                        _added.append(_vin_listing)
-                        st.success(f"Added: **{_vin_listing.title}** — shown at the top of results.")
-                        st.rerun()
-                    else:
-                        st.info("This VIN is already in your results.")
-        _added_list = st.session_state.get("vin_added_listings", [])
-        if _added_list:
-            st.markdown(f"**{len(_added_list)} car(s) added:**")
-            for _av in _added_list:
-                _av_col1, _av_col2 = st.columns([4, 1])
-                with _av_col1:
-                    _price_str = f"${_av.asking_price:,}" if _av.asking_price else "Price not in auto.dev"
-                    st.markdown(f"• **{_av.title}** &nbsp; {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
-                with _av_col2:
-                    if st.button("✕", key=f"rm_vin_{_av.vin}", help="Remove"):
-                        st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
-                        st.rerun()
-
 if _last_result:
     listings         = _last_result["listings"]
     delivery         = _last_result.get("delivery", {})

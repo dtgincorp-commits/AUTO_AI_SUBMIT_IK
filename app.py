@@ -271,15 +271,15 @@ st.divider()
 _last_result = st.session_state.get("_last_result")
 _last_meta   = st.session_state.get("_last_meta", {})
 
-def _render_vin_widget(prefs):
+def _render_vin_widget(prefs, key_prefix=""):
     with st.container(border=True):
         st.markdown("**📌 Pin a car by VIN**")
         st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
         _vin_input = st.text_input(
             "VIN", placeholder="e.g. 5UX13EU03T9384714",
-            label_visibility="collapsed", key="vin_lookup_input",
+            label_visibility="collapsed", key=f"{key_prefix}vin_lookup_input",
         )
-        _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
+        _vin_btn = st.button("Look Up", key=f"{key_prefix}vin_lookup_btn", use_container_width=True)
         if _vin_btn and _vin_input:
             if not prefs:
                 st.warning("Run a search first so VIN results can be scored.")
@@ -306,7 +306,7 @@ def _render_vin_widget(prefs):
             for _av in _added_list:
                 _price_str = f"${_av.asking_price:,}" if _av.asking_price else "N/A"
                 st.markdown(f"• **{_av.title}** — {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
-                if st.button("✕ Remove", key=f"rm_vin_{_av.vin}"):
+                if st.button("✕ Remove", key=f"{key_prefix}rm_vin_{_av.vin}"):
                     st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
                     st.rerun()
 
@@ -411,14 +411,14 @@ if st.session_state.get("_search_builder"):
 </div>""", unsafe_allow_html=True)
 
     # Always render as two columns: compact card left, VIN widget right.
-    _sb_left, _sb_right = st.columns([1, 1])
+    _sb_left, _sb_right = st.columns([1, 1], vertical_alignment="top")
     with _sb_left:
         _render_sb_card(compact=True)
         if st.button("✕ Clear", key="clear_search_builder"):
             del st.session_state["_search_builder"]
             st.rerun()
     with _sb_right:
-        _render_vin_widget(_last_meta.get("prefs"))
+        _render_vin_widget(_last_meta.get("prefs"), key_prefix="sb_")
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:

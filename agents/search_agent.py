@@ -856,43 +856,55 @@ def fetch_autodev_live(vin: str) -> dict:
 # Photo crop — remove solid-color dealer banners from listing photos
 # ---------------------------------------------------------------------------
 
-def crop_dealer_overlay(img_bytes: bytes, variance_threshold: int = 28, max_fraction: float = 0.22) -> bytes:
-    """Strip solid-color dealer banners from top/bottom of a car listing photo.
+def crop_dealer_overlay(img_bytes: bytes) -> bytes:
+    """Remove dealer overlay banners from car listing photos.
 
-    Scans inward from each edge; any row whose per-channel stddev is below
-    variance_threshold is considered a solid overlay and removed.  Never
-    removes more than max_fraction of the image height from either edge.
+    Two-pass strategy:
+    1. Always crop the bottom 13% (dealer contact banners live here in virtually
+       every listing photo regardless of color or content).
+    2. Then scan outward from each edge for additional dark or solid-color rows
+       (brightness < 110 OR per-channel stddev < 30) and remove those too,
+       capped at 25% total from either edge.
     """
     import io
-    from PIL import Image, ImageStat
+    from PIL import Image
 
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     w, h = img.size
-    max_px = int(h * max_fraction)
+    gray = img.convert("L")
 
-    def _is_overlay(y: int) -> bool:
-        strip = img.crop((0, y, w, y + 1))
-        return all(s < variance_threshold for s in ImageStat.Stat(strip).stddev)
+    DARK_THRESH   = 110   # rows with mean brightness below this = dark overlay
+    SOLID_THRESH  = 30    # rows with stddev below this = solid-color overlay
+    MIN_BOT_FRAC  = 0.13  # always remove at least the bottom 13%
+    MAX_FRAC      = 0.25  # never remove more than 25% from either edge
 
-    # Scan from bottom up
-    bottom = h
-    for y in range(h - 1, max(h - max_px, 0) - 1, -1):
-        if _is_overlay(y):
+    def _row_stats(y: int):
+        px = list(gray.crop((0, y, w, y + 1)).getdata())
+        mean = sum(px) / len(px)
+        std  = (sum((p - mean) ** 2 for p in px) / len(px)) ** 0.5
+        return mean, std
+
+    # ── Bottom: start from guaranteed minimum, scan further if overlay continues ──
+    bottom = h - int(h * MIN_BOT_FRAC)
+    limit  = h - int(h * MAX_FRAC)
+    for y in range(bottom - 1, limit - 1, -1):
+        mean, std = _row_stats(y)
+        if mean < DARK_THRESH or std < SOLID_THRESH:
             bottom = y
         else:
             break
 
-    # Scan from top down
-    top = 0
-    for y in range(0, min(max_px, h)):
-        if _is_overlay(y):
+    # ── Top: scan down from edge for dark/solid rows ──────────────────────────
+    top   = 0
+    limit = int(h * MAX_FRAC)
+    for y in range(0, limit):
+        mean, std = _row_stats(y)
+        if mean < DARK_THRESH or std < SOLID_THRESH:
             top = y + 1
         else:
             break
 
-    if top > 0 or bottom < h:
-        img = img.crop((0, top, w, bottom))
-
+    img = img.crop((0, top, w, bottom))
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=92)
     return buf.getvalue()

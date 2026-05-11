@@ -296,18 +296,49 @@ def _render_vin_widget(prefs, key_prefix=""):
                     _added = st.session_state.setdefault("vin_added_listings", [])
                     if not any(l.vin == _vin_listing.vin for l in _added):
                         _added.append(_vin_listing)
+                        from agents.search_agent import fetch_vin_details as _fvd2
+                        st.session_state.setdefault("vin_details", {})[_vin_input.strip().upper()] = _fvd2(_vin_input.strip())
                         st.success(f"Added: **{_vin_listing.title}** — shown at the top of results.")
                         st.rerun()
                     else:
                         st.info("This VIN is already in your results.")
         _added_list = st.session_state.get("vin_added_listings", [])
         if _added_list:
-            st.markdown(f"**{len(_added_list)} car(s) added:**")
+            st.markdown(f"**{len(_added_list)} pinned:**")
             for _av in _added_list:
                 _price_str = f"${_av.asking_price:,}" if _av.asking_price else "N/A"
-                st.markdown(f"• **{_av.title}** — {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
+                _det2 = st.session_state.get("vin_details", {}).get(_av.vin, {})
+                with st.expander(f"📌 {_av.title}  —  {_price_str}", expanded=True):
+                    if _det2.get("photo_url"):
+                        st.image(_det2["photo_url"], use_container_width=True)
+                    else:
+                        _gi2 = _det2.get("google_images_url", "")
+                        _bi2 = _det2.get("bing_images_url", "")
+                        if _gi2:
+                            st.markdown(
+                                f"📸 **Photos:** &nbsp;[Google Images]({_gi2}) &nbsp;|&nbsp; [Bing Images]({_bi2})",
+                                unsafe_allow_html=True,
+                            )
+                    _rc1, _rc2 = st.columns(2)
+                    with _rc1:
+                        if _det2.get("year"):      st.markdown(f"**Year:** {_det2['year']}")
+                        if _det2.get("make"):      st.markdown(f"**Make:** {_det2['make']}")
+                        if _det2.get("model"):     st.markdown(f"**Model:** {_det2['model']}")
+                        if _det2.get("trim"):      st.markdown(f"**Trim:** {_det2['trim']}")
+                        if _det2.get("body_type"): st.markdown(f"**Body:** {_det2['body_type']}")
+                    with _rc2:
+                        if _det2.get("engine"):    st.markdown(f"**Engine:** {_det2['engine']}")
+                        if _det2.get("fuel_type"): st.markdown(f"**Fuel:** {_det2['fuel_type']}")
+                        if _det2.get("doors"):     st.markdown(f"**Doors:** {_det2['doors']}")
+                        if _det2.get("mileage"):   st.markdown(f"**Mileage:** {_det2['mileage']:,} mi")
+                        if _det2.get("price"):     st.markdown(f"**Price:** ${_det2['price']:,}")
+                    if _det2.get("features"):
+                        st.markdown("**Features:** " + " · ".join(_det2["features"][:12]))
+                    if _det2.get("listing_url"):
+                        st.markdown(f"[🔗 Search on AutoTrader by VIN]({_det2['listing_url']})")
                 if st.button("✕ Remove", key=f"{key_prefix}rm_vin_{_av.vin}"):
                     st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
+                    st.session_state.get("vin_details", {}).pop(_av.vin, None)
                     st.rerun()
 
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
@@ -451,6 +482,8 @@ if st.session_state.get("_search_builder"):
                     _sb_added = st.session_state.setdefault("vin_added_listings", [])
                     if not any(l.vin == _sb_listing.vin for l in _sb_added):
                         _sb_added.append(_sb_listing)
+                        from agents.search_agent import fetch_vin_details as _fvd
+                        st.session_state.setdefault("vin_details", {})[_sb_vin_val.strip().upper()] = _fvd(_sb_vin_val.strip())
                         st.success(f"Added: **{_sb_listing.title}**")
                         st.rerun()
                     else:
@@ -460,9 +493,38 @@ if st.session_state.get("_search_builder"):
             st.markdown(f"**{len(_sb_pinned)} pinned:**")
             for _av in _sb_pinned:
                 _pstr = f"${_av.asking_price:,}" if _av.asking_price else "N/A"
-                st.markdown(f"• **{_av.title}** — {_pstr} &nbsp;`{_av.vin}`", unsafe_allow_html=True)
-                if st.button("✕", key=f"sb_rm_{_av.vin}"):
+                _det = st.session_state.get("vin_details", {}).get(_av.vin, {})
+                with st.expander(f"📌 {_av.title}  —  {_pstr}", expanded=True):
+                    if _det.get("photo_url"):
+                        st.image(_det["photo_url"], use_container_width=True)
+                    else:
+                        _gi = _det.get("google_images_url", "")
+                        _bi = _det.get("bing_images_url", "")
+                        if _gi:
+                            st.markdown(
+                                f"📸 **Photos:** &nbsp;[Google Images]({_gi}) &nbsp;|&nbsp; [Bing Images]({_bi})",
+                                unsafe_allow_html=True,
+                            )
+                    _dc1, _dc2 = st.columns(2)
+                    with _dc1:
+                        if _det.get("year"):      st.markdown(f"**Year:** {_det['year']}")
+                        if _det.get("make"):      st.markdown(f"**Make:** {_det['make']}")
+                        if _det.get("model"):     st.markdown(f"**Model:** {_det['model']}")
+                        if _det.get("trim"):      st.markdown(f"**Trim:** {_det['trim']}")
+                        if _det.get("body_type"): st.markdown(f"**Body:** {_det['body_type']}")
+                    with _dc2:
+                        if _det.get("engine"):    st.markdown(f"**Engine:** {_det['engine']}")
+                        if _det.get("fuel_type"): st.markdown(f"**Fuel:** {_det['fuel_type']}")
+                        if _det.get("doors"):     st.markdown(f"**Doors:** {_det['doors']}")
+                        if _det.get("mileage"):   st.markdown(f"**Mileage:** {_det['mileage']:,} mi")
+                        if _det.get("price"):     st.markdown(f"**Price:** ${_det['price']:,}")
+                    if _det.get("features"):
+                        st.markdown("**Features:** " + " · ".join(_det["features"][:12]))
+                    if _det.get("listing_url"):
+                        st.markdown(f"[🔗 Search on AutoTrader by VIN]({_det['listing_url']})")
+                if st.button("✕ Remove", key=f"sb_rm_{_av.vin}"):
                     st.session_state["vin_added_listings"] = [l for l in _sb_pinned if l.vin != _av.vin]
+                    st.session_state.get("vin_details", {}).pop(_av.vin, None)
                     st.rerun()
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────

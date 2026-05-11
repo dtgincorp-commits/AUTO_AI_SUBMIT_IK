@@ -853,6 +853,65 @@ def fetch_autodev_live(vin: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# VIN details — rich decode for client presentation (photos, specs, links)
+# ---------------------------------------------------------------------------
+
+def fetch_vin_details(vin: str) -> dict:
+    """Full VIN decode for client-facing display: specs + photo + image search links."""
+    from urllib.parse import quote as _q
+    vin = vin.strip().upper()
+    out = {
+        "vin": vin, "year": 0, "make": "", "model": "", "trim": "",
+        "body_type": "", "engine": "", "fuel_type": "", "doors": "",
+        "photo_url": "", "features": [],
+        "price": 0, "mileage": 0, "dealer_name": "",
+        "listing_url": f"https://www.autotrader.com/cars-for-sale/all-cars?vin={vin}&searchRadius=500",
+        "google_images_url": "", "bing_images_url": "",
+    }
+
+    # NHTSA decode for full specs
+    try:
+        resp = requests.get(
+            f"https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/{vin}?format=json",
+            timeout=10,
+        )
+        resp.raise_for_status()
+        _na = {"", "0", "Not Applicable", "null", "None"}
+        flds = {r["Variable"]: (r["Value"] or "").strip() for r in resp.json().get("Results", [])}
+        yr = flds.get("Model Year", "")
+        out["year"]      = int(yr) if yr.isdigit() else 0
+        out["make"]      = flds.get("Make", "")  if flds.get("Make", "")  not in _na else ""
+        out["model"]     = flds.get("Model", "") if flds.get("Model", "") not in _na else ""
+        out["trim"]      = flds.get("Trim", "")  if flds.get("Trim", "")  not in _na else ""
+        out["body_type"] = flds.get("Body Class", "") if flds.get("Body Class", "") not in _na else ""
+        displ = flds.get("Displacement (L)", "")
+        cyl   = flds.get("Engine Number of Cylinders", "")
+        if displ and displ not in _na:
+            out["engine"] = f"{displ}L" + (f" {cyl}-cyl" if cyl and cyl not in _na else "")
+        out["fuel_type"] = flds.get("Fuel Type - Primary", "") if flds.get("Fuel Type - Primary", "") not in _na else ""
+        out["doors"]     = flds.get("Doors", "") if flds.get("Doors", "") not in _na else ""
+    except Exception:
+        pass
+
+    # auto.dev enrichment for live price, mileage, photo
+    if AUTODEV_API_KEY:
+        live = fetch_autodev_live(vin)
+        if "error" not in live:
+            out["photo_url"]   = live.get("photo_url", "")
+            out["features"]    = live.get("features", [])
+            out["price"]       = live.get("price", 0)
+            out["mileage"]     = live.get("mileage", 0)
+            out["dealer_name"] = live.get("dealer_name", "")
+
+    # Image search fallback URLs (always generated)
+    q_parts = [str(out["year"]) if out["year"] else "", out["make"], out["model"], out["trim"]]
+    q = _q(" ".join(p for p in q_parts if p) + " car")
+    out["google_images_url"] = f"https://www.google.com/search?q={q}&tbm=isch"
+    out["bing_images_url"]   = f"https://www.bing.com/images/search?q={q}"
+    return out
+
+
+# ---------------------------------------------------------------------------
 # VIN lookup — NHTSA decode + auto.dev live data
 # ---------------------------------------------------------------------------
 

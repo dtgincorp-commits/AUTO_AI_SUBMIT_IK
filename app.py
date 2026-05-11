@@ -335,35 +335,48 @@ if st.session_state.get("_search_builder"):
         _sb_pill += f" &nbsp;·&nbsp; {_sb_int_color} int"
 
     import streamlit.components.v1 as _stc_sb
-    _stc_sb.html(f"""
+
+    def _render_sb_card(compact: bool = False) -> None:
+        pad   = "12px 16px" if compact else "20px 24px"
+        tsz   = "13px"      if compact else "16px"
+        psz   = "11px"      if compact else "12px"
+        bpad  = "6px 12px"  if compact else "9px 20px"
+        bsz   = "12px"      if compact else "14px"
+        h     = 150         if compact else 185
+        _stc_sb.html(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
-            border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:4px 0 16px">
-  <div style="font-size:16px;font-weight:700;color:#f0f4ff;margin-bottom:10px">
+            border:1px solid #2563eb;border-radius:12px;padding:{pad};margin:4px 0 8px">
+  <div style="font-size:{tsz};font-weight:700;color:#f0f4ff;margin-bottom:8px">
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>
-  <div style="display:inline-block;font-size:12px;color:#e0f0ff;font-weight:600;
+  <div style="display:inline-block;font-size:{psz};color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;
-              padding:5px 12px;margin-bottom:16px;background:rgba(59,130,246,0.15)">
+              padding:4px 10px;margin-bottom:12px;background:rgba(59,130,246,0.15)">
     {_sb_pill}
   </div>
-  <div style="display:flex;flex-wrap:wrap;gap:10px">
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
     <a href="{_hurl_sb(_sb_at_url)}" target="_blank"
-       style="background:#2563eb;color:#fff;padding:9px 20px;border-radius:8px;
-              font-size:14px;font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
+       style="background:#2563eb;color:#fff;padding:{bpad};border-radius:7px;
+              font-size:{bsz};font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
     <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
-       style="background:#16a34a;color:#fff;padding:9px 20px;border-radius:8px;
-              font-size:14px;font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
-    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google (direct CarGurus URL doesn't support make/model filters)"
-       style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
-              font-size:14px;font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
+       style="background:#16a34a;color:#fff;padding:{bpad};border-radius:7px;
+              font-size:{bsz};font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google (CarGurus does not support make/model URL deep-links)"
+       style="background:#dc2626;color:#fff;padding:{bpad};border-radius:7px;
+              font-size:{bsz};font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
-       style="background:#d97706;color:#fff;padding:9px 20px;border-radius:8px;
-              font-size:14px;font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
+       style="background:#d97706;color:#fff;padding:{bpad};border-radius:7px;
+              font-size:{bsz};font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
   </div>
-</div>""", height=185)
-    if st.button("✕ Clear", key="clear_search_builder"):
-        del st.session_state["_search_builder"]
-        st.rerun()
+</div>""", height=h)
+
+    # Only show standalone card when no search has been run yet;
+    # when results exist, the card renders next to the VIN widget below.
+    if not st.session_state.get("_last_result"):
+        _render_sb_card(compact=False)
+        if st.button("✕ Clear", key="clear_search_builder"):
+            del st.session_state["_search_builder"]
+            st.rerun()
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
@@ -668,43 +681,90 @@ if _last_result:
             st.warning(f"⚠️ {search_warning}")
 
         # ── Critic badge + inline VIN lookup ────────────────────────────────
-        _badge_col, _vin_col = st.columns([1, 1])
+        _show_sb = st.session_state.get("_search_builder")
 
-        with _badge_col:
-            if critic:
-                badge_colors = {"green": "#27ae60", "amber": "#f39c12", "red": "#e74c3c"}
-                badge_labels = {
-                    "green": "Green — High quality results",
-                    "amber": "Amber — Partial quality, review carefully",
-                    "red":   "Red — Low quality, consider revising preferences",
-                }
-                badge = critic.badge
-                color = badge_colors.get(badge, "#95a5a6")
-                label = badge_labels.get(badge, badge)
-                st.markdown(
-                    f"""
-                    <div style="background:{color};color:#fff;border-radius:8px;
-                                padding:12px 20px;font-size:18px;font-weight:bold;
-                                display:inline-block;margin-bottom:12px">
-                        {label} &nbsp;·&nbsp; {critic.overall_score:.0f}/100
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                if revision_count > 0:
-                    st.info(f"Search improved after {revision_count} revision(s).")
-                with st.expander("Critic Agent — Quality Breakdown"):
-                    for dim_key, dim in critic.dimensions.items():
-                        icon = "✅" if dim.passed else ("⚠️" if dim.flag == "amber" else "❌")
-                        dim_label = dim_key.replace("_", " ").title()
-                        bar = int((dim.score / 25) * 100)
-                        st.markdown(
-                            f"**{icon} {dim_label}** — {dim.score:.0f}/25 pts  \n"
-                            f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
-                            f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
-                            f"<small style='color:#6b7280'>{dim.reason}</small>",
-                            unsafe_allow_html=True,
-                        )
+        # When Build Search is active, compact card sits left of VIN;
+        # otherwise the critic badge sits left of VIN.
+        if _show_sb:
+            _sb_col, _vin_col = st.columns([1, 1])
+            with _sb_col:
+                _render_sb_card(compact=True)
+                if st.button("✕ Clear", key="clear_search_builder"):
+                    del st.session_state["_search_builder"]
+                    st.rerun()
+        else:
+            _badge_col, _vin_col = st.columns([1, 1])
+
+        if not _show_sb:
+            with _badge_col:
+                if critic:
+                    badge_colors = {"green": "#27ae60", "amber": "#f39c12", "red": "#e74c3c"}
+                    badge_labels = {
+                        "green": "Green — High quality results",
+                        "amber": "Amber — Partial quality, review carefully",
+                        "red":   "Red — Low quality, consider revising preferences",
+                    }
+                    badge = critic.badge
+                    color = badge_colors.get(badge, "#95a5a6")
+                    label = badge_labels.get(badge, badge)
+                    st.markdown(
+                        f"""
+                        <div style="background:{color};color:#fff;border-radius:8px;
+                                    padding:12px 20px;font-size:18px;font-weight:bold;
+                                    display:inline-block;margin-bottom:12px">
+                            {label} &nbsp;·&nbsp; {critic.overall_score:.0f}/100
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    if revision_count > 0:
+                        st.info(f"Search improved after {revision_count} revision(s).")
+                    with st.expander("Critic Agent — Quality Breakdown"):
+                        for dim_key, dim in critic.dimensions.items():
+                            icon = "✅" if dim.passed else ("⚠️" if dim.flag == "amber" else "❌")
+                            dim_label = dim_key.replace("_", " ").title()
+                            bar = int((dim.score / 25) * 100)
+                            st.markdown(
+                                f"**{icon} {dim_label}** — {dim.score:.0f}/25 pts  \n"
+                                f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
+                                f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
+                                f"<small style='color:#6b7280'>{dim.reason}</small>",
+                                unsafe_allow_html=True,
+                            )
+
+        # When Build Search is active, show critic badge below the two-column row
+        if _show_sb and critic:
+            badge_colors = {"green": "#27ae60", "amber": "#f39c12", "red": "#e74c3c"}
+            badge_labels = {
+                "green": "Green — High quality results",
+                "amber": "Amber — Partial quality, review carefully",
+                "red":   "Red — Low quality, consider revising preferences",
+            }
+            badge = critic.badge
+            color = badge_colors.get(badge, "#95a5a6")
+            label = badge_labels.get(badge, badge)
+            st.markdown(
+                f"""<div style="background:{color};color:#fff;border-radius:8px;
+                            padding:12px 20px;font-size:18px;font-weight:bold;
+                            display:inline-block;margin-bottom:12px">
+                    {label} &nbsp;·&nbsp; {critic.overall_score:.0f}/100
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            if revision_count > 0:
+                st.info(f"Search improved after {revision_count} revision(s).")
+            with st.expander("Critic Agent — Quality Breakdown"):
+                for dim_key, dim in critic.dimensions.items():
+                    icon = "✅" if dim.passed else ("⚠️" if dim.flag == "amber" else "❌")
+                    dim_label = dim_key.replace("_", " ").title()
+                    bar = int((dim.score / 25) * 100)
+                    st.markdown(
+                        f"**{icon} {dim_label}** — {dim.score:.0f}/25 pts  \n"
+                        f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin:2px 0 4px'>"
+                        f"<div style='background:{color};width:{bar}%;height:6px;border-radius:4px'></div></div>"
+                        f"<small style='color:#6b7280'>{dim.reason}</small>",
+                        unsafe_allow_html=True,
+                    )
 
         with _vin_col:
             with st.container(border=True):

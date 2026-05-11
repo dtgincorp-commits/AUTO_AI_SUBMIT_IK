@@ -853,6 +853,52 @@ def fetch_autodev_live(vin: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Photo crop — remove solid-color dealer banners from listing photos
+# ---------------------------------------------------------------------------
+
+def crop_dealer_overlay(img_bytes: bytes, variance_threshold: int = 28, max_fraction: float = 0.22) -> bytes:
+    """Strip solid-color dealer banners from top/bottom of a car listing photo.
+
+    Scans inward from each edge; any row whose per-channel stddev is below
+    variance_threshold is considered a solid overlay and removed.  Never
+    removes more than max_fraction of the image height from either edge.
+    """
+    import io
+    from PIL import Image, ImageStat
+
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    w, h = img.size
+    max_px = int(h * max_fraction)
+
+    def _is_overlay(y: int) -> bool:
+        strip = img.crop((0, y, w, y + 1))
+        return all(s < variance_threshold for s in ImageStat.Stat(strip).stddev)
+
+    # Scan from bottom up
+    bottom = h
+    for y in range(h - 1, max(h - max_px, 0) - 1, -1):
+        if _is_overlay(y):
+            bottom = y
+        else:
+            break
+
+    # Scan from top down
+    top = 0
+    for y in range(0, min(max_px, h)):
+        if _is_overlay(y):
+            top = y + 1
+        else:
+            break
+
+    if top > 0 or bottom < h:
+        img = img.crop((0, top, w, bottom))
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=92)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
 # VIN details — rich decode for client presentation (photos, specs, links)
 # ---------------------------------------------------------------------------
 

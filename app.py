@@ -344,22 +344,33 @@ def _render_vin_widget(prefs, key_prefix=""):
                     st.rerun()
 
 def _render_vin_actions(det: dict, av, key_suffix: str) -> None:
-    """Render download + text-to-client actions for a pinned VIN."""
+    """Render crop toggle, download, and text-to-client actions for a pinned VIN."""
     from config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+    from agents.search_agent import crop_dealer_overlay
     has_photo = bool(det.get("photo_url"))
     has_bytes = bool(det.get("photo_bytes"))
 
-    _act_cols = st.columns([1, 2]) if has_bytes else [None, st.container()]
-    with (_act_cols[0] if has_bytes else st.container()):
-        if has_bytes:
-            st.download_button(
-                "⬇️ Download Photo",
-                data=det["photo_bytes"],
-                file_name=f"{av.vin}.jpg",
-                mime="image/jpeg",
-                key=f"dl_{key_suffix}",
-                use_container_width=True,
-            )
+    # Crop toggle — only shown when we have bytes to process
+    _crop_key = f"crop_{key_suffix}"
+    do_crop = False
+    if has_bytes:
+        do_crop = st.checkbox("✂️ Crop dealer banner before download/send", key=_crop_key)
+        _img_bytes = crop_dealer_overlay(det["photo_bytes"]) if do_crop else det["photo_bytes"]
+
+        # Preview cropped image
+        if do_crop:
+            st.image(_img_bytes, caption="Preview (cropped)", use_container_width=True)
+
+        st.download_button(
+            "⬇️ Download" + (" (cropped)" if do_crop else " Photo"),
+            data=_img_bytes,
+            file_name=f"{av.vin}{'_cropped' if do_crop else ''}.jpg",
+            mime="image/jpeg",
+            key=f"dl_{key_suffix}",
+            use_container_width=True,
+        )
+    else:
+        _img_bytes = None
 
     st.markdown("**📲 Text to client:**")
     _ph_key  = f"txt_ph_{key_suffix}"
@@ -387,9 +398,20 @@ def _render_vin_actions(det: dict, av, key_suffix: str) -> None:
                 _tc = _TC(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
                 _kwargs = dict(body=_body, from_=TWILIO_PHONE_NUMBER, to=_ph.strip())
                 if has_photo:
-                    _kwargs["media_url"] = [det["photo_url"]]
-                _tc.messages.create(**_kwargs)
-                st.success("Sent!" + (" (photo + info)" if has_photo else " (info only — no photo available)"))
+                    if do_crop and _img_bytes:
+                        # Upload cropped bytes to a temp public URL via Twilio's own media
+                        # hosting isn't available — fall back to original photo_url for MMS
+                        # but warn user the crop applies to download only
+                        _kwargs["media_url"] = [det["photo_url"]]
+                        _tc.messages.create(**_kwargs)
+                        st.success("Sent! Note: MMS uses original photo (cropped version available via download).")
+                    else:
+                        _kwargs["media_url"] = [det["photo_url"]]
+                        _tc.messages.create(**_kwargs)
+                        st.success("Sent! (photo + info)")
+                else:
+                    _tc.messages.create(**_kwargs)
+                    st.success("Sent! (info only — no photo available)")
             except Exception as _e:
                 st.error(f"Send failed: {_e}")
 

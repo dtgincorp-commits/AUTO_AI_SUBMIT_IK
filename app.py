@@ -275,14 +275,11 @@ def _render_vin_widget(prefs):
     with st.container(border=True):
         st.markdown("**📌 Pin a car by VIN**")
         st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
-        _vc1, _vc2 = st.columns([3, 1])
-        with _vc1:
-            _vin_input = st.text_input(
-                "VIN", placeholder="e.g. 5UX13EU03T9384714",
-                label_visibility="collapsed", key="vin_lookup_input",
-            )
-        with _vc2:
-            _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
+        _vin_input = st.text_input(
+            "VIN", placeholder="e.g. 5UX13EU03T9384714",
+            label_visibility="collapsed", key="vin_lookup_input",
+        )
+        _vin_btn = st.button("Look Up", key="vin_lookup_btn", use_container_width=True)
         if _vin_btn and _vin_input:
             if not prefs:
                 st.warning("Run a search first so VIN results can be scored.")
@@ -307,14 +304,11 @@ def _render_vin_widget(prefs):
         if _added_list:
             st.markdown(f"**{len(_added_list)} car(s) added:**")
             for _av in _added_list:
-                _av_col1, _av_col2 = st.columns([4, 1])
-                with _av_col1:
-                    _price_str = f"${_av.asking_price:,}" if _av.asking_price else "Price not in auto.dev"
-                    st.markdown(f"• **{_av.title}** &nbsp; {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
-                with _av_col2:
-                    if st.button("✕", key=f"rm_vin_{_av.vin}", help="Remove"):
-                        st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
-                        st.rerun()
+                _price_str = f"${_av.asking_price:,}" if _av.asking_price else "N/A"
+                st.markdown(f"• **{_av.title}** — {_price_str} &nbsp; `{_av.vin}`", unsafe_allow_html=True)
+                if st.button("✕ Remove", key=f"rm_vin_{_av.vin}"):
+                    st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
+                    st.rerun()
 
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
 # Always reads live from sidebar session state so any sidebar change

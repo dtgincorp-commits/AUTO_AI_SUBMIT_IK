@@ -421,9 +421,23 @@ if st.session_state.get("_search_builder"):
         )
         _sb_vin_btn = st.button("Look Up VIN", key="sb_vin_lookup_btn", use_container_width=True)
         if _sb_vin_btn and _sb_vin_val:
+            # Use prefs from prior search if available; otherwise build from sidebar values
             _sb_prefs = _last_meta.get("prefs")
             if not _sb_prefs:
-                st.warning("Run a search first so VIN results can be scored.")
+                from agents.models import CarPreferences as _CP
+                try:
+                    _sb_prefs = _CP(
+                        make=st.session_state.get("p_make", "Any") or "Any",
+                        model=st.session_state.get("p_model", "Any") or "Any",
+                        price_min=int(st.session_state.get("p_price_min", 0) or 0),
+                        price_max=int(st.session_state.get("p_price_max", 999000) or 999000),
+                        location=st.session_state.get("p_location", "") or "",
+                        radius_miles=int(st.session_state.get("p_radius_miles", 50) or 50),
+                    )
+                except Exception:
+                    _sb_prefs = None
+            if not _sb_prefs:
+                st.warning("Fill in Make, Model, and Location in the sidebar first.")
             else:
                 with st.spinner("Decoding VIN..."):
                     from agents.search_agent import lookup_vin_listing

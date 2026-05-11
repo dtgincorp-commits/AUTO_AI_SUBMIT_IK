@@ -383,7 +383,8 @@ if st.session_state.get("_search_builder"):
     with _sb_left:
         st.markdown(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
-            border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px">
+            border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px;
+            display:inline-block;width:fit-content;min-width:300px">
   <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:8px">
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>

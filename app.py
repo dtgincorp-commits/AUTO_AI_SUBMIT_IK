@@ -336,10 +336,63 @@ def _render_vin_widget(prefs, key_prefix=""):
                         st.markdown("**Features:** " + " · ".join(_det2["features"][:12]))
                     if _det2.get("listing_url"):
                         st.markdown(f"[🔗 Search on AutoTrader by VIN]({_det2['listing_url']})")
+                    st.divider()
+                    _render_vin_actions(_det2, _av, f"{key_prefix}rs_{_av.vin}")
                 if st.button("✕ Remove", key=f"{key_prefix}rm_vin_{_av.vin}"):
                     st.session_state["vin_added_listings"] = [l for l in _added_list if l.vin != _av.vin]
                     st.session_state.get("vin_details", {}).pop(_av.vin, None)
                     st.rerun()
+
+def _render_vin_actions(det: dict, av, key_suffix: str) -> None:
+    """Render download + text-to-client actions for a pinned VIN."""
+    from config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+    has_photo = bool(det.get("photo_url"))
+    has_bytes = bool(det.get("photo_bytes"))
+
+    _act_cols = st.columns([1, 2]) if has_bytes else [None, st.container()]
+    with (_act_cols[0] if has_bytes else st.container()):
+        if has_bytes:
+            st.download_button(
+                "⬇️ Download Photo",
+                data=det["photo_bytes"],
+                file_name=f"{av.vin}.jpg",
+                mime="image/jpeg",
+                key=f"dl_{key_suffix}",
+                use_container_width=True,
+            )
+
+    st.markdown("**📲 Text to client:**")
+    _ph_key  = f"txt_ph_{key_suffix}"
+    _btn_key = f"txt_btn_{key_suffix}"
+    _ph = st.text_input(
+        "Client phone", placeholder="+1 949-555-0123",
+        label_visibility="collapsed", key=_ph_key,
+    )
+    if st.button("Send " + ("📸 Photo + Info" if has_photo else "📋 Info") + " via SMS",
+                 key=_btn_key, use_container_width=True):
+        if not _ph.strip():
+            st.warning("Enter a phone number.")
+        elif not TWILIO_ACCOUNT_SID:
+            st.warning("Twilio not configured — add TWILIO_* keys to .env")
+        else:
+            _title = av.title or f"VIN {av.vin}"
+            _lines = [f"🚗 {_title}"]
+            if det.get("mileage"): _lines.append(f"Mileage: {det['mileage']:,} mi")
+            if det.get("price"):   _lines.append(f"Price: ${det['price']:,}")
+            if det.get("dealer_name"): _lines.append(f"Dealer: {det['dealer_name']}")
+            _lines.append(f"Search listing: {det.get('listing_url','')}")
+            _body = "\n".join(_lines)
+            try:
+                from twilio.rest import Client as _TC
+                _tc = _TC(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+                _kwargs = dict(body=_body, from_=TWILIO_PHONE_NUMBER, to=_ph.strip())
+                if has_photo:
+                    _kwargs["media_url"] = [det["photo_url"]]
+                _tc.messages.create(**_kwargs)
+                st.success("Sent!" + (" (photo + info)" if has_photo else " (info only — no photo available)"))
+            except Exception as _e:
+                st.error(f"Send failed: {_e}")
+
 
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
 # Always reads live from sidebar session state so any sidebar change
@@ -522,6 +575,8 @@ if st.session_state.get("_search_builder"):
                         st.markdown("**Features:** " + " · ".join(_det["features"][:12]))
                     if _det.get("listing_url"):
                         st.markdown(f"[🔗 Search on AutoTrader by VIN]({_det['listing_url']})")
+                    st.divider()
+                    _render_vin_actions(_det, _av, f"sb_{_av.vin}")
                 if st.button("✕ Remove", key=f"sb_rm_{_av.vin}"):
                     st.session_state["vin_added_listings"] = [l for l in _sb_pinned if l.vin != _av.vin]
                     st.session_state.get("vin_details", {}).pop(_av.vin, None)

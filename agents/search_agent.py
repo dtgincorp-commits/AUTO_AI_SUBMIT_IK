@@ -908,6 +908,17 @@ def fetch_vin_details(vin: str) -> dict:
     q = _q(" ".join(p for p in q_parts if p) + " car")
     out["google_images_url"] = f"https://www.google.com/search?q={q}&tbm=isch"
     out["bing_images_url"]   = f"https://www.bing.com/images/search?q={q}"
+
+    # Pre-fetch image bytes for Streamlit download button
+    out["photo_bytes"] = None
+    if out["photo_url"]:
+        try:
+            img_r = requests.get(out["photo_url"], timeout=8)
+            if img_r.status_code == 200:
+                out["photo_bytes"] = img_r.content
+        except Exception:
+            pass
+
     return out
 
 

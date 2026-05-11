@@ -377,16 +377,13 @@ if st.session_state.get("_search_builder"):
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_pill += f" &nbsp;·&nbsp; {_sb_int_color} int"
 
-    import streamlit.components.v1 as _stc_sb
-
     def _render_sb_card(compact: bool = False) -> None:
         pad   = "12px 16px" if compact else "20px 24px"
         tsz   = "13px"      if compact else "16px"
         psz   = "11px"      if compact else "12px"
         bpad  = "6px 12px"  if compact else "9px 20px"
         bsz   = "12px"      if compact else "14px"
-        h     = 150         if compact else 185
-        _stc_sb.html(f"""
+        st.markdown(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
             border:1px solid #2563eb;border-radius:12px;padding:{pad};margin:4px 0 8px">
   <div style="font-size:{tsz};font-weight:700;color:#f0f4ff;margin-bottom:8px">
@@ -411,7 +408,7 @@ if st.session_state.get("_search_builder"):
        style="background:#d97706;color:#fff;padding:{bpad};border-radius:7px;
               font-size:{bsz};font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
   </div>
-</div>""", height=h)
+</div>""", unsafe_allow_html=True)
 
     # Always render as two columns: compact card left, VIN widget right.
     _sb_left, _sb_right = st.columns([1, 1])

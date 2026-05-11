@@ -384,28 +384,28 @@ if st.session_state.get("_search_builder"):
         st.markdown(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
             border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px;
-            display:inline-block;width:fit-content;min-width:300px">
-  <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:8px">
+            display:table">
+  <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:8px;white-space:nowrap">
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>
   <div style="display:inline-block;font-size:11px;color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;
-              padding:4px 10px;margin-bottom:12px;background:rgba(59,130,246,0.15)">
+              padding:3px 8px;margin-bottom:10px;background:rgba(59,130,246,0.15);white-space:nowrap">
     {_sb_pill}
   </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px">
+  <div style="display:grid;grid-template-columns:auto auto;gap:6px">
     <a href="{_hurl_sb(_sb_at_url)}" target="_blank"
-       style="background:#2563eb;color:#fff;padding:6px 12px;border-radius:7px;
-              font-size:12px;font-weight:700;text-decoration:none">🔎 &nbsp;AutoTrader</a>
+       style="background:#2563eb;color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🔎 AutoTrader</a>
     <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
-       style="background:#16a34a;color:#fff;padding:6px 12px;border-radius:7px;
-              font-size:12px;font-weight:700;text-decoration:none">🚙 &nbsp;Cars.com</a>
-    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus listings via Google"
-       style="background:#dc2626;color:#fff;padding:6px 12px;border-radius:7px;
-              font-size:12px;font-weight:700;text-decoration:none">🚗 &nbsp;CarGurus</a>
+       style="background:#16a34a;color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🚙 Cars.com</a>
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus via Google"
+       style="background:#dc2626;color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🚗 CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
-       style="background:#d97706;color:#fff;padding:6px 12px;border-radius:7px;
-              font-size:12px;font-weight:700;text-decoration:none">🌐 &nbsp;Google</a>
+       style="background:#d97706;color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🌐 Google</a>
   </div>
 </div>""", unsafe_allow_html=True)
         if st.button("✕ Clear", key="clear_search_builder"):

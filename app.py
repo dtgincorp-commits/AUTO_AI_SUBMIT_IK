@@ -123,10 +123,12 @@ def _cg_direct_url(make: str, model: str, condition: str) -> str:
                 break
     if entity_id is None:
         return None
-    cond_slug = "New" if (condition or "").lower() == "new" else "Used"
     make_slug  = make.strip().replace(" ", "-")
     model_slug = model.strip().replace(" ", "-")
-    return f"https://www.cargurus.com/Cars/l-{cond_slug}-{make_slug}-{model_slug}-d{entity_id}"
+    if (condition or "").lower() == "new":
+        return f"https://www.cargurus.com/Cars/new/nl-New-{make_slug}-{model_slug}-d{entity_id}"
+    else:
+        return f"https://www.cargurus.com/Cars/l-Used-{make_slug}-{model_slug}-d{entity_id}"
 
 def _cg_url(make: str, model: str, zip_code: str, price_max: int,
             condition: str, quote_fn) -> str:

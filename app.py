@@ -163,6 +163,21 @@ _CM_SLUG_MAP = {
     "bmw_x6_m":            "bmw_x6",
 }
 
+# Normalize informal make names → canonical full name used in all marketplace URLs
+_MAKE_NORMALIZE = {
+    "mercedes":       "Mercedes-Benz",
+    "mercedes benz":  "Mercedes-Benz",
+    "chevy":          "Chevrolet",
+    "vw":             "Volkswagen",
+    "volk":           "Volkswagen",
+    "land rover":     "Land Rover",   # already correct but alias
+    "alfa":           "Alfa Romeo",
+    "alfa romeo":     "Alfa Romeo",
+}
+
+def _normalize_make(make: str) -> str:
+    return _MAKE_NORMALIZE.get(make.strip().lower(), make.strip())
+
 def _cg_direct_url(make: str, model: str, condition: str,
                    zip_code: str = "", price_max: int = 999999,
                    ext_color: str = "", int_color: str = "") -> str:
@@ -610,7 +625,7 @@ def _render_vin_actions(det: dict, av, key_suffix: str) -> None:
 # immediately reflects in the card without re-clicking Build Search.
 if st.session_state.get("_search_builder"):
     import re as _re2
-    _sb_make      = st.session_state.get("p_make", "")
+    _sb_make      = _normalize_make(st.session_state.get("p_make", ""))
     _sb_model     = st.session_state.get("p_model", "")
     _sb_condition = st.session_state.get("p_condition", "Any")
     _sb_location  = st.session_state.get("p_location", "")
@@ -961,7 +976,7 @@ if _last_result:
     outreach_retried = _last_result.get("outreach_retried", False)
     dealer_results   = _last_result.get("dealer_outreach", [])
 
-    _make      = _last_meta.get("make", "")
+    _make      = _normalize_make(_last_meta.get("make", ""))
     _model     = _last_meta.get("model", "")
     _condition = _last_meta.get("condition", "Any")
     _location  = _last_meta.get("location", "")

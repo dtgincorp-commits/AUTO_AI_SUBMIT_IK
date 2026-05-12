@@ -103,8 +103,9 @@ _CG_ENTITY_IDS = {
     "subaru legacy": 378, "subaru outback": 380,
     # Lexus
     "lexus es": 2720, "lexus es hybrid": 2721, "lexus gs": 2822, "lexus gx": 2063,
-    "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus nx hybrid": 2294,
-    "lexus rc": 2827, "lexus ux hybrid": 2722,
+    "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus lx hybrid": 3438,
+    "lexus nx hybrid": 2294, "lexus rc": 2827, "lexus ux hybrid": 2722,
+    "lexus tx": 3343, "lexus tx 350": 3343, "lexus tx 350h": 3343, "lexus tx 500h": 3343,
     # Porsche
     "porsche 718 boxster": 2416, "porsche 718 cayman": 2430,
     "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
@@ -133,17 +134,46 @@ _CG_COLOR_SPT = {
     "red": 332, "silver": 408, "white": 333,
 }
 
+# Cars.com model slug overrides: auto-generated slug → actual slug Cars.com recognizes.
+# Needed when a model's powertrain/variant designation isn't a valid separate model slug.
+_CM_SLUG_MAP = {
+    # Lexus TX — all powertrain variants live under the base "lexus_tx" model slug
+    "lexus_tx_500h": "lexus_tx",
+    "lexus_tx_350h": "lexus_tx",
+    "lexus_tx_350":  "lexus_tx",
+    # Lexus NX — plug-in hybrid variant
+    "lexus_nx_450h":  "lexus_nx",
+    "lexus_nx_350h":  "lexus_nx",
+    "lexus_nx_350":   "lexus_nx",
+    # Lexus RX — variants
+    "lexus_rx_500h":  "lexus_rx",
+    "lexus_rx_450h":  "lexus_rx",
+    "lexus_rx_350":   "lexus_rx",
+    "lexus_rx_350h":  "lexus_rx",
+    # Lexus ES — hybrid variant
+    "lexus_es_300h":  "lexus_es",
+    # Lexus GX — variant
+    "lexus_gx_550":   "lexus_gx",
+    # BMW — alphanumeric variant designations
+    "bmw_m3_competition":  "bmw_m3",
+    "bmw_m4_competition":  "bmw_m4",
+    "bmw_x5_m":            "bmw_x5",
+    "bmw_x6_m":            "bmw_x6",
+}
+
 def _cg_direct_url(make: str, model: str, condition: str,
                    zip_code: str = "", price_max: int = 999999,
-                   ext_color: str = "") -> str:
+                   ext_color: str = "", int_color: str = "") -> str:
     """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
+    print(f"[CG DEBUG] key={key!r}, in_table={key in _CG_ENTITY_IDS}, table_size={len(_CG_ENTITY_IDS)}")
     entity_id = _CG_ENTITY_IDS.get(key)
     if entity_id is None:
         for k, eid in _CG_ENTITY_IDS.items():
             if k.replace("-", " ").replace("  ", " ") == key.replace("-", " ").replace("  ", " "):
                 entity_id = eid
                 break
+    print(f"[CG DEBUG] entity_id={entity_id}")
     if entity_id is None:
         return None
 
@@ -152,31 +182,34 @@ def _cg_direct_url(make: str, model: str, condition: str,
     is_new     = (condition or "").lower() == "new"
     color_key  = (ext_color or "").strip().lower()
     color_spt  = _CG_COLOR_SPT.get(color_key)
+    int_key    = (int_color or "").strip().lower()
 
-    # Build query string for zip and price
+    # Build query string (zip, price, interior color)
     qp = []
     if zip_code:
         qp.append(f"zip={zip_code}")
     if price_max and price_max < 999000:
         qp.append(f"maxPrice={price_max}")
-    qs = ("?" + "&".join(qp)) if qp else ""
+    if int_key and int_key not in ("any", "other"):
+        qp.append(f"interior_color={int_key.title()}")
 
     if is_new:
-        # New cars: nl-New- prefix; color via query param (no spt tags for new)
+        # New cars: nl-New- prefix; colors via query params (no spt tags for new)
         if color_key and color_key not in ("any", "other"):
             qp.append(f"exteriorColorSimple={color_key.upper()}")
-            qs = ("?" + "&".join(qp))
+        qs = ("?" + "&".join(qp)) if qp else ""
         return f"https://www.cargurus.com/Cars/new/nl-New-{make_slug}-{model_slug}-d{entity_id}{qs}"
     else:
-        # Used cars: color goes in slug + spt tag when available
+        qs = ("?" + "&".join(qp)) if qp else ""
+        # Used cars: exterior color goes in slug + spt tag when available
         if color_spt and color_key not in ("any", "other"):
             color_slug = color_key.title()
             return f"https://www.cargurus.com/Cars/s-Used-{color_slug}-{make_slug}-{model_slug}-d{entity_id}_spt{color_spt}{qs}"
         return f"https://www.cargurus.com/Cars/l-Used-{make_slug}-{model_slug}-d{entity_id}{qs}"
 
 def _cg_url(make: str, model: str, zip_code: str, price_max: int,
-            condition: str, quote_fn, ext_color: str = "") -> str:
-    direct = _cg_direct_url(make, model, condition, zip_code, price_max, ext_color)
+            condition: str, quote_fn, ext_color: str = "", int_color: str = "") -> str:
+    direct = _cg_direct_url(make, model, condition, zip_code, price_max, ext_color, int_color)
     if direct:
         return direct
     # Fallback: Google site search
@@ -610,9 +643,10 @@ if st.session_state.get("_search_builder"):
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    _sb_cg_url = _cg_url(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_quote, _sb_color)
+    _sb_cg_url = _cg_url(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_quote, _sb_color, _sb_int_color)
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
+    _sb_cm_model = _CM_SLUG_MAP.get(_sb_cm_model, _sb_cm_model)
     _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
                  f"makes[]={_sb_cm_make}", f"models[]={_sb_cm_model}"]
     if _sb_zip:    _sb_cm_qp.append(f"zip={_sb_zip}")
@@ -975,10 +1009,12 @@ if _last_result:
         _prefs.price_max if _prefs else 999999,
         _condition, _cg_quote,
         ext_color=_ext_color,
+        int_color=_int_color,
     )
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")
     _cm_model = (_make + "_" + _model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
+    _cm_model = _CM_SLUG_MAP.get(_cm_model, _cm_model)
     _cm_stock = "used" if _condition == "Used" else "new" if _condition == "New" else "all"
     _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
     if _at_zip:          _cm_qp.append(f"zip={_at_zip}")

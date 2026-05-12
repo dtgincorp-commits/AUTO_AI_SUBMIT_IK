@@ -20,10 +20,120 @@ except Exception:
 from agents.models import CarPreferences
 from agents.orchestrator import run_pipeline
 
-# CarGurus SPA ignores makeModelTrimPaths in query params client-side.
-# Google site:cargurus.com search is the only reliable way to filter by make/model.
+# CarGurus entity ID lookup — verified from CarGurus popular-links navigation (2026-05).
+# IDs are permanent; format: https://www.cargurus.com/Cars/l-Used-{Make}-{Model}-d{ID}
+_CG_ENTITY_IDS = {
+    # Acura
+    "acura adx": 3387, "acura mdx": 16,
+    # Audi
+    "audi q3": 2129, "audi q5": 1988,
+    # BMW
+    "bmw x1": 2160, "bmw x3": 392, "bmw x5": 393,
+    # Buick
+    "buick enclave": 1029, "buick encore gx": 2901, "buick envision": 2398, "buick envista": 3333,
+    # Cadillac
+    "cadillac lyriq": 3157, "cadillac xt5": 2393,
+    # Chevrolet
+    "chevrolet blazer ev": 3351, "chevrolet colorado": 614, "chevrolet equinox": 616,
+    "chevrolet equinox ev": 3267, "chevrolet express cargo": 618, "chevrolet silverado 1500": 630,
+    "chevrolet silverado 2500hd": 634, "chevrolet silverado 3500hd": 1027,
+    "chevrolet suburban": 638, "chevrolet tahoe": 639, "chevrolet trailblazer": 642,
+    "chevrolet traverse": 1521, "chevrolet trax": 2272,
+    # Chrysler
+    "chrysler pacifica": 177,
+    # Dodge
+    "dodge durango": 651,
+    # Ford
+    "ford bronco": 320, "ford bronco sport": 3094, "ford escape": 330, "ford expedition": 333,
+    "ford explorer": 334, "ford f-150": 337, "ford f 150": 337, "ford f150": 337,
+    "ford f-150 lightning": 3147, "ford f-250 super duty": 341, "ford f-350 super duty": 343,
+    "ford maverick": 1293, "ford mustang": 2, "ford mustang mach-e": 2990,
+    "ford mustang mach e": 2990, "ford ranger": 354, "ford transit cargo": 1067,
+    # Genesis
+    "genesis gv70": 3163,
+    # GMC
+    "gmc acadia": 925, "gmc canyon": 103, "gmc sierra 1500": 116,
+    "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973, "gmc terrain": 2042,
+    # Honda
+    "honda accord": 585, "honda accord hybrid": 2256, "honda cr-v": 589, "honda crv": 589,
+    "honda cr-v hybrid": 3002, "honda civic": 586, "honda civic hatchback": 2441,
+    "honda civic hybrid": 2923, "honda hr-v": 1271, "honda hrv": 1271,
+    "honda odyssey": 592, "honda passport": 593, "honda pilot": 594, "honda ridgeline": 734,
+    # Hyundai
+    "hyundai elantra": 92, "hyundai elantra hybrid": 3139, "hyundai ioniq 5": 3120,
+    "hyundai kona": 2663, "hyundai palisade": 2836, "hyundai santa cruz": 3128,
+    "hyundai santa fe": 94, "hyundai santa fe hybrid": 3144,
+    "hyundai sonata": 96, "hyundai tucson": 98, "hyundai tucson hybrid": 3141,
+    # Infiniti
+    "infiniti qx60": 2243,
+    # Jeep
+    "jeep compass": 905, "jeep gladiator": 2021, "jeep grand cherokee": 490,
+    "jeep grand cherokee l": 3108, "jeep wrangler": 494,
+    # Kia
+    "kia carnival": 3117, "kia carnival hybrid": 3408, "kia k5": 3092, "kia niro": 2405,
+    "kia seltos": 2991, "kia sorento": 162, "kia soul": 2020,
+    "kia sportage": 164, "kia sportage hybrid": 3239, "kia telluride": 2830,
+    # Lincoln
+    "lincoln aviator": 524, "lincoln corsair": 2884, "lincoln nautilus": 2680,
+    # Mazda
+    "mazda cx-30": 2875, "mazda cx 30": 2875, "mazda cx-5": 2133, "mazda cx5": 2133,
+    "mazda cx 5": 2133, "mazda cx-50": 3215, "mazda cx-90": 3315,
+    # Mercedes-Benz
+    "mercedes-benz c-class": 66, "mercedes benz c class": 66, "mercedes c-class": 66,
+    "mercedes-benz glc": 2361, "mercedes glc": 2361,
+    "mercedes-benz gle": 2317, "mercedes gle": 2317,
+    "mercedes-benz gls": 2421, "mercedes gls": 2421,
+    "mercedes-benz sprinter": 1830,
+    # Mitsubishi
+    "mitsubishi outlander": 429,
+    # Nissan
+    "nissan altima": 237, "nissan armada": 238, "nissan frontier": 240, "nissan kicks": 2660,
+    "nissan murano": 243, "nissan pathfinder": 245, "nissan rogue": 1047,
+    "nissan sentra": 249, "nissan versa": 937,
+    # RAM
+    "ram 1500": 2110, "ram1500": 2110, "ram 2500": 2102, "ram 3500": 2103,
+    "ram promaster": 2229,
+    # Subaru
+    "subaru ascent": 2650, "subaru crosstrek": 2387, "subaru forester": 374,
+    "subaru legacy": 378, "subaru outback": 380,
+    # Tesla
+    "tesla model 3": 2342, "tesla model3": 2342,
+    "tesla model x": 2132, "tesla modelx": 2132,
+    # Toyota
+    "toyota 4runner": 290, "toyota camry": 292, "toyota corolla": 295,
+    "toyota rav4": 306, "toyota rav 4": 306, "toyota rav4 hybrid": 2318,
+    "toyota tacoma": 311, "toyota tundra": 313, "toyota tundra hybrid": 3414,
+    # Volkswagen
+    "volkswagen atlas": 2507, "vw atlas": 2507,
+    "volkswagen atlas cross sport": 2995, "volkswagen jetta": 200, "vw jetta": 200,
+    "volkswagen taos": 3131, "volkswagen tiguan": 1104, "vw tiguan": 1104,
+    # Volvo
+    "volvo xc60": 1629, "volvo xc90": 523,
+}
+
+def _cg_direct_url(make: str, model: str, condition: str) -> str:
+    """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
+    key = f"{make.strip()} {model.strip()}".lower()
+    entity_id = _CG_ENTITY_IDS.get(key)
+    if entity_id is None:
+        # Try make-only key strip (e.g. "ford f-150" variants)
+        for k, eid in _CG_ENTITY_IDS.items():
+            if k.replace("-", " ").replace("  ", " ") == key.replace("-", " ").replace("  ", " "):
+                entity_id = eid
+                break
+    if entity_id is None:
+        return None
+    cond_slug = "New" if (condition or "").lower() == "new" else "Used"
+    make_slug  = make.strip().replace(" ", "-")
+    model_slug = model.strip().replace(" ", "-")
+    return f"https://www.cargurus.com/Cars/l-{cond_slug}-{make_slug}-{model_slug}-d{entity_id}"
+
 def _cg_url(make: str, model: str, zip_code: str, price_max: int,
             condition: str, quote_fn) -> str:
+    direct = _cg_direct_url(make, model, condition)
+    if direct:
+        return direct
+    # Fallback: Google site search
     parts = []
     if condition and condition != "Any":
         parts.append(condition)
@@ -506,7 +616,7 @@ if st.session_state.get("_search_builder"):
     <a href="{_hurl_sb(_sb_cm_url)}" target="_blank"
        style="background:#16a34a;color:#fff;padding:5px 10px;border-radius:6px;
               font-size:11px;font-weight:700;text-decoration:none;text-align:center">🚙 Cars.com</a>
-    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Searches CarGurus via Google"
+    <a href="{_hurl_sb(_sb_cg_url)}" target="_blank" title="Open CarGurus listings"
        style="background:#dc2626;color:#fff;padding:5px 10px;border-radius:6px;
               font-size:11px;font-weight:700;text-decoration:none;text-align:center">🚗 CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
@@ -872,7 +982,7 @@ if _last_result:
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🚙 &nbsp;Cars.com
     </a>
-    <a href="{_hurl_z(_cargurus_url)}" target="_blank" title="Searches CarGurus listings via Google (CarGurus URL requires internal IDs)"
+    <a href="{_hurl_z(_cargurus_url)}" target="_blank" title="Open CarGurus listings"
        style="background:#dc2626;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🚗 &nbsp;CarGurus

@@ -166,14 +166,12 @@ def _cg_direct_url(make: str, model: str, condition: str,
                    ext_color: str = "", int_color: str = "") -> str:
     """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
-    print(f"[CG DEBUG] key={key!r}, in_table={key in _CG_ENTITY_IDS}, table_size={len(_CG_ENTITY_IDS)}")
     entity_id = _CG_ENTITY_IDS.get(key)
     if entity_id is None:
         for k, eid in _CG_ENTITY_IDS.items():
             if k.replace("-", " ").replace("  ", " ") == key.replace("-", " ").replace("  ", " "):
                 entity_id = eid
                 break
-    print(f"[CG DEBUG] entity_id={entity_id}")
     if entity_id is None:
         return None
 

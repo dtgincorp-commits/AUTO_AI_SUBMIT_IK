@@ -26,9 +26,14 @@ _CG_ENTITY_IDS = {
     # Acura
     "acura adx": 3387, "acura mdx": 16,
     # Audi
-    "audi q3": 2129, "audi q5": 1988,
+    "audi a3": 24, "audi a4": 25, "audi a4 allroad": 2149,
+    "audi a5": 2508, "audi a5 sportback": 2508,
+    "audi a6": 27, "audi a8": 29, "audi q3": 2129, "audi q5": 1988,
+    "audi e-tron": 2829, "audi etron": 2829,
     # BMW
-    "bmw x1": 2160, "bmw x3": 392, "bmw x5": 393,
+    "bmw 2 series": 2262, "bmw 3 series": 2240, "bmw 4 series": 2244,
+    "bmw i4": 3155,
+    "bmw x1": 2160, "bmw x3": 392, "bmw x5": 393, "bmw x7": 2656,
     # Buick
     "buick enclave": 1029, "buick encore gx": 2901, "buick envision": 2398, "buick envista": 3333,
     # Cadillac
@@ -96,12 +101,22 @@ _CG_ENTITY_IDS = {
     # Subaru
     "subaru ascent": 2650, "subaru crosstrek": 2387, "subaru forester": 374,
     "subaru legacy": 378, "subaru outback": 380,
+    # Lexus
+    "lexus es": 2720, "lexus es hybrid": 2721, "lexus gs": 2822, "lexus gx": 2063,
+    "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus nx hybrid": 2294,
+    "lexus rc": 2827, "lexus ux hybrid": 2722,
+    # Porsche
+    "porsche 718 boxster": 2416, "porsche 718 cayman": 2430,
+    "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
+    "porsche panamera e-hybrid": 2930, "porsche taycan": 2974,
     # Tesla
-    "tesla model 3": 2342, "tesla model3": 2342,
+    "tesla model 3": 2475, "tesla model3": 2475,
     "tesla model x": 2132, "tesla modelx": 2132,
+    "tesla model y": 3044, "tesla modely": 3044,
     # Toyota
     "toyota 4runner": 290, "toyota camry": 292, "toyota corolla": 295,
     "toyota rav4": 306, "toyota rav 4": 306, "toyota rav4 hybrid": 2318,
+    "toyota sienna": 308,
     "toyota tacoma": 311, "toyota tundra": 313, "toyota tundra hybrid": 3414,
     # Volkswagen
     "volkswagen atlas": 2507, "vw atlas": 2507,

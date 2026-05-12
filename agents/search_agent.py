@@ -232,7 +232,7 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
     elif location_str:
         params.update(_parse_location(location_str))
     resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
-    if resp.status_code in (401, 403) and MARKETCHECK_API_KEY2:
+    if resp.status_code in (401, 403, 429) and MARKETCHECK_API_KEY2:
         params["api_key"] = MARKETCHECK_API_KEY2
         resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
     resp.raise_for_status()

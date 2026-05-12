@@ -138,10 +138,11 @@ _CG_COLOR_SPT = {
 # Cars.com model slug overrides: auto-generated slug → actual slug Cars.com recognizes.
 # Needed when a model's powertrain/variant designation isn't a valid separate model slug.
 _CM_SLUG_MAP = {
-    # Lexus TX — hybrid variants use lexus_tx_hybrid slug on Cars.com
-    "lexus_tx_500h": "lexus_tx_hybrid",
-    "lexus_tx_350h": "lexus_tx_hybrid",
-    "lexus_tx_350":  "lexus_tx",
+    # Lexus TX — Cars.com only knows the base "lexus_tx" slug for all variants
+    "lexus_tx_500h":   "lexus_tx",
+    "lexus_tx_350h":   "lexus_tx",
+    "lexus_tx_350":    "lexus_tx",
+    "lexus_tx_hybrid": "lexus_tx",
     # Lexus NX — plug-in hybrid variant
     "lexus_nx_450h":  "lexus_nx",
     "lexus_nx_350h":  "lexus_nx",

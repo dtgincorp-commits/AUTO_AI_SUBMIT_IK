@@ -111,28 +111,57 @@ _CG_ENTITY_IDS = {
     "volvo xc60": 1629, "volvo xc90": 523,
 }
 
-def _cg_direct_url(make: str, model: str, condition: str) -> str:
+# CarGurus exterior-color spt tag IDs (from page popular-filter links, 2026-05).
+# Used in slug: s-Used-{Color}-{Make}-{Model}-d{ID}_spt{colorId}
+_CG_COLOR_SPT = {
+    "black": 335, "blue": 334, "gray": 410, "grey": 410,
+    "red": 332, "silver": 408, "white": 333,
+}
+
+def _cg_direct_url(make: str, model: str, condition: str,
+                   zip_code: str = "", price_max: int = 999999,
+                   ext_color: str = "") -> str:
     """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
     entity_id = _CG_ENTITY_IDS.get(key)
     if entity_id is None:
-        # Try make-only key strip (e.g. "ford f-150" variants)
         for k, eid in _CG_ENTITY_IDS.items():
             if k.replace("-", " ").replace("  ", " ") == key.replace("-", " ").replace("  ", " "):
                 entity_id = eid
                 break
     if entity_id is None:
         return None
+
     make_slug  = make.strip().replace(" ", "-")
     model_slug = model.strip().replace(" ", "-")
-    if (condition or "").lower() == "new":
-        return f"https://www.cargurus.com/Cars/new/nl-New-{make_slug}-{model_slug}-d{entity_id}"
+    is_new     = (condition or "").lower() == "new"
+    color_key  = (ext_color or "").strip().lower()
+    color_spt  = _CG_COLOR_SPT.get(color_key)
+
+    # Build query string for zip and price
+    qp = []
+    if zip_code:
+        qp.append(f"zip={zip_code}")
+    if price_max and price_max < 999000:
+        qp.append(f"maxPrice={price_max}")
+    qs = ("?" + "&".join(qp)) if qp else ""
+
+    if is_new:
+        # New cars: nl-New- prefix; color via query param (no spt tags for new)
+        if color_key and color_key not in ("any", "other"):
+            qp.append(f"exteriorColorSimple={color_key.upper()}")
+            qs = ("?" + "&".join(qp))
+        return f"https://www.cargurus.com/Cars/new/nl-New-{make_slug}-{model_slug}-d{entity_id}{qs}"
     else:
-        return f"https://www.cargurus.com/Cars/l-Used-{make_slug}-{model_slug}-d{entity_id}"
+        # Used cars: color goes in slug + spt tag when available
+        if color_spt and color_key not in ("any", "other"):
+            color_slug = color_key.title()
+            return f"https://www.cargurus.com/Cars/s-Used-{color_slug}-{make_slug}-{model_slug}-d{entity_id}_spt{color_spt}{qs}"
+        return f"https://www.cargurus.com/Cars/l-Used-{make_slug}-{model_slug}-d{entity_id}{qs}"
 
 def _cg_url(make: str, model: str, zip_code: str, price_max: int,
-            condition: str, quote_fn) -> str:
-    direct = _cg_direct_url(make, model, condition)
+            condition: str, quote_fn, ext_color: str = "") -> str:
+    direct = _cg_direct_url(make, model, condition, zip_code, price_max, ext_color)
     if direct:
         return direct
     # Fallback: Google site search
@@ -566,7 +595,7 @@ if st.session_state.get("_search_builder"):
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    _sb_cg_url = _cg_url(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_quote)
+    _sb_cg_url = _cg_url(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_quote, _sb_color)
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _sb_cm_qp = [f"stock_type={'used' if _sb_condition=='Used' else 'new' if _sb_condition=='New' else 'all'}",
@@ -930,6 +959,7 @@ if _last_result:
         _make, _model, _at_zip,
         _prefs.price_max if _prefs else 999999,
         _condition, _cg_quote,
+        ext_color=_ext_color,
     )
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")

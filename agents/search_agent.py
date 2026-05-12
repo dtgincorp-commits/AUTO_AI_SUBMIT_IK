@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from agents.models import CarPreferences, CarListing
-from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, AUTODEV_API_KEY, EBAY_APP_ID, SCRAPERAPI_KEY, get_langfuse_callbacks
+from config import LLM_MODEL, OPENAI_API_KEY, MARKETCHECK_API_KEY, MARKETCHECK_API_KEY2, AUTODEV_API_KEY, EBAY_APP_ID, SCRAPERAPI_KEY, get_langfuse_callbacks
 
 MARKETCHECK_BASE = "https://api.marketcheck.com/v2"
 EBAY_FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
@@ -232,6 +232,9 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
     elif location_str:
         params.update(_parse_location(location_str))
     resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
+    if resp.status_code in (401, 403) and MARKETCHECK_API_KEY2:
+        params["api_key"] = MARKETCHECK_API_KEY2
+        resp = requests.get(f"{MARKETCHECK_BASE}/search/car/active", params=params, timeout=15)
     resp.raise_for_status()
     return resp.json()
 

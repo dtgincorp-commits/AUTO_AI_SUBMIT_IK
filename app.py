@@ -105,7 +105,8 @@ _CG_ENTITY_IDS = {
     "lexus es": 2720, "lexus es hybrid": 2721, "lexus gs": 2822, "lexus gx": 2063,
     "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus lx hybrid": 3438,
     "lexus nx hybrid": 2294, "lexus rc": 2827, "lexus ux hybrid": 2722,
-    "lexus tx": 3343, "lexus tx 350": 3343, "lexus tx 350h": 3343, "lexus tx 500h": 3343,
+    "lexus tx": 3343, "lexus tx 350": 3343,
+    "lexus tx hybrid": 3345, "lexus tx 350h": 3345, "lexus tx 500h": 3345,
     # Porsche
     "porsche 718 boxster": 2416, "porsche 718 cayman": 2430,
     "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
@@ -137,9 +138,9 @@ _CG_COLOR_SPT = {
 # Cars.com model slug overrides: auto-generated slug → actual slug Cars.com recognizes.
 # Needed when a model's powertrain/variant designation isn't a valid separate model slug.
 _CM_SLUG_MAP = {
-    # Lexus TX — all powertrain variants live under the base "lexus_tx" model slug
-    "lexus_tx_500h": "lexus_tx",
-    "lexus_tx_350h": "lexus_tx",
+    # Lexus TX — hybrid variants use lexus_tx_hybrid slug on Cars.com
+    "lexus_tx_500h": "lexus_tx_hybrid",
+    "lexus_tx_350h": "lexus_tx_hybrid",
     "lexus_tx_350":  "lexus_tx",
     # Lexus NX — plug-in hybrid variant
     "lexus_nx_450h":  "lexus_nx",

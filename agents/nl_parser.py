@@ -33,7 +33,8 @@ def _build_prompt() -> ChatPromptTemplate:
             "Model field rules: strip drivetrain/AWD badges from the model name AND do not put them in trim — drop them completely. "
             "Badges to drop: 4MATIC, 4MATIC+, xDrive, sDrive, xLine, quattro, AWD, RWD, FWD, eAWD, PHEV, 4WD, 4x4. "
             "Examples: 'GLS 450 4MATIC' → model='GLS 450', no trim; 'X5 xDrive40i' → model='X5', no trim; 'Q7 quattro' → model='Q7', no trim; 'RAV4 AWD' → model='RAV4', no trim. "
-            "Only set trim if the user explicitly names a real trim level like Sport, Luxury, AMG Line, Prestige, Limited, etc. "
+            "Only set trim if the user explicitly names a real trim level like Sport, Luxury, AMG Line, Prestige, Limited, SR5, TRD, etc. "
+            "If the user mentions a model year of 2026 or later, set condition to 'New' (unless they explicitly say 'used'). "
             "Default radius_miles to 50 if not mentioned. "
             "No markdown, no explanation — raw JSON only."
         )),

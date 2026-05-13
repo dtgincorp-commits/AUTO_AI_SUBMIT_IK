@@ -413,6 +413,7 @@ if st.session_state.get("_search_builder"):
     import re as _re2
     _sb_make      = _normalize_make(st.session_state.get("p_make", ""))
     _sb_model     = st.session_state.get("p_model", "")
+    _sb_trim      = (st.session_state.get("p_trim") or "").strip()
     _sb_condition = st.session_state.get("p_condition", "Any")
     _sb_location  = st.session_state.get("p_location", "")
     _sb_price_min = st.session_state.get("p_price_min", 0)
@@ -438,6 +439,8 @@ if st.session_state.get("_search_builder"):
     if _sb_mileage:       _sb_at_qp.append(f"maxMileage={_sb_mileage}")
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_at_qp.append(f"intColorSimple={_sb_int_color.upper()}")
+    if _sb_trim:
+        _sb_at_qp.append(f"trimCodeList={_sb_trim}")
     _sb_at_url = (
         f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
         f"{_sb_make.lower().replace(' ','-')}/{_sb_model.lower().replace(' ','-').replace('/','-')}/{_sb_loc_seg}"
@@ -459,11 +462,14 @@ if st.session_state.get("_search_builder"):
         _sb_cm_qp.append(f"exterior_color_slugs[]={_sb_color.lower()}")
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_cm_qp.append(f"interior_color_slugs[]={_sb_int_color.lower()}")
+    if _sb_trim:
+        _sb_cm_qp.append(f"trim_slugs[]={_sb_trim.lower().replace(' ', '-')}")
     _sb_cm_url = "https://www.cars.com/shopping/results/?" + "&".join(_sb_cm_qp)
     _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
 
     def _hurl_sb(u): return u.replace("&", "&amp;")
     _sb_pill = f"{_sb_make} {_sb_model}".strip() or "Any"
+    if _sb_trim: _sb_pill += f" {_sb_trim}"
     _sb_pill += f" &nbsp;·&nbsp; {_sb_condition}"
     if _sb_location:  _sb_pill += f" &nbsp;·&nbsp; near {_sb_location}"
     if _sb_radius != 50: _sb_pill += f" &nbsp;·&nbsp; {_sb_radius} mi radius"
@@ -800,6 +806,8 @@ if _last_result:
         if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
         if _int_color and _int_color.lower() not in ("any", "other", ""):
             _at_qp.append(f"intColorSimple={_int_color.upper()}")
+        if _prefs.trim:
+            _at_qp.append(f"trimCodeList={_prefs.trim}")
     _autotrader_url = (
         f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/{_at_model_slug}/{_at_loc_seg}"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
@@ -828,6 +836,8 @@ if _last_result:
             _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
         if _int_color and _int_color.lower() not in ("any", "other", ""):
             _cm_qp.append(f"interior_color_slugs[]={_int_color.lower()}")
+        if _prefs.trim:
+            _cm_qp.append(f"trim_slugs[]={_prefs.trim.lower().replace(' ', '-')}")
     _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
     from urllib.parse import quote as _url_quote
     _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"

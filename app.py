@@ -462,8 +462,6 @@ if st.session_state.get("_search_builder"):
         _sb_cm_qp.append(f"exterior_color_slugs[]={_sb_color.lower()}")
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_cm_qp.append(f"interior_color_slugs[]={_sb_int_color.lower()}")
-    if _sb_trim:
-        _sb_cm_qp.append(f"trim_slugs[]={_sb_trim.lower().replace(' ', '-')}")
     _sb_cm_url = "https://www.cars.com/shopping/results/?" + "&".join(_sb_cm_qp)
     _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
 
@@ -836,8 +834,6 @@ if _last_result:
             _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
         if _int_color and _int_color.lower() not in ("any", "other", ""):
             _cm_qp.append(f"interior_color_slugs[]={_int_color.lower()}")
-        if _prefs.trim:
-            _cm_qp.append(f"trim_slugs[]={_prefs.trim.lower().replace(' ', '-')}")
     _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
     from urllib.parse import quote as _url_quote
     _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"

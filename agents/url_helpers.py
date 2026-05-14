@@ -218,7 +218,8 @@ def normalize_make(make: str) -> str:
 
 def cg_direct_url(make: str, model: str, condition: str,
                   zip_code: str = "", price_max: int = 999999,
-                  ext_color: str = "", int_color: str = "") -> str:
+                  ext_color: str = "", int_color: str = "",
+                  radius: int = 50) -> str:
     """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
     entity_id = CG_ENTITY_IDS.get(key)
@@ -240,6 +241,7 @@ def cg_direct_url(make: str, model: str, condition: str,
     qp = []
     if zip_code:
         qp.append(f"zip={zip_code}")
+        qp.append(f"distance={radius}")
     if price_max and price_max < 999000:
         qp.append(f"maxPrice={price_max}")
     if int_key and int_key not in ("any", "other"):
@@ -259,8 +261,9 @@ def cg_direct_url(make: str, model: str, condition: str,
 
 
 def cg_url(make: str, model: str, zip_code: str, price_max: int,
-           condition: str, ext_color: str = "", int_color: str = "") -> str:
-    direct = cg_direct_url(make, model, condition, zip_code, price_max, ext_color, int_color)
+           condition: str, ext_color: str = "", int_color: str = "",
+           radius: int = 50) -> str:
+    direct = cg_direct_url(make, model, condition, zip_code, price_max, ext_color, int_color, radius)
     if direct:
         return direct
     parts = []

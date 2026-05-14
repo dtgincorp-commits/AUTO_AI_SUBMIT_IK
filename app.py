@@ -470,7 +470,7 @@ if st.session_state.get("_search_builder"):
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color)
+    _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color, _sb_radius)
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _sb_cm_model = _CM_SLUG_MAP.get(_sb_cm_model, _sb_cm_model)
@@ -879,6 +879,7 @@ if _last_result:
         _condition,
         ext_color=_ext_color,
         int_color=_int_color,
+        radius=_prefs.radius_miles if _prefs else 50,
     )
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")

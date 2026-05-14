@@ -659,16 +659,17 @@ with st.sidebar:
     max_mileage = st.number_input("Max Mileage", min_value=0, step=5000, key="p_max_mileage")
 
     st.subheader("Location")
-    _loc_col, _detect_col = st.columns([3, 1])
-    with _loc_col:
-        location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
+    # Apply pending auto-detected location BEFORE the widget is rendered
+    if st.session_state.get("_pending_location"):
+        st.session_state["p_location"] = st.session_state.pop("_pending_location")
+    location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
+    _, _detect_col = st.columns([2, 1])
     with _detect_col:
-        st.markdown("<div style='margin-top:28px'/>", unsafe_allow_html=True)
         if st.button("📍 Detect", use_container_width=True, help="Auto-detect your location from your IP"):
             with st.spinner("Detecting…"):
                 _detected = _detect_location()
             if _detected:
-                st.session_state["p_location"] = _detected
+                st.session_state["_pending_location"] = _detected
                 st.rerun()
             else:
                 st.warning("Could not detect location.")
@@ -720,7 +721,7 @@ if find_btn or _nl_auto_run:
         with st.spinner("No location given — detecting yours…"):
             location = _detect_location()
         if location:
-            st.session_state["p_location"] = location
+            st.session_state["_pending_location"] = location
             st.info(f"📍 Using your detected location: **{location}**")
         else:
             st.error("Please fill in your location — could not detect it automatically.")

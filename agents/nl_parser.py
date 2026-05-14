@@ -23,7 +23,7 @@ def _build_prompt() -> ChatPromptTemplate:
             "exterior_color (must be one of: 'Any','White','Black','Silver','Gray','Red','Blue','Green','Other'), "
             "interior_color (must be one of: 'Any','Black','Beige','Gray','Brown','White','Red','Other'), "
             "max_mileage (int), "
-            "location (str — use 5-digit ZIP or 'City, ST' format e.g. 'Irvine, CA'; never county names like 'Orange County'), "
+            "location (str — use 5-digit ZIP or 'City, ST' format e.g. 'Irvine, CA'; never county names like 'Orange County'; OMIT this key entirely if no location is mentioned — never use placeholders like 'City, ST' or 'Unknown'), "
             "radius_miles (int). "
             "Rules: "
             "ONLY include price_min/price_max if the user EXPLICITLY stated a price or budget — NEVER infer or guess a price from the car type or condition. "

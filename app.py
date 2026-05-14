@@ -25,6 +25,25 @@ from agents.url_helpers import (
     cg_url as _cg_url_fn, at_url as _at_url_fn, cm_url as _cm_url_fn,
 )
 
+def _detect_location() -> str:
+    """Use the visitor's IP to return 'City, ST ZIP', or '' on failure."""
+    try:
+        import requests as _req
+        ip = str(st.context.ip_address or "").strip()
+        # Local/private IPs — ask the public endpoint to detect the server's IP
+        # (dev mode); on Streamlit Cloud this will be the real client IP
+        if not ip or ip.startswith(("127.", "192.168.", "10.", "172.")):
+            url = "http://ip-api.com/json/"
+        else:
+            url = f"http://ip-api.com/json/{ip}"
+        data = _req.get(url, timeout=5).json()
+        if data.get("status") == "success" and data.get("zip"):
+            return f"{data['city']}, {data['regionName']} {data['zip']}"
+    except Exception:
+        pass
+    return ""
+
+
 st.set_page_config(
     page_title="AUTO AI - Car Discovery",
     page_icon="🚗",
@@ -241,6 +260,16 @@ if _nl_btn:
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_last_parsed_query"] = _nl_query.strip()
+            # Auto-detect location if parser didn't find one
+            if not _parsed.get("location"):
+                _auto_loc = _detect_location()
+                if _auto_loc:
+                    st.session_state["p_location"] = _auto_loc
+                    _parsed["location"] = _auto_loc
+                    st.session_state["nl_parse_msg"] = (
+                        "success",
+                        f"📍 No location in query — using your detected location: **{_auto_loc}**",
+                    )
             _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
             if not _has_required:
                 _missing = [f for f, v in [("make", _parsed.get("make")), ("model", _parsed.get("model")), ("location", _parsed.get("location"))] if not v]
@@ -630,7 +659,19 @@ with st.sidebar:
     max_mileage = st.number_input("Max Mileage", min_value=0, step=5000, key="p_max_mileage")
 
     st.subheader("Location")
-    location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
+    _loc_col, _detect_col = st.columns([3, 1])
+    with _loc_col:
+        location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
+    with _detect_col:
+        st.markdown("<div style='margin-top:28px'/>", unsafe_allow_html=True)
+        if st.button("📍 Detect", use_container_width=True, help="Auto-detect your location from your IP"):
+            with st.spinner("Detecting…"):
+                _detected = _detect_location()
+            if _detected:
+                st.session_state["p_location"] = _detected
+                st.rerun()
+            else:
+                st.warning("Could not detect location.")
     _RADIUS_OPTS = [10, 25, 50, 75, 100, 200, 300, 400, 500, 0]
     radius_miles = st.selectbox(
         "Search Radius",
@@ -672,9 +713,18 @@ with st.sidebar:
 # ── Run pipeline ────────────────────────────────────────────────────────────
 _nl_auto_run = st.session_state.pop("_nl_auto_run", False)
 if find_btn or _nl_auto_run:
-    if not make or not model or not location:
-        st.error("Please fill in Make, Model, and Location.")
+    if not make or not model:
+        st.error("Please fill in Make and Model.")
         st.stop()
+    if not location:
+        with st.spinner("No location given — detecting yours…"):
+            location = _detect_location()
+        if location:
+            st.session_state["p_location"] = location
+            st.info(f"📍 Using your detected location: **{location}**")
+        else:
+            st.error("Please fill in your location — could not detect it automatically.")
+            st.stop()
     if dealer_outreach and not broker_name:
         st.error("Please enter your broker name for dealer outreach.")
         st.stop()

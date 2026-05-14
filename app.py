@@ -25,20 +25,21 @@ from agents.url_helpers import (
     cg_url as _cg_url_fn, at_url as _at_url_fn, cm_url as _cm_url_fn,
 )
 
-def _detect_location() -> str:
-    """Use the visitor's IP to return 'City, ST ZIP', or '' on failure."""
+def _reverse_geocode(lat: float, lon: float) -> str:
+    """Convert lat/lon to 'City, ST ZIP' using BigDataCloud (free, no key)."""
     try:
         import requests as _req
-        ip = str(st.context.ip_address or "").strip()
-        # Local/private IPs — ask the public endpoint to detect the server's IP
-        # (dev mode); on Streamlit Cloud this will be the real client IP
-        if not ip or ip.startswith(("127.", "192.168.", "10.", "172.")):
-            url = "http://ip-api.com/json/"
-        else:
-            url = f"http://ip-api.com/json/{ip}"
-        data = _req.get(url, timeout=5).json()
-        if data.get("status") == "success" and data.get("zip"):
-            return f"{data['city']}, {data['regionName']} {data['zip']}"
+        r = _req.get(
+            "https://api.bigdatacloud.net/data/reverse-geocode-client",
+            params={"latitude": lat, "longitude": lon, "localityLanguage": "en"},
+            timeout=5,
+        )
+        d = r.json()
+        city     = d.get("city") or d.get("locality", "")
+        state    = d.get("principalSubdivisionCode", "").replace("US-", "")
+        postcode = d.get("postcode", "")
+        if city and state:
+            return f"{city}, {state} {postcode}".strip()
     except Exception:
         pass
     return ""
@@ -260,16 +261,9 @@ if _nl_btn:
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_last_parsed_query"] = _nl_query.strip()
-            # Auto-detect location if parser didn't find one
-            if not _parsed.get("location"):
-                _auto_loc = _detect_location()
-                if _auto_loc:
-                    st.session_state["p_location"] = _auto_loc
-                    _parsed["location"] = _auto_loc
-                    st.session_state["nl_parse_msg"] = (
-                        "success",
-                        f"📍 No location in query — using your detected location: **{_auto_loc}**",
-                    )
+            # If parser found no location, check if sidebar already has one (from GPS detect)
+            if not _parsed.get("location") and st.session_state.get("p_location"):
+                _parsed["location"] = st.session_state["p_location"]
             _has_required = _parsed.get("make") and _parsed.get("model") and _parsed.get("location")
             if not _has_required:
                 _missing = [f for f, v in [("make", _parsed.get("make")), ("model", _parsed.get("model")), ("location", _parsed.get("location"))] if not v]
@@ -665,14 +659,26 @@ with st.sidebar:
     location = st.text_input("Your ZIP or City", placeholder="e.g. Austin, TX or 78701", key="p_location")
     _, _detect_col = st.columns([2, 1])
     with _detect_col:
-        if st.button("📍 Detect", use_container_width=True, help="Auto-detect your location from your IP"):
-            with st.spinner("Detecting…"):
-                _detected = _detect_location()
-            if _detected:
-                st.session_state["_pending_location"] = _detected
-                st.rerun()
-            else:
-                st.warning("Could not detect location.")
+        if st.button("📍 Detect", use_container_width=True,
+                     help="Uses your browser's GPS — you'll be asked to allow location access"):
+            st.session_state["_geo_requested"] = True
+            st.rerun()
+
+    # Browser geolocation — renders a JS component that asks for GPS permission
+    if st.session_state.get("_geo_requested"):
+        try:
+            from streamlit_js_eval import get_geolocation
+            _geo = get_geolocation()
+            if _geo and _geo.get("coords"):
+                _lat = _geo["coords"]["latitude"]
+                _lon = _geo["coords"]["longitude"]
+                _loc = _reverse_geocode(_lat, _lon)
+                if _loc:
+                    st.session_state["_pending_location"] = _loc
+                    st.session_state.pop("_geo_requested", None)
+                    st.rerun()
+        except Exception:
+            st.warning("Browser geolocation unavailable — please type your location.")
     _RADIUS_OPTS = [10, 25, 50, 75, 100, 200, 300, 400, 500, 0]
     radius_miles = st.selectbox(
         "Search Radius",
@@ -718,14 +724,8 @@ if find_btn or _nl_auto_run:
         st.error("Please fill in Make and Model.")
         st.stop()
     if not location:
-        with st.spinner("No location given — detecting yours…"):
-            location = _detect_location()
-        if location:
-            st.session_state["_pending_location"] = location
-            st.info(f"📍 Using your detected location: **{location}**")
-        else:
-            st.error("Please fill in your location — could not detect it automatically.")
-            st.stop()
+        st.error("Please fill in your location, or click **📍 Detect** in the sidebar to use your GPS.")
+        st.stop()
     if dealer_outreach and not broker_name:
         st.error("Please enter your broker name for dealer outreach.")
         st.stop()

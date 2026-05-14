@@ -23,7 +23,7 @@ def _build_prompt() -> ChatPromptTemplate:
             "exterior_color (must be one of: 'Any','White','Black','Silver','Gray','Red','Blue','Green','Other'), "
             "interior_color (must be one of: 'Any','Black','Beige','Gray','Brown','White','Red','Other'), "
             "max_mileage (int), "
-            "location (str — use 5-digit ZIP or 'City, ST' format e.g. 'Irvine, CA'; if only a US state name is given (e.g. 'arizona', 'Texas', 'AZ'), return the largest city in that state with its 2-letter abbreviation (e.g. 'Phoenix, AZ', 'Houston, TX'); never county names like 'Orange County'; OMIT this key entirely if no location is mentioned — never use placeholders like 'City, ST' or 'Unknown'), "
+            "location (str — if the user mentions a 5-digit ZIP code (e.g. 'near 92782', 'in 90210'), return it exactly as-is (e.g. '92782'); if a city and state are given return 'City, ST' format (e.g. 'Irvine, CA'); if only a US state name or abbreviation is given (e.g. 'arizona', 'Texas', 'AZ'), return the largest city in that state with its 2-letter abbreviation (e.g. 'Phoenix, AZ', 'Houston, TX'); never county names like 'Orange County'; OMIT this key entirely if no location is mentioned — never use placeholders like 'City, ST' or 'Unknown'), "
             "radius_miles (int). "
             "Rules: "
             "ONLY include price_min/price_max if the user EXPLICITLY stated a price or budget — NEVER infer or guess a price from the car type or condition. "

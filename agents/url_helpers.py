@@ -151,6 +151,67 @@ MAKE_NORMALIZE = {
 }
 
 
+# Representative ZIP codes for each US state (largest city downtown ZIP)
+_STATE_ZIP = {
+    "al": "35203", "ak": "99501", "az": "85001", "ar": "72201", "ca": "90001",
+    "co": "80201", "ct": "06601", "de": "19801", "fl": "32099", "ga": "30301",
+    "hi": "96801", "id": "83701", "il": "60601", "in": "46201", "ia": "50301",
+    "ks": "67201", "ky": "40201", "la": "70112", "me": "04101", "md": "21201",
+    "ma": "02101", "mi": "48201", "mn": "55401", "ms": "39201", "mo": "64101",
+    "mt": "59101", "ne": "68101", "nv": "89101", "nh": "03101", "nj": "07101",
+    "nm": "87101", "ny": "10001", "nc": "28201", "nd": "58101", "oh": "43201",
+    "ok": "73101", "or": "97201", "pa": "19101", "ri": "02901", "sc": "29201",
+    "sd": "57101", "tn": "37201", "tx": "77001", "ut": "84101", "vt": "05401",
+    "va": "23450", "wa": "98101", "wv": "25301", "wi": "53201", "wy": "82001",
+    "dc": "20001",
+}
+
+# Full state names → abbreviation
+_STATE_NAME_TO_ABBR = {
+    "alabama": "al", "alaska": "ak", "arizona": "az", "arkansas": "ar",
+    "california": "ca", "colorado": "co", "connecticut": "ct", "delaware": "de",
+    "florida": "fl", "georgia": "ga", "hawaii": "hi", "idaho": "id",
+    "illinois": "il", "indiana": "in", "iowa": "ia", "kansas": "ks",
+    "kentucky": "ky", "louisiana": "la", "maine": "me", "maryland": "md",
+    "massachusetts": "ma", "michigan": "mi", "minnesota": "mn", "mississippi": "ms",
+    "missouri": "mo", "montana": "mt", "nebraska": "ne", "nevada": "nv",
+    "new hampshire": "nh", "new jersey": "nj", "new mexico": "nm", "new york": "ny",
+    "north carolina": "nc", "north dakota": "nd", "ohio": "oh", "oklahoma": "ok",
+    "oregon": "or", "pennsylvania": "pa", "rhode island": "ri", "south carolina": "sc",
+    "south dakota": "sd", "tennessee": "tn", "texas": "tx", "utah": "ut",
+    "vermont": "vt", "virginia": "va", "washington": "wa", "west virginia": "wv",
+    "wisconsin": "wi", "wyoming": "wy", "district of columbia": "dc",
+}
+
+import re as _re_loc
+
+
+def zip_from_location(location: str) -> str:
+    """
+    Extract a usable 5-digit ZIP from a location string.
+    1. Returns an explicit ZIP if present (e.g. "Irvine, CA 92782" → "92782").
+    2. Falls back to a state-name or state-abbr lookup
+       (e.g. "arizona" → "85001", "AZ" → "85001").
+    Returns "" if nothing can be resolved.
+    """
+    if not location:
+        return ""
+    # 1) Explicit 5-digit ZIP in the string
+    m = _re_loc.search(r"\b(\d{5})\b", location)
+    if m:
+        return m.group(1)
+    loc_lower = location.strip().lower()
+    # 2) Full state name (may appear as whole string or after a comma, e.g. "arizona usa")
+    for name, abbr in _STATE_NAME_TO_ABBR.items():
+        if _re_loc.search(r"\b" + _re_loc.escape(name) + r"\b", loc_lower):
+            return _STATE_ZIP[abbr]
+    # 3) 2-letter state abbreviation (e.g. "AZ", "CA")
+    abbr_m = _re_loc.search(r"\b([a-z]{2})\b", loc_lower)
+    if abbr_m and abbr_m.group(1) in _STATE_ZIP:
+        return _STATE_ZIP[abbr_m.group(1)]
+    return ""
+
+
 def normalize_make(make: str) -> str:
     return MAKE_NORMALIZE.get(make.strip().lower(), make.strip())
 

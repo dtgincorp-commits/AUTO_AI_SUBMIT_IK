@@ -23,6 +23,7 @@ from agents.url_helpers import (
     CG_ENTITY_IDS as _CG_ENTITY_IDS, CG_COLOR_SPT as _CG_COLOR_SPT,
     CM_SLUG_MAP as _CM_SLUG_MAP, normalize_make as _normalize_make,
     cg_url as _cg_url_fn, at_url as _at_url_fn, cm_url as _cm_url_fn,
+    zip_from_location as _zip_from_location,
 )
 
 def _reverse_geocode(lat: float, lon: float) -> str:
@@ -448,8 +449,7 @@ if st.session_state.get("_search_builder"):
     _sb_radius    = st.session_state.get("p_radius_miles", 50)
 
     _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
-    _sb_zip_m     = _re2.search(r"\b(\d{5})\b", _sb_location)
-    _sb_zip       = _sb_zip_m.group(1) if _sb_zip_m else ""
+    _sb_zip       = _zip_from_location(_sb_location)
     _sb_loc_text  = _re2.sub(r'\b\d{5}\b', '', _sb_location).strip().strip(',').strip()
     _sb_loc_seg   = ("-".join(_re2.sub(r'[^\w\s]', '', _sb_loc_text).lower().split()) + "/") if _sb_loc_text else ""
     _sb_price_seg = f"cars-under-{_sb_price_max}/" if _sb_price_max < 999000 else ""
@@ -848,8 +848,7 @@ if _last_result:
     )
     _at_make_slug  = _make.lower().replace(" ", "-")
     _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
-    _zip_m = _re.search(r"\b(\d{5})\b", _location)
-    _at_zip = _zip_m.group(1) if _zip_m else ""
+    _at_zip = _zip_from_location(_location)
     # City/state slug (e.g. "Irvine, CA" → "irvine-ca"); omitted for ZIP-only inputs
     _loc_text = _re.sub(r'\b\d{5}\b', '', _location).strip().strip(',').strip()
     _at_loc_seg = ("-".join(_re.sub(r'[^\w\s]', '', _loc_text).lower().split()) + "/") if _loc_text else ""

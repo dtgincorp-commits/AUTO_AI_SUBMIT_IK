@@ -656,12 +656,8 @@ with st.sidebar:
     # Apply pending auto-detected location BEFORE the widget is rendered
     if st.session_state.get("_pending_location"):
         st.session_state["p_location"] = st.session_state.pop("_pending_location")
-    _loc_col, _detect_col = st.columns([3, 2])
-    with _loc_col:
-        location = st.text_input("Your ZIP or City", placeholder="e.g. 92782 or Irvine, CA", key="p_location")
-    with _detect_col:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        st.markdown("""
+    location = st.text_input("Your ZIP or City", placeholder="e.g. 92782 or Irvine, CA", key="p_location")
+    st.markdown("""
 <style>
 div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"]) button {
     background: linear-gradient(135deg,#0ea5e9,#6366f1) !important;
@@ -671,14 +667,14 @@ div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"
     font-size: 12px !important;
     font-weight: 700 !important;
     letter-spacing: 0.3px !important;
-    white-space: nowrap !important;
-    padding: 4px 8px !important;
+    padding: 5px 10px !important;
+    margin-top: -8px !important;
 }
 </style>""", unsafe_allow_html=True)
-        if st.button("📍 Use My Location", use_container_width=True,
-                     help="Uses your browser's GPS — you'll be asked to allow location access"):
-            st.session_state["_geo_requested"] = True
-            st.rerun()
+    if st.button("📍 Use My Location", use_container_width=True,
+                 help="Uses your browser's GPS — you'll be asked to allow location access"):
+        st.session_state["_geo_requested"] = True
+        st.rerun()
 
     # Browser geolocation — renders a JS component that asks for GPS permission
     if st.session_state.get("_geo_requested"):

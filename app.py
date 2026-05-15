@@ -509,8 +509,11 @@ if st.session_state.get("_search_builder"):
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
             border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px;
             display:table">
-  <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:8px;white-space:nowrap">
+  <div style="font-size:13px;font-weight:700;color:#f0f4ff;margin-bottom:4px;white-space:nowrap">
     🗺️ &nbsp;Your search — ready to go on any platform
+  </div>
+  <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
+    ⚠️ Human in the loop required — review listings and contact dealers yourself
   </div>
   <div style="display:inline-block;font-size:11px;color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;

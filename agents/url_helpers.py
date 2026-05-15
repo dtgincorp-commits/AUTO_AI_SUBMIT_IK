@@ -304,10 +304,5 @@ def cm_url(make: str, model: str, condition: str,
     if price_min:   qp.append(f"price_min={price_min}")
     if price_max and price_max < 999000: qp.append(f"price_max={price_max}")
     if mileage:     qp.append(f"mileage_max={mileage}")
-    if ext_color and ext_color.lower() not in ("any", "other", ""):
-        qp.append(f"exterior_color_slugs[]={ext_color.lower()}")
-    # Cars.com only accepts these interior color slugs — invalid values silently drop models[]
-    _CM_VALID_INT = {"black", "gray", "grey", "beige", "tan", "brown", "white"}
-    if int_color and int_color.lower() not in ("any", "other", "") and int_color.lower() in _CM_VALID_INT:
-        qp.append(f"interior_color_slugs[]={int_color.lower()}")
+    # Cars.com color slug params silently drop models[] when invalid — omit entirely
     return "https://www.cars.com/shopping/results/?" + "&".join(qp)

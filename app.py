@@ -153,7 +153,7 @@ div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 """, unsafe_allow_html=True)
 
 with st.form("nl_form", clear_on_submit=False):
-    _nl_col, _build_col, _btn_col = st.columns([5, 1.2, 1.2])
+    _nl_col, _build_col, _btn_col = st.columns([4, 1.6, 1.6])
     with _nl_col:
         _nl_query = st.text_input(
             "nl",

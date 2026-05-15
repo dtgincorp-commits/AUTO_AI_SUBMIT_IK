@@ -220,7 +220,7 @@ def cg_direct_url(make: str, model: str, condition: str,
                   zip_code: str = "", price_max: int = 999999,
                   ext_color: str = "", int_color: str = "",
                   radius: int = 50) -> str:
-    """Return a direct CarGurus URL using entity ID, or None if not in lookup."""
+    """Return a CarGurus inventory listing URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
     entity_id = CG_ENTITY_IDS.get(key)
     if entity_id is None:
@@ -231,33 +231,20 @@ def cg_direct_url(make: str, model: str, condition: str,
     if entity_id is None:
         return None
 
-    make_slug  = make.strip().replace(" ", "-")
-    model_slug = model.strip().replace(" ", "-")
-    is_new     = (condition or "").lower() == "new"
-    color_key  = (ext_color or "").strip().lower()
-    color_spt  = CG_COLOR_SPT.get(color_key)
-    int_key    = (int_color or "").strip().lower()
-
-    qp = []
+    qp = [f"entityId=d{entity_id}"]
     if zip_code:
         qp.append(f"zip={zip_code}")
         qp.append(f"distance={radius}")
     if price_max and price_max < 999000:
-        qp.append(f"maxPrice={price_max}")
-    if int_key and int_key not in ("any", "other"):
-        qp.append(f"interior_color={int_key.title()}")
-
-    if is_new:
-        if color_key and color_key not in ("any", "other"):
-            qp.append(f"exteriorColorSimple={color_key.upper()}")
-        qs = ("?" + "&".join(qp)) if qp else ""
-        return f"https://www.cargurus.com/Cars/new/nl-New-{make_slug}-{model_slug}-d{entity_id}{qs}"
-    else:
-        qs = ("?" + "&".join(qp)) if qp else ""
-        if color_spt and color_key not in ("any", "other"):
-            color_slug = color_key.title()
-            return f"https://www.cargurus.com/Cars/s-Used-{color_slug}-{make_slug}-{model_slug}-d{entity_id}_spt{color_spt}{qs}"
-        return f"https://www.cargurus.com/Cars/l-Used-{make_slug}-{model_slug}-d{entity_id}{qs}"
+        qp.append(f"max_price={price_max}")
+    cond_lower = (condition or "").lower()
+    if cond_lower == "new":
+        qp.append("searchType=NEW")
+    elif cond_lower == "used":
+        qp.append("searchType=USED")
+    elif "cpo" in cond_lower:
+        qp.append("searchType=CPO")
+    return "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action?" + "&".join(qp)
 
 
 def cg_url(make: str, model: str, zip_code: str, price_max: int,
@@ -319,6 +306,8 @@ def cm_url(make: str, model: str, condition: str,
     if mileage:     qp.append(f"mileage_max={mileage}")
     if ext_color and ext_color.lower() not in ("any", "other", ""):
         qp.append(f"exterior_color_slugs[]={ext_color.lower()}")
-    if int_color and int_color.lower() not in ("any", "other", ""):
+    # Cars.com only accepts these interior color slugs — invalid values silently drop models[]
+    _CM_VALID_INT = {"black", "gray", "grey", "beige", "tan", "brown", "white"}
+    if int_color and int_color.lower() not in ("any", "other", "") and int_color.lower() in _CM_VALID_INT:
         qp.append(f"interior_color_slugs[]={int_color.lower()}")
     return "https://www.cars.com/shopping/results/?" + "&".join(qp)

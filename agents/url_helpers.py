@@ -271,7 +271,7 @@ def at_url(make: str, model: str, condition: str,
            radius: int = 50, mileage: int = None) -> str:
     """Build an AutoTrader search URL."""
     make = normalize_make(make)
-    cond_seg  = "used-cars/" if condition == "Used" else "new-cars/" if condition == "New" else "cars-for-sale/"
+    cond_seg  = "used-cars/" if condition == "Used" else "new-cars/" if condition == "New" else "all-cars/"
     price_seg = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
     make_slug  = make.lower().replace(" ", "-")

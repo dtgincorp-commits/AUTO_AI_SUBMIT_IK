@@ -31,6 +31,8 @@ CG_ENTITY_IDS = {
     "chrysler pacifica": 177,
     # Dodge
     "dodge durango": 651,
+    # Ferrari
+    "ferrari sf90": 3033, "ferrari sf90 stradale": 3033,
     # Ford
     "ford bronco": 320, "ford bronco sport": 3094, "ford escape": 330, "ford expedition": 333,
     "ford explorer": 334, "ford f-150": 337, "ford f 150": 337, "ford f150": 337,

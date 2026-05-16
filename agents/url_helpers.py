@@ -43,7 +43,7 @@ CG_ENTITY_IDS = {
     "genesis gv70": 3163,
     # GMC
     "gmc acadia": 925, "gmc canyon": 103, "gmc sierra 1500": 116,
-    "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973, "gmc terrain": 2042,
+    "gmc sierra 2500": 119, "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973, "gmc terrain": 2042,
     # Honda
     "honda accord": 585, "honda accord hybrid": 2256, "honda cr-v": 589, "honda crv": 589,
     "honda cr-v hybrid": 3002, "honda civic": 586, "honda civic hatchback": 2441,

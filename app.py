@@ -262,6 +262,26 @@ if _nl_btn:
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_last_parsed_query"] = _nl_query.strip()
+            # Log query to local CSV
+            try:
+                import csv, datetime as _dt
+                _log_path = os.path.join(os.path.dirname(__file__), "query_log.csv")
+                _log_exists = os.path.exists(_log_path)
+                with open(_log_path, "a", newline="", encoding="utf-8") as _lf:
+                    _lw = csv.writer(_lf)
+                    if not _log_exists:
+                        _lw.writerow(["timestamp", "raw_query", "make", "model", "trim", "condition", "location", "price_min", "price_max", "exterior_color", "interior_color", "max_mileage", "radius_miles"])
+                    _lw.writerow([
+                        _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        _nl_query.strip(),
+                        _parsed.get("make", ""), _parsed.get("model", ""), _parsed.get("trim", ""),
+                        _parsed.get("condition", ""), _parsed.get("location", ""),
+                        _parsed.get("price_min", ""), _parsed.get("price_max", ""),
+                        _parsed.get("exterior_color", ""), _parsed.get("interior_color", ""),
+                        _parsed.get("max_mileage", ""), _parsed.get("radius_miles", ""),
+                    ])
+            except Exception:
+                pass
             # If parser found no location, check if sidebar already has one (from GPS detect)
             if not _parsed.get("location") and st.session_state.get("p_location"):
                 _parsed["location"] = st.session_state["p_location"]

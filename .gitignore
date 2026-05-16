@@ -7,3 +7,4 @@ __pycache__/
 knowledge_base/chroma_db/
 .DS_Store
 *.docx
+query_log.csv

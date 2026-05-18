@@ -42,10 +42,6 @@ class CarListing(BaseModel):
     match_score: Optional[float] = None
     score_breakdown: Optional[dict] = None
     source: Optional[str] = None
-    vin: Optional[str] = None
-    stock_number: Optional[str] = None
-    distance_miles: Optional[float] = None
-    dealer_url: Optional[str] = None
 
 
 class DimensionResult(BaseModel):

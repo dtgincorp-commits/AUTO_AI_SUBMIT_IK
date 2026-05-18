@@ -771,7 +771,7 @@ if find_btn or _nl_auto_run:
     prefs = CarPreferences(
         make=make,
         model=model,
-        trim=(trim if trim and trim.strip().lower() not in ("", "any") else None),
+        trim=(_t.strip() if (_t := " ".join(w for w in (trim or "").split() if w.upper() not in ("HD","AWD","4WD","RWD","FWD","4X4"))) and _t.lower() not in ("", "any") else None),
         price_min=int(price_min),
         price_max=int(price_max),
         exterior_color=None if exterior_color == "Any" else exterior_color,
@@ -797,7 +797,7 @@ if find_btn or _nl_auto_run:
     agent_steps = {
         "search":           ("🔍 Search Agent: Scanning marketplaces...", 20),
         "ranking":          ("📊 Ranking Agent: Scoring matches...", 40),
-        "critic":           ("🎯 Critic Agent: Evaluating results...", 55),
+        "critic":           ("🎯 Critic Agent: Evaluating results...", 50),
         "revision":         ("🔄 Revising search parameters and retrying...", 25),
         "outreach":         ("📨 Outreach Agent: Generating messages...", 75),
         "critic_outreach":  ("🎯 Critic Agent: Evaluating outreach quality...", 88),
@@ -1241,7 +1241,7 @@ function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cs
                         <p style="margin:2px 0">📅 Year: <b>{listing.year}</b></p>
                         <p style="margin:2px 0">🛣 Mileage: <b>{listing.mileage:,} mi</b></p>
                         <p style="margin:2px 0">🎨 Ext: {listing.exterior_color or "N/A"} &nbsp;|&nbsp; Int: {listing.interior_color or "N/A"}</p>
-                        <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}</p>
+                        <p style="margin:2px 0">🏢 {listing.dealer_name or "Private"}{f' &nbsp;<span style="color:#6ee7b7;font-size:11px">📞 {listing.dealer_phone}</span>' if listing.dealer_phone else ''}</p>
                         <p style="margin:2px 0">📍 {listing.location or _location}{f' &nbsp;<span style="color:#9ca3af;font-size:11px">({listing.distance_miles:.1f} mi away)</span>' if listing.distance_miles is not None else ''}</p>
                         <p style="margin:6px 0">Match score: <b style="color:{score_color}">{listing.match_score}/100</b>{f' &nbsp;<span style="color:#9ca3af;font-size:11px">· VIN: {listing.vin}</span>' if listing.vin else (f' &nbsp;<span style="color:#9ca3af;font-size:11px">· Stock #: {listing.stock_number}</span>' if listing.stock_number else '')}</p>
                     </div>
@@ -1279,12 +1279,21 @@ function _cpv2(t){{var e=document.createElement('textarea');e.value=t;e.style.cs
                     _view_a = ""
                 _onclick = f'onclick="_cpv(`{_clip_js}`)" '
                 _dsite_a = ""
-                if listing.dealer_name:
+                if listing.dealer_url:
+                    from urllib.parse import urlparse as _urlparse2
+                    _dsite_domain = _urlparse2(listing.dealer_url).netloc.replace("www.", "")
+                    _dsite_a = (
+                        f'<a href="{_hurl(listing.dealer_url)}" target="_blank" '
+                        f'{_onclick}'
+                        f'style="color:#10b981;font-weight:600;text-decoration:none">🌐 Dealer Website</a>'
+                        f'<span style="font-size:10px;color:#6ee7b7;margin-left:2px">✓</span>'
+                    )
+                elif listing.dealer_name:
                     _dsite_q = _url_quote(f"{listing.dealer_name} {listing.location or ''} official site".strip())
                     _dsite_a = (
                         f'<a href="https://www.google.com/search?q={_dsite_q}" target="_blank" '
                         f'{_onclick}'
-                        f'style="color:#10b981;font-weight:600;text-decoration:none">🌐 Dealer site</a>'
+                        f'style="color:#9ca3af;font-weight:600;text-decoration:none">🌐 Dealer site</a>'
                     )
                 _links_html = '<span style="color:#555;margin:0 1px">·</span>'.join(filter(None, [
                     _view_a, _dsite_a,
@@ -1372,6 +1381,34 @@ function _cpv(t){{var e=document.createElement('textarea');e.value=t;e.style.css
                             with st.spinner("Fetching live data..."):
                                 st.session_state[_live_key] = fetch_autodev_live(listing.vin)
                             st.rerun()
+                # VIN Agent — on-demand dealer page finder
+                if listing.vin:
+                    _vin_key = f"vin_result_{listing.vin}"
+                    _vin_result = st.session_state.get(_vin_key)
+                    if _vin_result:
+                        if _vin_result.get("dealer_url"):
+                            from urllib.parse import urlparse as _up2
+                            _vd = _vin_result["dealer_url"]
+                            _vdom = _up2(_vd).netloc.replace("www.","")
+                            st.markdown(
+                                f'✅ **[Dealer Page Found → {_vdom}]({_vd})**',
+                                unsafe_allow_html=False
+                            )
+                        else:
+                            _vph = _vin_result.get("dealer_phone","")
+                            st.info(f"No dealer page found online.{f'  Call: **{_vph}**' if _vph else ''}")
+                    else:
+                        if st.button("🔍 Find Dealer Page", key=f"vin_btn_{listing.vin}", use_container_width=True):
+                            from agents.vin_agent import run_vin_agent as _run_vin
+                            with st.spinner("Claude searching for dealer page..."):
+                                _tmp = listing.model_copy()
+                                _run_vin(_tmp)
+                                st.session_state[_vin_key] = {
+                                    "dealer_url":   _tmp.dealer_url,
+                                    "dealer_phone": _tmp.dealer_phone or listing.dealer_phone,
+                                }
+                            st.rerun()
+
                 if listing.score_breakdown:
                     with st.expander("Why this score?"):
                         bd = listing.score_breakdown

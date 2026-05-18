@@ -484,9 +484,12 @@ if st.session_state.get("_search_builder"):
         _sb_at_qp.append(f"intColorSimple={_sb_int_color.upper()}")
     if _sb_trim:
         _sb_at_qp.append(f"trimCodeList={_sb_trim}")
+    from agents.url_helpers import AT_MODEL_SLUG_MAP as _AT_SLUG_MAP2
+    _sb_model_slug = _AT_SLUG_MAP2.get(_sb_model.lower().strip(),
+                     _sb_model.lower().replace(" ", "-").replace("/", "-"))
     _sb_at_url = (
         f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
-        f"{_sb_make.lower().replace(' ','-')}/{_sb_model.lower().replace(' ','-').replace('/','-')}/{_sb_loc_seg}"
+        f"{_sb_make.lower().replace(' ','-')}/{_sb_model_slug}/{_sb_loc_seg}"
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
@@ -870,7 +873,9 @@ if _last_result:
         "all-cars"
     )
     _at_make_slug  = _make.lower().replace(" ", "-")
-    _at_model_slug = _model.lower().replace(" ", "-").replace("/", "-")
+    from agents.url_helpers import AT_MODEL_SLUG_MAP as _AT_SLUG_MAP
+    _at_model_slug = _AT_SLUG_MAP.get(_model.lower().strip(),
+                     _model.lower().replace(" ", "-").replace("/", "-"))
     _at_zip = _zip_from_location(_location)
     # City/state slug (e.g. "Irvine, CA" → "irvine-ca"); omitted for ZIP-only inputs
     _loc_text = _re.sub(r'\b\d{5}\b', '', _location).strip().strip(',').strip()

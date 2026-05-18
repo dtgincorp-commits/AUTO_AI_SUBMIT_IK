@@ -149,6 +149,43 @@ CG_COLOR_SPT = {
     "red": 332, "silver": 408, "white": 333,
 }
 
+# AutoTrader model slug overrides
+# AutoTrader uses class-level slugs, not variant numbers.
+# "GLE 450e" → "gle", "C 300" → "c-class", etc.
+# Keys are lowercase model strings as returned by the NL parser.
+AT_MODEL_SLUG_MAP = {
+    # Mercedes-Benz — strip variant numbers, use class slug
+    "c-class": "c-class", "c 300": "c-class", "c300": "c-class",
+    "c 43": "c-class",    "c 63": "c-class",
+    "e-class": "e-class", "e 350": "e-class", "e350": "e-class",
+    "e 450": "e-class",   "e 53": "e-class",
+    "s-class": "s-class", "s 500": "s-class", "s500": "s-class",
+    "s 580": "s-class",   "s580": "s-class",  "s 63": "s-class",
+    "g-class": "g-class", "g 550": "g-class", "g550": "g-class",
+    "g 63": "g-class",    "amg g 63": "g-class",
+    "gla": "gla",         "gla 250": "gla",    "gla250": "gla",
+    "gla 35": "gla",      "gla 45": "gla",     "gla 450": "gla",
+    "glb": "glb",         "glb 250": "glb",    "glb250": "glb",
+    "glc": "glc",         "glc 300": "glc",    "glc300": "glc",
+    "glc 300e": "glc",    "glc300e": "glc",    "glc 43": "glc",
+    "gle": "gle",         "gle 350": "gle",    "gle 450": "gle",
+    "gle 450e": "gle",    "gle450e": "gle",    "gle 53": "gle",
+    "gle 63": "gle",
+    "gls": "gls",         "gls 450": "gls",    "gls 580": "gls",
+    "gls 63": "gls",
+    "cla": "cla",         "cla 250": "cla",    "cla250": "cla",
+    "cla 35": "cla",      "cla 45": "cla",
+    "cle": "cle",         "cle 300": "cle",    "cle 450": "cle",
+    "sl": "sl",           "sl 43": "sl",       "sl 55": "sl",
+    "sl 63": "sl",
+    "amg gt": "amg-gt",   "amg gt 43": "amg-gt", "amg gt 53": "amg-gt",
+    "amg gt 63": "amg-gt","amg gt 63 s": "amg-gt",
+    "eqs": "eqs",         "eqs 450": "eqs",    "eqs 580": "eqs",
+    "eqe": "eqe",         "eqe 350": "eqe",    "eqe 500": "eqe",
+    "eqb": "eqb",         "eqb 250": "eqb",    "eqb 300": "eqb",
+    "eqb 350": "eqb",
+}
+
 # Cars.com model slug overrides
 CM_SLUG_MAP = {
     "lexus_tx_500h":   "lexus_tx",
@@ -307,7 +344,8 @@ def at_url(make: str, model: str, condition: str,
     price_seg = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
     make_slug  = make.lower().replace(" ", "-")
-    model_slug = model.lower().replace(" ", "-").replace("/", "-")
+    model_slug = AT_MODEL_SLUG_MAP.get(model.lower().strip(),
+                 model.lower().replace(" ", "-").replace("/", "-"))
     qp = []
     if zip_code:    qp.append(f"zip={zip_code}")
     if radius < 500: qp.append(f"searchRadius={radius}")

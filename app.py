@@ -53,7 +53,7 @@ st.set_page_config(
 )
 
 st.title("🚗 AUTO AI — Car Discovery Agent")
-st.caption("Powered by LangChain · Find your perfect car via AI agents · v2.1 (AT slug fix)")
+st.caption("Powered by LangChain · Find your perfect car via AI agents")
 
 RESULTS_PER_PAGE = 18   # 3 columns × 6 rows per page
 
@@ -528,8 +528,6 @@ if st.session_state.get("_search_builder"):
     _sb_left, _sb_right = st.columns(2)
 
     with _sb_left:
-        st.caption(f"DEBUG: model={_sb_model!r} slug={_sb_model_slug!r} loc={_sb_location!r} loc_seg={_sb_loc_seg!r}")
-        st.caption(f"DEBUG AT URL: {_sb_at_url}")
         st.markdown(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
             border:1px solid #2563eb;border-radius:12px;padding:12px 16px;margin:4px 0 8px;

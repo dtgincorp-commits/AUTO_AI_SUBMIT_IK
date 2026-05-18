@@ -53,7 +53,7 @@ st.set_page_config(
 )
 
 st.title("🚗 AUTO AI — Car Discovery Agent")
-st.caption("Powered by LangChain · Find your perfect car via AI agents")
+st.caption("Powered by LangChain · Find your perfect car via AI agents · v2.1 (AT slug fix)")
 
 RESULTS_PER_PAGE = 18   # 3 columns × 6 rows per page
 

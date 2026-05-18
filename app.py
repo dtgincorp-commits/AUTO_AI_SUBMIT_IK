@@ -24,6 +24,7 @@ from agents.url_helpers import (
     CM_SLUG_MAP as _CM_SLUG_MAP, normalize_make as _normalize_make,
     cg_url as _cg_url_fn, at_url as _at_url_fn, cm_url as _cm_url_fn,
     zip_from_location as _zip_from_location,
+    _at_model_code as _at_model_code_fn,
 )
 
 def _reverse_geocode(lat: float, lon: float) -> str:
@@ -484,12 +485,11 @@ if st.session_state.get("_search_builder"):
         _sb_at_qp.append(f"intColorSimple={_sb_int_color.upper()}")
     if _sb_trim:
         _sb_at_qp.append(f"trimCodeList={_sb_trim}")
-    from agents.url_helpers import AT_MODEL_SLUG_MAP as _AT_SLUG_MAP2
-    _sb_model_slug = _AT_SLUG_MAP2.get(_sb_model.lower().strip(),
-                     _sb_model.lower().replace(" ", "-").replace("/", "-"))
+    _sb_model_code = _at_model_code_fn(_sb_model)
+    if _sb_model_code: _sb_at_qp.insert(2, f"modelCodeList={_sb_model_code}")
     _sb_at_url = (
         f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
-        f"{_sb_make.lower().replace(' ','-')}/{_sb_model_slug}/{_sb_loc_seg}"
+        f"{_sb_make.lower().replace(' ','-')}/"
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
@@ -873,22 +873,19 @@ if _last_result:
         "all-cars"
     )
     _at_make_slug  = _make.lower().replace(" ", "-")
-    from agents.url_helpers import AT_MODEL_SLUG_MAP as _AT_SLUG_MAP
-    _at_model_slug = _AT_SLUG_MAP.get(_model.lower().strip(),
-                     _model.lower().replace(" ", "-").replace("/", "-"))
+    _at_model_code = _at_model_code_fn(_model)
     _at_zip = _zip_from_location(_location)
-    # City/state slug (e.g. "Irvine, CA" → "irvine-ca"); omitted for ZIP-only inputs
-    _loc_text = _re.sub(r'\b\d{5}\b', '', _location).strip().strip(',').strip()
-    _at_loc_seg = ("-".join(_re.sub(r'[^\w\s]', '', _loc_text).lower().split()) + "/") if _loc_text else ""
     _ext_color = (_prefs.exterior_color or "") if _prefs else ""
     _int_color = (_prefs.interior_color or "") if _prefs else ""
     _at_price_seg = (f"cars-under-{_prefs.price_max}/" if _prefs and _prefs.price_max < 999000 else "")
     _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
     _at_qp = []
-    if _at_zip:   _at_qp.append(f"zip={_at_zip}")
+    if _at_zip:        _at_qp.append(f"zip={_at_zip}")
     if _prefs:
         _at_radius = _prefs.radius_miles
         if _at_radius and _at_radius < 500: _at_qp.append(f"searchRadius={_at_radius}")
+    if _at_model_code: _at_qp.append(f"modelCodeList={_at_model_code}")
+    if _prefs:
         if _prefs.price_min:   _at_qp.append(f"startPrice={_prefs.price_min}")
         if _prefs.price_max < 999000: _at_qp.append(f"endPrice={_prefs.price_max}")
         if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
@@ -897,7 +894,7 @@ if _last_result:
         if _prefs.trim:
             _at_qp.append(f"trimCodeList={_prefs.trim}")
     _autotrader_url = (
-        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/{_at_model_slug}/{_at_loc_seg}"
+        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}{_at_make_slug}/"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
     )
     from urllib.parse import quote_plus as _qp

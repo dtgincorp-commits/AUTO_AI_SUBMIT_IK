@@ -334,27 +334,38 @@ def cg_url(make: str, model: str, zip_code: str, price_max: int,
     return "https://www.google.com/search?q=" + _url_quote("site:cargurus.com " + " ".join(parts))
 
 
+def _at_model_code(model: str) -> str:
+    """Return AutoTrader modelCodeList value for a given model string.
+
+    AutoTrader ignores model path segments — model filtering requires the
+    modelCodeList query param. Codes are uppercase slugs with hyphens → underscores.
+    """
+    slug = AT_MODEL_SLUG_MAP.get(model.lower().strip(),
+           model.lower().replace(" ", "-").replace("/", "-"))
+    return slug.upper().replace("-", "_") if slug else ""
+
+
 def at_url(make: str, model: str, condition: str,
            zip_code: str = "", price_max: int = 999999, price_min: int = 0,
            ext_color: str = "", int_color: str = "",
            radius: int = 50, mileage: int = None) -> str:
-    """Build an AutoTrader search URL."""
+    """Build an AutoTrader search URL using modelCodeList for model filtering."""
     make = normalize_make(make)
     cond_seg  = "used-cars/" if condition == "Used" else "new-cars/" if condition == "New" else "all-cars/"
     price_seg = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
     make_slug  = make.lower().replace(" ", "-")
-    model_slug = AT_MODEL_SLUG_MAP.get(model.lower().strip(),
-                 model.lower().replace(" ", "-").replace("/", "-"))
+    model_code = _at_model_code(model)
     qp = []
     if zip_code:    qp.append(f"zip={zip_code}")
     if radius < 500: qp.append(f"searchRadius={radius}")
+    if model_code:  qp.append(f"modelCodeList={model_code}")
     if price_min:   qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:     qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
-    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}{price_seg}{color_seg}{make_slug}/{model_slug}/"
+    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}{price_seg}{color_seg}{make_slug}/"
     return base + ("?" + "&".join(qp) if qp else "")
 
 

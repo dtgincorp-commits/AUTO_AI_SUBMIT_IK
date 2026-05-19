@@ -350,13 +350,14 @@ AT_MAKE_CODE = {
 
 # AutoTrader internal model codes — explicit overrides where auto-derive fails
 AT_MODEL_CODE = {
-    # Mercedes — class codes
+    # Mercedes — letter-class codes (C/E/S/G keep _CLASS format)
     "c-class": "C_CLASS",   "e-class": "E_CLASS",   "s-class": "S_CLASS",
     "g-class": "G_CLASS",   "amg-gt": "AMG_GT",     "cla": "CLA",
-    "gla": "GLA",           "glb": "GLB",            "glc": "GLC",
-    "gle": "GLE",           "gls": "GLS",            "cle": "CLE",
-    "sl": "SL",             "eqs": "EQS",            "eqe": "EQE",
-    "eqb": "EQB",
+    # Mercedes GL-series — AutoTrader requires MB-prefixed trim codes, not bare names
+    "gla": "MBGLA250",      "glb": "MBGLB250",       "glc": "MBGLC300",
+    "gle": "MBGLE450",      "gls": "MBGLS450",
+    "cle": "CLE",           "sl": "SL",              "eqs": "EQS",
+    "eqe": "EQE",           "eqb": "EQB",
     # Honda
     "cr-v": "CRV",          "pilot": "PILOT",        "accord": "ACCORD",
     "civic": "CIVIC",       "odyssey": "ODYSSEY",    "ridgeline": "RDGLN",
@@ -407,10 +408,26 @@ AT_MODEL_CODE = {
 }
 
 
+# Trim-specific MB model codes checked before slug normalization.
+# AutoTrader uses MB-prefixed trim codes for GL-series (e.g. MBGLE450, not GLE).
+_AT_MB_TRIM_CODE = {
+    "gle 350": "MBGLE350",  "gle 450": "MBGLE450",  "gle 450e": "MBGLE450",
+    "gle450e": "MBGLE450",  "gle 53":  "MBGLE53",   "gle 63":   "MBGLE63AMG",
+    "glc 300": "MBGLC300",  "glc 300e":"MBGLC300",  "glc300":   "MBGLC300",
+    "glc300e": "MBGLC300",  "glc 43":  "MBGLC43",   "glc 63":   "MBGLC63AMG",
+    "gls 450": "MBGLS450",  "gls 580": "MBGLS580",  "gls 63":   "MBGLS63AMG",
+    "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA35",
+    "gla 45":  "MBGLA45",   "gla 450": "MBGLA250",
+    "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB35",
+}
+
+
 def _at_model_code(model: str) -> str:
     """Return AutoTrader modelCodeList value for a given model string."""
-    slug = AT_MODEL_SLUG_MAP.get(model.lower().strip(),
-           model.lower().replace(" ", "-").replace("/", "-"))
+    m = model.lower().strip()
+    if m in _AT_MB_TRIM_CODE:
+        return _AT_MB_TRIM_CODE[m]
+    slug = AT_MODEL_SLUG_MAP.get(m, m.replace(" ", "-").replace("/", "-"))
     return AT_MODEL_CODE.get(slug, slug.upper().replace("-", "")) if slug else ""
 
 

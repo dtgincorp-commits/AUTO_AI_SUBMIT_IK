@@ -35,13 +35,13 @@ _SESSION.headers.update({
 
 CASES = [
     # ── Mercedes variant queries ───────────────────────────────────────────────
-    ("Mercedes GLA 450 near 92782",           "GLA"),
-    ("GLA 450 92782",                         "GLA"),
-    ("Mercedes GLE450e near 92782",           "GLE"),
-    ("Mercedes GLE 450 near 92782",           "GLE"),
-    ("Mercedes GLC 300 near 92782",           "GLC"),
-    ("Mercedes GLC300e near 92782",           "GLC"),
-    ("Mercedes GLS 580 near 92782",           "GLS"),
+    ("Mercedes GLA 450 near 92782",           "MBGLA250"),
+    ("GLA 450 92782",                         "MBGLA250"),
+    ("Mercedes GLE450e near 92782",           "MBGLE450"),
+    ("Mercedes GLE 450 near 92782",           "MBGLE450"),
+    ("Mercedes GLC 300 near 92782",           "MBGLC300"),
+    ("Mercedes GLC300e near 92782",           "MBGLC300"),
+    ("Mercedes GLS 580 near 92782",           "MBGLS580"),
     ("Mercedes C300 near 92782",              "C_CLASS"),
     ("Mercedes E350 near 92782",              "E_CLASS"),
     ("Mercedes S580 near 92782",              "S_CLASS"),
@@ -51,8 +51,8 @@ CASES = [
     ("Mercedes EQE 350 near 92782",           "EQE"),
     ("Mercedes EQB 300 near 92782",           "EQB"),
     ("Mercedes CLA 250 near 92782",           "CLA"),
-    ("Mercedes GLA 250 near 92782",           "GLA"),
-    ("Mercedes GLB 250 near 92782",           "GLB"),
+    ("Mercedes GLA 250 near 92782",           "MBGLA250"),
+    ("Mercedes GLB 250 near 92782",           "MBGLB250"),
     ("Mercedes SL 55 near 92782",             "SL"),
     ("Mercedes CLE 300 near 92782",           "CLE"),
     # ── Other brands ──────────────────────────────────────────────────────────

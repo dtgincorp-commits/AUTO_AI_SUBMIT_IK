@@ -350,9 +350,9 @@ AT_MAKE_CODE = {
 
 # AutoTrader internal model codes — explicit overrides where auto-derive fails
 AT_MODEL_CODE = {
-    # Mercedes — letter-class codes (confirmed working with _CLASS suffix)
-    "c-class": "C_CLASS",   "e-class": "E_CLASS",   "s-class": "S_CLASS",
-    "g-class": "G_CLASS",
+    # Mercedes — letter-class fallbacks (MB+trim pattern, same as GL-series)
+    "c-class": "MBC300",    "e-class": "MBE350",    "s-class": "MBS500",
+    "g-class": "MBG550",
     # Mercedes — MB-prefixed codes required (bare names silently ignored by AutoTrader)
     "gla": "MBGLA250",      "glb": "MBGLB250",      "glc": "MBGLC300",
     "gle": "MBGLE450",      "gls": "MBGLS450",
@@ -422,6 +422,18 @@ _AT_MB_TRIM_CODE = {
     "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA35AMG",
     "gla 45":  "MBGLA45AMG","gla 450": "MBGLA250",
     "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB35AMG",
+    # C-Class
+    "c 300": "MBC300",      "c300":    "MBC300",     "c 43":     "MBC43AMG",
+    "c 63":  "MBC63AMG",    "c-class": "MBC300",
+    # E-Class
+    "e 350": "MBE350",      "e350":    "MBE350",     "e 450":    "MBE450",
+    "e 53":  "MBE53AMG",    "e 63":    "MBE63AMG",   "e-class":  "MBE350",
+    # S-Class
+    "s 500": "MBS500",      "s500":    "MBS500",     "s 580":    "MBS580",
+    "s 63":  "MBS63AMG",    "s-class": "MBS500",
+    # G-Class
+    "g 550": "MBG550",      "g550":    "MBG550",     "g 63":     "MBG63AMG",
+    "amg g 63": "MBG63AMG", "g-class": "MBG550",
     # CLA / CLE
     "cla 250": "MBCLA250",  "cla250":  "MBCLA250",  "cla 35":   "MBCLA35AMG",
     "cla 45":  "MBCLA45AMG","cle 300": "MBCLE300",  "cle 450":  "MBCLE450",

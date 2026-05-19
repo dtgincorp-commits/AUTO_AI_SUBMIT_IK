@@ -491,6 +491,7 @@ if st.session_state.get("_search_builder"):
     if _sb_model_code: _sb_at_qp.append(f"modelCodeList={_sb_model_code}")
     _sb_at_url = (
         f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
+        f"{_sb_make.lower().replace(' ', '-')}/"
         + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
@@ -897,6 +898,7 @@ if _last_result:
             _at_qp.append(f"trimCodeList={_prefs.trim}")
     _autotrader_url = (
         f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}"
+        f"{_make.lower().replace(' ', '-')}/"
         + ("?" + "&".join(_at_qp) if _at_qp else "")
     )
     from urllib.parse import quote_plus as _qp

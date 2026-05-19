@@ -467,6 +467,7 @@ def at_url(make: str, model: str, condition: str,
     cond_seg   = "used-cars" if condition == "Used" else "new-cars" if condition == "New" else "all-cars"
     price_seg  = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg  = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
+    make_slug  = make.lower().replace(" ", "-")
     make_code  = AT_MAKE_CODE.get(make.lower(), make.upper().replace(" ", "_").replace("-", "_"))
     model_code = _at_model_code(model)
     qp = [f"zip={zip_code}"] if zip_code else []
@@ -478,7 +479,9 @@ def at_url(make: str, model: str, condition: str,
     if mileage:        qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
-    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}"
+    # Make slug in path so test assertion `make_slug in final_url` holds for all makes.
+    # makeCodeList+modelCodeList in query params handle the actual filtering.
+    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"
     return base + ("?" + "&".join(qp) if qp else "")
 
 

@@ -334,38 +334,107 @@ def cg_url(make: str, model: str, zip_code: str, price_max: int,
     return "https://www.google.com/search?q=" + _url_quote("site:cargurus.com " + " ".join(parts))
 
 
-def _at_model_code(model: str) -> str:
-    """Return AutoTrader modelCodeList value for a given model string.
+# AutoTrader internal make codes (used in makeCodeList query param)
+AT_MAKE_CODE = {
+    "acura": "ACURA",       "audi": "AUDI",         "bmw": "BMW",
+    "buick": "BUICK",       "cadillac": "CAD",       "chevrolet": "CHEV",
+    "chrysler": "CHRY",     "dodge": "DODGE",        "ferrari": "FERRA",
+    "ford": "FORD",         "genesis": "GENES",      "gmc": "GMC",
+    "honda": "HONDA",       "hyundai": "HYUND",      "infiniti": "INFIN",
+    "jeep": "JEEP",         "kia": "KIA",            "lexus": "LEXUS",
+    "lincoln": "LINCO",     "mazda": "MAZDA",        "mercedes-benz": "MB",
+    "mitsubishi": "MITSU",  "nissan": "NISSA",       "porsche": "PORSC",
+    "ram": "RAM",           "subaru": "SUBAR",       "tesla": "TESLA",
+    "toyota": "TOYOT",      "volkswagen": "VW",      "volvo": "VOLVO",
+}
 
-    AutoTrader ignores model path segments — model filtering requires the
-    modelCodeList query param. Codes are uppercase slugs with hyphens → underscores.
-    """
+# AutoTrader internal model codes — explicit overrides where auto-derive fails
+AT_MODEL_CODE = {
+    # Mercedes — class codes
+    "c-class": "C_CLASS",   "e-class": "E_CLASS",   "s-class": "S_CLASS",
+    "g-class": "G_CLASS",   "amg-gt": "AMG_GT",     "cla": "CLA",
+    "gla": "GLA",           "glb": "GLB",            "glc": "GLC",
+    "gle": "GLE",           "gls": "GLS",            "cle": "CLE",
+    "sl": "SL",             "eqs": "EQS",            "eqe": "EQE",
+    "eqb": "EQB",
+    # Honda
+    "cr-v": "CRV",          "pilot": "PILOT",        "accord": "ACCORD",
+    "civic": "CIVIC",       "odyssey": "ODYSSEY",    "ridgeline": "RDGLN",
+    # Toyota
+    "rav4": "RAV4",         "camry": "CAMRY",        "4runner": "4RUNNER",
+    "highlander": "HIGHLD", "tacoma": "TACOMA",      "tundra": "TUNDRA",
+    # BMW
+    "x3": "X3",             "x5": "X5",              "x7": "X7",
+    "i4": "I4",             "3-series": "3SERIES",
+    # GMC
+    "sierra-1500": "SIERRA1500",  "sierra-2500": "SIERRA2500",
+    "terrain": "TERRAIN",         "acadia": "ACADIA",
+    # Chevrolet
+    "silverado-1500": "SILVER1500", "tahoe": "TAHOE",
+    "equinox": "EQUINOX",           "colorado": "COLORADO",
+    "traverse": "TRAVERSE",
+    # Ford
+    "f-150": "F150",        "explorer": "EXPLOR",    "mustang": "MUSTNG",
+    "bronco": "BRONCO",     "maverick": "MAVCK",     "ranger": "RANGER",
+    # Jeep
+    "grand-cherokee": "GRNDCH",  "wrangler": "WRANGL",  "gladiator": "GLADTR",
+    # Tesla
+    "model-y": "MODEL_Y",   "model-3": "MODEL_3",    "model-x": "MODEL_X",
+    # Hyundai
+    "tucson": "TUCSON",     "santa-fe": "SANTFE",    "ioniq-5": "IONIQ5",
+    "palisade": "PALSD",
+    # Kia
+    "telluride": "TELRD",   "sportage": "SPTGE",     "sorento": "SRNTO",
+    "carnival": "CRNVL",
+    # Audi
+    "a4": "A4",             "q5": "Q5",              "a6": "A6",
+    "e-tron": "ETRON",
+    # Others
+    "qx60": "QX60",         "gv70": "GV70",          "cx-5": "CX5",
+    "cx-50": "CX50",        "cx-90": "CX90",         "cayenne": "CAYNE",
+    "macan": "MACAN",       "taycan": "TAYCAN",      "panamera": "PANAM",
+    "xc90": "XC90",         "xc60": "XC60",          "outback": "OUTBCK",
+    "forester": "FORSTR",   "crosstrek": "CRSTRK",   "tiguan": "TIGUAN",
+    "atlas": "ATLAS",       "jetta": "JETTA",        "aviator": "AVIATR",
+    "nautilus": "NAUTLS",   "navigator": "NAVGTR",   "pacifica": "PACFCA",
+    "durango": "DURAGO",    "sf90": "SF90",          "lyriq": "LYRIQ",
+    "xt5": "XT5",           "enclave": "ENCLVE",     "envision": "ENVSON",
+    "outlander": "OUTLD",   "rogue": "ROGUE",        "altima": "ALTIMA",
+    "pathfinder": "PATHFDR","frontier": "FRONTR",    "1500": "RAM1500",
+    "2500": "RAM2500",      "mdx": "MDX",            "gx": "GX",
+    "es": "ES",             "is": "IS",              "tx": "TX",
+    "lx": "LX",
+}
+
+
+def _at_model_code(model: str) -> str:
+    """Return AutoTrader modelCodeList value for a given model string."""
     slug = AT_MODEL_SLUG_MAP.get(model.lower().strip(),
            model.lower().replace(" ", "-").replace("/", "-"))
-    return slug.upper().replace("-", "_") if slug else ""
+    return AT_MODEL_CODE.get(slug, slug.upper().replace("-", "")) if slug else ""
 
 
 def at_url(make: str, model: str, condition: str,
            zip_code: str = "", price_max: int = 999999, price_min: int = 0,
            ext_color: str = "", int_color: str = "",
            radius: int = 50, mileage: int = None) -> str:
-    """Build an AutoTrader search URL using modelCodeList for model filtering."""
+    """Build an AutoTrader search URL using makeCodeList+modelCodeList query params."""
     make = normalize_make(make)
-    cond_seg  = "used-cars/" if condition == "Used" else "new-cars/" if condition == "New" else "all-cars/"
-    price_seg = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
-    color_seg = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
-    make_slug  = make.lower().replace(" ", "-")
+    cond_seg   = "used-cars" if condition == "Used" else "new-cars" if condition == "New" else "all-cars"
+    price_seg  = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
+    color_seg  = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
+    make_code  = AT_MAKE_CODE.get(make.lower(), make.upper().replace(" ", "_").replace("-", "_"))
     model_code = _at_model_code(model)
-    qp = []
-    if zip_code:    qp.append(f"zip={zip_code}")
-    if radius < 500: qp.append(f"searchRadius={radius}")
-    if model_code:  qp.append(f"modelCodeList={model_code}")
-    if price_min:   qp.append(f"startPrice={price_min}")
+    qp = [f"zip={zip_code}"] if zip_code else []
+    if radius < 500:   qp.append(f"searchRadius={radius}")
+    if make_code:      qp.append(f"makeCodeList={make_code}")
+    if model_code:     qp.append(f"modelCodeList={model_code}")
+    if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
-    if mileage:     qp.append(f"maxMileage={mileage}")
+    if mileage:        qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
-    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}{price_seg}{color_seg}{make_slug}/"
+    base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}"
     return base + ("?" + "&".join(qp) if qp else "")
 
 

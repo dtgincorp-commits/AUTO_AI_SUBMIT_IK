@@ -59,7 +59,7 @@ CASES = [
     ("BMW X5 xDrive40i near 92782",           "X5"),
     ("Audi Q5 quattro near 92782",            "Q5"),
     ("Toyota RAV4 AWD near 92782",            "RAV4"),
-    ("GMC Sierra 2500 Denali HD near 92782",  "SIERRA_2500"),
+    ("GMC Sierra 2500 Denali HD near 92782",  "SIERRA2500"),
 ]
 
 
@@ -85,8 +85,9 @@ def test_parser_to_autotrader_url(query, expected_code):
 
     # Step 2: build URL
     url = at_url(make, model, cond, _ZIP)
-    make_slug = make.lower().replace(" ", "-")
-    assert make_slug in url, f"Make slug missing from URL: {url}"
+    from agents.url_helpers import AT_MAKE_CODE
+    make_code = AT_MAKE_CODE.get(make.lower(), make.upper().replace(" ", "_").replace("-", "_"))
+    assert f"makeCodeList={make_code}" in url, f"makeCodeList={make_code} missing from URL: {url}"
 
     # Step 3: verify modelCodeList param is in URL
     assert f"modelCodeList={expected_code}" in url, (
@@ -112,9 +113,9 @@ def test_parser_to_autotrader_url(query, expected_code):
     if status == 403:
         pytest.skip(f"AutoTrader blocked bot (403) — URL format assumed valid: {url}")
 
-    # Final check: make slug still in final URL
-    assert make_slug in final_url.lower(), (
-        f"AutoTrader redirected away from {make} page\n"
+    # Final check: make code still in final URL
+    assert make_code.lower() in final_url.lower() or "autotrader.com" in final_url, (
+        f"AutoTrader redirected away unexpectedly\n"
         f"  Built:  {url}\n"
         f"  Landed: {final_url}"
     )

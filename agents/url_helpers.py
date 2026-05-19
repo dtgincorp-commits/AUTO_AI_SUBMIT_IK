@@ -350,14 +350,15 @@ AT_MAKE_CODE = {
 
 # AutoTrader internal model codes — explicit overrides where auto-derive fails
 AT_MODEL_CODE = {
-    # Mercedes — letter-class codes (C/E/S/G keep _CLASS format)
+    # Mercedes — letter-class codes (confirmed working with _CLASS suffix)
     "c-class": "C_CLASS",   "e-class": "E_CLASS",   "s-class": "S_CLASS",
-    "g-class": "G_CLASS",   "amg-gt": "AMG_GT",     "cla": "CLA",
-    # Mercedes GL-series — AutoTrader requires MB-prefixed trim codes, not bare names
-    "gla": "MBGLA250",      "glb": "MBGLB250",       "glc": "MBGLC300",
+    "g-class": "G_CLASS",
+    # Mercedes — MB-prefixed codes required (bare names silently ignored by AutoTrader)
+    "gla": "MBGLA250",      "glb": "MBGLB250",      "glc": "MBGLC300",
     "gle": "MBGLE450",      "gls": "MBGLS450",
-    "cle": "CLE",           "sl": "SL",              "eqs": "EQS",
-    "eqe": "EQE",           "eqb": "EQB",
+    "cla": "MBCLA250",      "cle": "MBCLE300",      "sl": "MBSL43",
+    "amg-gt": "MBAMGGT43",  "eqs": "MBEQS450",      "eqe": "MBEQE350",
+    "eqb": "MBEQB300",
     # Honda
     "cr-v": "CRV",          "pilot": "PILOT",        "accord": "ACCORD",
     "civic": "CIVIC",       "odyssey": "ODYSSEY",    "ridgeline": "RDGLN",
@@ -409,16 +410,30 @@ AT_MODEL_CODE = {
 
 
 # Trim-specific MB model codes checked before slug normalization.
-# AutoTrader uses MB-prefixed trim codes for GL-series (e.g. MBGLE450, not GLE).
+# AutoTrader requires MB-prefixed trim codes (e.g. MBGLE450, not GLE).
+# Bare class codes like GLE, CLA, AMG_GT are silently ignored by AutoTrader.
 _AT_MB_TRIM_CODE = {
+    # GL-series SUVs
     "gle 350": "MBGLE350",  "gle 450": "MBGLE450",  "gle 450e": "MBGLE450",
     "gle450e": "MBGLE450",  "gle 53":  "MBGLE53",   "gle 63":   "MBGLE63AMG",
     "glc 300": "MBGLC300",  "glc 300e":"MBGLC300",  "glc300":   "MBGLC300",
     "glc300e": "MBGLC300",  "glc 43":  "MBGLC43",   "glc 63":   "MBGLC63AMG",
     "gls 450": "MBGLS450",  "gls 580": "MBGLS580",  "gls 63":   "MBGLS63AMG",
-    "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA35",
-    "gla 45":  "MBGLA45",   "gla 450": "MBGLA250",
-    "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB35",
+    "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA35AMG",
+    "gla 45":  "MBGLA45AMG","gla 450": "MBGLA250",
+    "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB35AMG",
+    # CLA / CLE
+    "cla 250": "MBCLA250",  "cla250":  "MBCLA250",  "cla 35":   "MBCLA35AMG",
+    "cla 45":  "MBCLA45AMG","cle 300": "MBCLE300",  "cle 450":  "MBCLE450",
+    # SL roadster
+    "sl 43":   "MBSL43",    "sl 55":   "MBSL55",    "sl 63":    "MBSL63",
+    # AMG GT
+    "amg gt 43":"MBAMGGT43","amg gt 53":"MBAMGGT53","amg gt 63":"MBAMGGT63",
+    "amg gt 63 s":"MBAMGGT63",
+    # EQ electric
+    "eqs 450": "MBEQS450",  "eqs 580": "MBEQS580",
+    "eqe 350": "MBEQE350",  "eqe 500": "MBEQE500",
+    "eqb 250": "MBEQB250",  "eqb 300": "MBEQB300",  "eqb 350": "MBEQB350",
 }
 
 

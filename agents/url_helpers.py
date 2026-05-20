@@ -131,7 +131,7 @@ CG_ENTITY_IDS = {
     # Lexus
     "lexus es": 2720, "lexus es hybrid": 2721, "lexus gs": 2822, "lexus gx": 2063,
     "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus lx hybrid": 3438,
-    "lexus nx hybrid": 2294, "lexus rc": 2827, "lexus ux hybrid": 2722,
+    "lexus nx": 2294, "lexus nx hybrid": 2294, "lexus rc": 2827, "lexus ux hybrid": 2722,
     "lexus tx": 3343, "lexus tx 350": 3343,
     "lexus tx hybrid": 3345, "lexus tx 350h": 3345, "lexus tx 500h": 3345,
     # Porsche
@@ -194,7 +194,7 @@ AT_MODEL_SLUG_MAP = {
     "amg gt": "amg-gt",   "amg gt 43": "amg-gt", "amg gt 53": "amg-gt",
     "amg gt 63": "amg-gt","amg gt 63 s": "amg-gt",
     "eqs suv": "eqs-suv", "eqe suv": "eqe-suv",  "glc coupe": "glc-coupe",
-    "cls 450": "cls",     "cls 53 amg": "cls",     "cls 53": "cls",
+    "cls": "cls",         "cls 450": "cls",     "cls 53 amg": "cls",     "cls 53": "cls",
     "maybach gls 600": "maybach-gls-600", "maybach gls": "maybach-gls-600",
     "maybach s 680": "maybach-s-680",     "maybach s 580": "maybach-s-580",
     "eqs": "eqs",         "eqs 450": "eqs",    "eqs 580": "eqs",
@@ -222,6 +222,17 @@ CM_SLUG_MAP = {
     "bmw_m4_competition": "bmw_m4",
     "bmw_x5_m":           "bmw_x5",
     "bmw_x6_m":           "bmw_x6",
+    # Hybrid/variant → base model slug on Cars.com
+    "lexus_nx_hybrid":        "lexus_nx",
+    "lexus_rx_hybrid":        "lexus_rx",
+    "honda_cr_v_hybrid":      "honda_cr-v",
+    "honda_accord_hybrid":    "honda_accord",
+    "toyota_rav4_hybrid":     "toyota_rav4-hybrid",
+    "chevrolet_blazer_ev":    "chevrolet_blazer-ev",
+    "chevrolet_equinox_ev":   "chevrolet_equinox-ev",
+    "ford_f_150_lightning":   "ford_f-150-lightning",
+    "ford_mustang_mach_e":    "ford_mustang-mach-e",
+    "hyundai_elantra_hybrid": "hyundai_elantra-hybrid",
 }
 
 # Make name normalization
@@ -414,6 +425,54 @@ AT_MODEL_CODE = {
     # Audi
     "a4": "A4",             "q5": "Q5",              "a6": "A6",
     "e-tron": "Q8ETRON",
+    "a3": "A3",             "a4-allroad": "A4ALLROAD", "a5": "A5",
+    "a8": "A8",             "q3": "Q3",
+    # BMW — additional
+    "2-series": "2_SERIES", "4-series": "4_SERIES",  "x1": "X1",
+    # Buick — additional
+    "encore-gx": "BUIENCOREGX", "envista": "ENVISTA",
+    # Chevrolet — additional
+    "silverado-2500hd": "CHEV250",  "silverado-3500hd": "CHEV350",
+    "suburban": "CHEVSUB",          "trailblazer": "TRAILBLZ",    "trax": "CHETRAX",
+    "blazer-ev": "CHEVBLAZEV",      "equinox-ev": "CHEVEQUEV",
+    # Ford — additional
+    "escape": "ESCAPE",             "expedition": "EXPEDI",
+    "bronco-sport": "BRONSPORT",    "f-150-lightning": "F150LIGHT",
+    "f-250-super-duty": "F250PU",   "mustang-mach-e": "MUSTMACHE",
+    "transit-cargo": "TRANCARGO",
+    # GMC — additional
+    "canyon": "CANYON",             "sierra-3500hd": "35SIPU4WD",
+    # Honda — additional
+    "hr-v": "HRV",                  "passport": "PASSPORT",
+    "cr-v-hybrid": "CRVHYBRID",     "accord-hybrid": "ACCORDHYB",
+    # Hyundai — additional
+    "elantra": "ELANTRA",           "kona": "KONA",
+    "santa-cruz": "SANTACRUZ",      "sonata": "SONATA",
+    # Jeep — additional
+    "compass": "COMPASS",           "grand-cherokee-l": "JEEPGRANDL",
+    # Kia — additional
+    "k5": "K5",                     "niro": "NIRO",
+    "seltos": "SELTOS",             "soul": "KIASOUL",
+    # Lexus — additional
+    "nx": "NX300",                  "nx-hybrid": "NX450H",
+    "rx": "RX350",                  "rx-hybrid": "RX450H",
+    # Lincoln — additional
+    "corsair": "CORSAIR",
+    # Mazda — additional
+    "cx-30": "CX-30",
+    # Nissan — additional
+    "armada": "ARMADA",             "kicks": "KICKS",
+    "murano": "MURANO",             "sentra": "SENTRA",             "versa": "VERSA",
+    # RAM — additional
+    "3500": "RM3500",               "promaster": "RMPROMAST",
+    # Subaru — additional
+    "ascent": "ASCENT",             "legacy": "LEGACY",
+    # Toyota — additional
+    "corolla": "COROLLA",           "sienna": "SIENNA",             "rav4-hybrid": "RAV4HYB",
+    # Volkswagen — additional
+    "taos": "TAOS",                 "atlas-cross-sport": "VOLKSATCS",
+    # Acura — additional
+    "adx": "ACURADX",
     # Others
     "qx60": "INFINQX60",    "gv70": "GENGV70",       "gv80": "GENGV80",       "cx-5": "CX-5",
     "cx-50": "MAZCX50",     "cx-90": "MAZCX90",      "cayenne": "CAYENNE",
@@ -429,6 +488,71 @@ AT_MODEL_CODE = {
     "2500": "RM2500",       "mdx": "MDX",            "gx": "GX460",
     "es": "ES350",          "is": "IS350",           "tx": "TX",
     "lx": "LX570",
+    # ── Round 2 additions (all confirmed via live AT probe) ──────────────────
+    # Acura
+    "tlx": "TLX",               "rdx": "RDX",
+    "integra": "INTEGRA",       "zdx": "ZDX",
+    # Audi
+    "a7": "A7",                 "q7": "Q7",               "q8": "Q8",
+    "q4-e-tron": "Q4ETRON",     "q8-e-tron": "Q8ETRON",   "e-tron-gt": "ETRONGT",
+    "tt": "TT",
+    # BMW
+    "5-series": "5_SERIES",     "7-series": "7_SERIES",   "8-series": "8_SERIES",
+    "x2": "X2",                 "x4": "X4",               "x6": "X6",
+    "ix": "BMWIX",              "i5": "BMWI5",
+    "z4": "Z4",                 "m3": "M3",               "m4": "M4",   "m5": "M5",
+    # Cadillac
+    "ct4": "CT4",               "ct5": "CT5",
+    "xt4": "XT4",               "xt6": "XT6",             "escalade": "ESCALA",
+    # Chevrolet
+    "blazer": "BLAZER",         "corvette": "CORV",       "malibu": "MALIBU",
+    # Dodge
+    "charger": "CHARG",         "hornet": "HORNET",
+    # Ford
+    "f-350-super-duty": "F350PU",
+    # Genesis
+    "g70": "GENG70",            "g80": "GENG80",          "g90": "GENG90",
+    "gv60": "GENGV60",          "gv90": "GENGV90",        "electrified-gv70": "ELECGV70",
+    # GMC
+    "yukon": "YUKON",           "yukon-xl": "YUKONXL",    "hummer-ev": "GMCHUMMER",
+    # Honda
+    "prologue": "PROLOGUE",
+    # Hyundai
+    "ioniq-6": "HYUIONIQ6",     "venue": "VENUE",
+    # Infiniti
+    "qx50": "INFINQX50",        "qx55": "INFINQX55",      "qx80": "INFINQX80",
+    "q50": "INFINQ50",          "q60": "INFINQ60",
+    # Kia
+    "ev6": "EV6",               "ev9": "EV9",
+    # Lexus
+    "ls": "LS460",              "lc": "LC500",
+    "rz": "RZ450E",             "ux": "UX200",
+    # Mazda
+    "mazda3": "MAZDA3",         "mx-5-miata": "MIATA",    "cx-70": "MAZCX70",
+    # Mitsubishi
+    "eclipse-cross": "ECLIPSECR",
+    # Nissan
+    "leaf": "LEAF",             "ariya": "ARIYA",
+    "z": "NISSZ",               "maxima": "MAXIMA",
+    # Porsche
+    "911": "911",               "718-boxster": "718BOXST", "718-cayman": "718CAYMN",
+    # Subaru
+    "impreza": "IMPREZ",        "wrx": "WRX",
+    "solterra": "SOLTERRA",     "brz": "BRZ",
+    # Tesla
+    "model-s": "TESMODS",       "cybertruck": "CYBERT",
+    # Toyota
+    "venza": "VENZA",           "crown": "CROWN",         "sequoia": "SEQUOIA",
+    "prius": "PRIUS",           "land-cruiser": "LANDCR", "bz4x": "BZ4X",
+    "gr86": "GR86",
+    # Volkswagen (ID.4 has a dot — add both slug forms)
+    "id-4": "ID4",              "id.4": "ID4",
+    "golf": "GOLF",             "arteon": "ARTEON",
+    # Volvo (path-routed; confirmed via probe_path; uppercase codes match XC90/XC60 pattern)
+    "xc40": "XC40",             "s60": "S60",             "s90": "S90",
+    "v60": "V60",               "v90": "V90",
+    "ex30": "EX30",             "ex40": "EX40",           "ex90": "EX90",
+    "ec40": "EC40",
 }
 
 
@@ -453,7 +577,7 @@ _AT_MB_TRIM_CODE = {
     "e 53":  "MBE53AMG",    "e 63":    "MBE63AMG",   "e-class":  "MBE350",
     # S-Class
     "s 500": "MBS500",      "s500":    "MBS500",     "s 580":    "MBS580",
-    "s 63":  "MBS63AMG",    "s-class": "MBS500",
+    "s580":  "MBS580",      "s 63":    "MBS63AMG",   "s-class":  "MBS500",
     # G-Class
     "g 550": "MBG550",      "g550":    "MBG550",     "g 63":     "MBG63AMG",
     "amg g 63": "MBG63AMG", "g-class": "MBG550",
@@ -477,7 +601,7 @@ _AT_MB_TRIM_CODE = {
 
 # Models where AT uses path-based routing (no modelCodeList recognised).
 # URL must include model slug + city slug in path; query code-list params are ignored by AT.
-_AT_PATH_ONLY_SLUGS = {"sl", "sl-43-amg", "sl-55-amg", "sl-63-amg"}
+_AT_PATH_ONLY_SLUGS: set = set()
 
 # ZIP → AT city slug for path-based model URLs.
 # AT's canonical URL embeds the city in the path: /make/model/city-st
@@ -532,27 +656,6 @@ def at_url(make: str, model: str, condition: str,
     if mileage:        qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
-
-    # AT routes Mercedes-Benz (and other _AT_PATH_ONLY_SLUGS models) purely by path slug
-    # + city slug. makeCodeList/modelCodeList in the query string cause AT to override
-    # path routing and drop the model filter entirely (confirmed across C-Class, SL, etc.).
-    # Fix: embed code-list params in the URL hash fragment — AT never receives fragments
-    # (browser/requests strip them before sending) so the model filter works correctly,
-    # while test assertions that check the URL string still pass.
-    m_lower = model.lower().strip()
-    model_path_slug = AT_MODEL_SLUG_MAP.get(m_lower)
-    is_path_routed = (make.lower() == "mercedes-benz" and model_path_slug is not None) \
-                     or model_path_slug in _AT_PATH_ONLY_SLUGS
-    if is_path_routed:
-        city_slug = _AT_ZIP_CITY.get(zip_code, "")
-        prefix = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
-                  f"{price_seg}{color_seg}{make_slug}/{model_path_slug}/")
-        safe_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList="))]
-        hash_qp = [p for p in qp if p.startswith(("makeCodeList=", "modelCodeList="))]
-        url_body = prefix + (city_slug if city_slug else "")
-        q_str    = ("?" + "&".join(safe_qp)) if safe_qp else ""
-        h_str    = ("#" + "&".join(hash_qp)) if hash_qp else ""
-        return url_body + q_str + h_str
 
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"
     return base + ("?" + "&".join(qp) if qp else "")

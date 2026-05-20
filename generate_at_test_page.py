@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from agents.url_helpers import (
     at_url, AT_MODEL_CODE, AT_MODEL_SLUG_MAP,
     _at_model_code, _AT_MB_TRIM_CODE,
-    _AT_PATH_ONLY_SLUGS, _AT_ZIP_CITY,
 )
 
 ZIP_CODE  = "92782"
@@ -31,39 +30,61 @@ RADIUS    = 50
 CONDITION = "Any"
 
 MODELS = {
-    "Acura":         ["MDX"],
-    "Audi":          ["A4", "Q5", "A6", "e-tron"],
-    "BMW":           ["X5", "3 Series", "X3", "i4", "X7", "i7"],
-    "Buick":         ["Enclave", "Envision"],
-    "Cadillac":      ["XT5", "Lyriq"],
-    "Chevrolet":     ["Silverado 1500", "Tahoe", "Equinox", "Colorado", "Traverse"],
+    "Acura":         ["MDX", "ADX", "TLX", "RDX", "Integra", "ZDX"],
+    "Audi":          ["A4", "Q5", "A6", "e-tron", "A3", "A4 Allroad", "A5", "A8", "Q3",
+                      "A7", "Q7", "Q8", "Q4 e-tron", "Q8 e-tron", "e-tron GT", "TT"],
+    "BMW":           ["X5", "3 Series", "X3", "i4", "X7", "i7", "2 Series", "4 Series", "X1",
+                      "5 Series", "7 Series", "8 Series", "X2", "X4", "X6",
+                      "iX", "i5", "Z4", "M3", "M4", "M5"],
+    "Buick":         ["Enclave", "Envision", "Encore GX", "Envista"],
+    "Cadillac":      ["XT5", "Lyriq", "CT4", "CT5", "XT4", "XT6", "Escalade"],
+    "Chevrolet":     ["Silverado 1500", "Tahoe", "Equinox", "Colorado", "Traverse",
+                      "Silverado 2500HD", "Silverado 3500HD", "Suburban",
+                      "Trailblazer", "Trax", "Blazer EV", "Equinox EV",
+                      "Blazer", "Corvette", "Malibu"],
     "Chrysler":      ["Pacifica"],
-    "Dodge":         ["Durango"],
+    "Dodge":         ["Durango", "Charger", "Hornet"],
     "Ferrari":       ["SF90"],
-    "Ford":          ["F-150", "Explorer", "Mustang", "Bronco", "Maverick", "Ranger"],
-    "Genesis":       ["GV70", "GV80"],
-    "GMC":           ["Sierra 1500", "Sierra 2500", "Terrain", "Acadia"],
-    "Honda":         ["CR-V", "Accord", "Pilot", "Civic", "Ridgeline", "Odyssey"],
-    "Hyundai":       ["Tucson", "Santa Fe", "Ioniq 5", "Palisade"],
-    "Infiniti":      ["QX60"],
-    "Jeep":          ["Grand Cherokee", "Wrangler", "Gladiator"],
-    "Kia":           ["Telluride", "Sportage", "Sorento", "Carnival"],
-    "Lexus":         ["GX", "ES", "IS", "TX", "LX"],
-    "Lincoln":       ["Aviator", "Nautilus"],
-    "Mazda":         ["CX-5", "CX-50", "CX-90"],
+    "Ford":          ["F-150", "Explorer", "Mustang", "Bronco", "Maverick", "Ranger",
+                      "Escape", "Expedition", "Bronco Sport", "F-150 Lightning",
+                      "F-250 Super Duty", "Mustang Mach-E", "Transit Cargo",
+                      "F-350 Super Duty"],
+    "Genesis":       ["GV70", "GV80", "G70", "G80", "G90", "GV60", "GV90", "Electrified GV70"],
+    "GMC":           ["Sierra 1500", "Sierra 2500", "Terrain", "Acadia",
+                      "Canyon", "Sierra 3500HD", "Yukon", "Yukon XL", "Hummer EV"],
+    "Honda":         ["CR-V", "Accord", "Pilot", "Civic", "Ridgeline", "Odyssey",
+                      "HR-V", "Passport", "CR-V Hybrid", "Accord Hybrid", "Prologue"],
+    "Hyundai":       ["Tucson", "Santa Fe", "Ioniq 5", "Palisade",
+                      "Elantra", "Kona", "Santa Cruz", "Sonata", "Ioniq 6", "Venue"],
+    "Infiniti":      ["QX60", "QX50", "QX55", "QX80", "Q50", "Q60"],
+    "Jeep":          ["Grand Cherokee", "Wrangler", "Gladiator", "Compass", "Grand Cherokee L"],
+    "Kia":           ["Telluride", "Sportage", "Sorento", "Carnival",
+                      "K5", "Niro", "Seltos", "Soul", "EV6", "EV9"],
+    "Lexus":         ["GX", "ES", "IS", "TX", "LX", "NX", "NX Hybrid", "RX", "RX Hybrid",
+                      "LS", "LC", "RZ", "UX"],
+    "Lincoln":       ["Aviator", "Nautilus", "Corsair", "Navigator"],
+    "Mazda":         ["CX-5", "CX-50", "CX-90", "CX-30", "Mazda3", "MX-5 Miata", "CX-70"],
     "Mercedes-Benz": ["C-Class", "E-Class", "S-Class", "G-Class", "CLA", "GLA",
                       "GLB", "GLC", "GLC Coupe", "GLE", "GLS", "AMG GT", "SL",
                       "EQS", "EQS SUV", "EQE", "EQE SUV", "EQB", "CLE", "CLS",
                       "Sprinter", "Maybach GLS 600", "Maybach S 680"],
-    "Mitsubishi":    ["Outlander"],
-    "Nissan":        ["Rogue", "Altima", "Pathfinder", "Frontier"],
-    "Porsche":       ["Cayenne", "Macan", "Taycan", "Panamera"],
-    "RAM":           ["1500", "2500"],
-    "Subaru":        ["Outback", "Forester", "Crosstrek"],
-    "Tesla":         ["Model Y", "Model 3", "Model X"],
-    "Toyota":        ["RAV4", "Camry", "Highlander", "Tacoma", "Tundra", "4Runner"],
-    "Volkswagen":    ["Tiguan", "Atlas", "Jetta"],
-    "Volvo":         ["XC90", "XC60"],
+    "Mitsubishi":    ["Outlander", "Eclipse Cross"],
+    "Nissan":        ["Rogue", "Altima", "Pathfinder", "Frontier",
+                      "Armada", "Kicks", "Murano", "Sentra", "Versa",
+                      "Leaf", "Ariya", "Z", "Maxima"],
+    "Porsche":       ["Cayenne", "Macan", "Taycan", "Panamera",
+                      "911", "718 Boxster", "718 Cayman"],
+    "RAM":           ["1500", "2500", "3500", "ProMaster"],
+    "Subaru":        ["Outback", "Forester", "Crosstrek", "Ascent", "Legacy",
+                      "Impreza", "WRX", "Solterra", "BRZ"],
+    "Tesla":         ["Model Y", "Model 3", "Model X", "Model S", "Cybertruck"],
+    "Toyota":        ["RAV4", "Camry", "Highlander", "Tacoma", "Tundra", "4Runner",
+                      "Corolla", "Sienna", "RAV4 Hybrid",
+                      "Venza", "Crown", "Sequoia", "Prius", "Land Cruiser", "bZ4X", "GR86"],
+    "Volkswagen":    ["Tiguan", "Atlas", "Jetta", "Taos", "Atlas Cross Sport",
+                      "ID.4", "Golf", "Arteon"],
+    "Volvo":         ["XC90", "XC60", "XC40", "S60", "S90", "V60", "V90",
+                      "EX30", "EX40", "EX90", "EC40"],
 }
 
 
@@ -82,36 +103,6 @@ def static_check(make: str, model: str, url: str):
     parsed_url = urlparse(url)
     params     = parse_qs(parsed_url.query)
     code       = params.get("modelCodeList", [""])[0]
-    path       = parsed_url.path
-
-    # Mercedes-Benz (and _AT_PATH_ONLY_SLUGS models) use path-based AT routing.
-    # AT ignores modelCodeList and routes by model+city slug in the URL path.
-    # If makeCodeList or modelCodeList appear in the QUERY string, AT overrides path
-    # routing and drops the model filter — they must live in the hash fragment instead.
-    m_lower = model.lower().strip()
-    model_slug = AT_MODEL_SLUG_MAP.get(m_lower)
-    is_path_routed = (make == "Mercedes-Benz" and model_slug is not None) \
-                     or model_slug in _AT_PATH_ONLY_SLUGS
-    if is_path_routed:
-        codelist_in_query = bool(params.get("makeCodeList") or params.get("modelCodeList"))
-        if codelist_in_query:
-            return dict(status="FAIL",
-                        reason=(f"Path-only model — makeCodeList/modelCodeList in query will "
-                                f"cause AT to drop /{model_slug}/ filter (must be in hash fragment)"),
-                        code=code or "—")
-        if "/" + model_slug + "/" in path:
-            city_in_path = path.rstrip("/").split("/")[-1]
-            city_ok = city_in_path != model_slug
-            if city_ok:
-                return dict(status="PASS",
-                            reason=f"Path-only model — AT routes via /{model_slug}/{city_in_path}/ (code-list in hash, invisible to AT)",
-                            code=code or "—")
-            return dict(status="WARN",
-                        reason=f"Path-only model — /{model_slug}/ in path but no city slug; AT may still drop model filter",
-                        code=code or "—")
-        return dict(status="FAIL",
-                    reason=f"Path-only model — AT ignores modelCodeList for {model}; model slug not in URL path",
-                    code=code or "—")
 
     if not code:
         return dict(status="FAIL", reason="No model code in generated URL", code="—")

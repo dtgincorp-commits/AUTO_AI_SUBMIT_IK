@@ -40,7 +40,7 @@ CG_ENTITY_IDS = {
     "ford maverick": 1293, "ford mustang": 2, "ford mustang mach-e": 2990,
     "ford mustang mach e": 2990, "ford ranger": 354, "ford transit cargo": 1067,
     # Genesis
-    "genesis gv70": 3163,
+    "genesis gv70": 3163, "genesis gv80": 3038,
     # GMC
     "gmc acadia": 925, "gmc canyon": 103, "gmc sierra 1500": 116,
     "gmc sierra 2500": 119, "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973, "gmc terrain": 2042,
@@ -83,9 +83,21 @@ CG_ENTITY_IDS = {
     "mercedes-benz cla": 2216, "mercedes benz cla": 2216, "mercedes cla": 2216,
     "mercedes cla 250": 2216, "mercedes cla250": 2216, "mercedes cla 45": 2216,
     "mercedes-benz amg gt": 2282, "mercedes amg gt": 2282,
+    "mercedes-benz cls": 751, "mercedes cls": 751,
+    "mercedes-benz cls 450": 751, "mercedes cls 450": 751,
+    "mercedes-benz cls 53 amg": 751, "mercedes cls 53 amg": 751,
+    "mercedes-benz maybach gls 600": 2421, "mercedes maybach gls 600": 2421,
+    "mercedes-benz maybach gls": 2421, "mercedes maybach gls": 2421,
+    "mercedes-benz maybach s 680": 82, "mercedes maybach s 680": 82,
+    "mercedes-benz maybach s 580": 82, "mercedes maybach s 580": 82,
     "mercedes amg gt 43": 2282, "mercedes amg gt 53": 2282, "mercedes amg gt 63": 2282,
     "mercedes-benz eqs": 3129, "mercedes eqs": 3129,
     "mercedes eqs 450": 3129, "mercedes eqs 580": 3129,
+    "mercedes-benz eqs suv": 3275, "mercedes eqs suv": 3275,
+    "mercedes-benz eqe suv": 3279, "mercedes eqe suv": 3279,
+    "mercedes-benz glc coupe": 2361, "mercedes glc coupe": 2361,
+    "mercedes-benz maybach": 82, "mercedes maybach": 82,
+    "mercedes-benz s-class maybach": 82, "mercedes s-class maybach": 82,
     "mercedes-benz gla": 2286, "mercedes gla": 2286,
     "mercedes gla 250": 2286, "mercedes gla250": 2286, "mercedes gla 35": 2286,
     "mercedes-benz glb": 2905, "mercedes glb": 2905,
@@ -176,10 +188,15 @@ AT_MODEL_SLUG_MAP = {
     "cla": "cla",         "cla 250": "cla",    "cla250": "cla",
     "cla 35": "cla",      "cla 45": "cla",
     "cle": "cle",         "cle 300": "cle",    "cle 450": "cle",
-    "sl": "sl",           "sl 43": "sl",       "sl 55": "sl",
-    "sl 63": "sl",
+    "sl": "sl-43-amg",    "sl 43": "sl-43-amg",  "sl 43 amg": "sl-43-amg",
+    "sl 55": "sl-55-amg", "sl 55 amg": "sl-55-amg",
+    "sl 63": "sl-63-amg", "sl 63 amg": "sl-63-amg",
     "amg gt": "amg-gt",   "amg gt 43": "amg-gt", "amg gt 53": "amg-gt",
     "amg gt 63": "amg-gt","amg gt 63 s": "amg-gt",
+    "eqs suv": "eqs-suv", "eqe suv": "eqe-suv",  "glc coupe": "glc-coupe",
+    "cls 450": "cls",     "cls 53 amg": "cls",     "cls 53": "cls",
+    "maybach gls 600": "maybach-gls-600", "maybach gls": "maybach-gls-600",
+    "maybach s 680": "maybach-s-680",     "maybach s 580": "maybach-s-580",
     "eqs": "eqs",         "eqs 450": "eqs",    "eqs 580": "eqs",
     "eqe": "eqe",         "eqe 350": "eqe",    "eqe 500": "eqe",
     "eqb": "eqb",         "eqb 250": "eqb",    "eqb 300": "eqb",
@@ -338,14 +355,14 @@ def cg_url(make: str, model: str, zip_code: str, price_max: int,
 AT_MAKE_CODE = {
     "acura": "ACURA",       "audi": "AUDI",         "bmw": "BMW",
     "buick": "BUICK",       "cadillac": "CAD",       "chevrolet": "CHEV",
-    "chrysler": "CHRY",     "dodge": "DODGE",        "ferrari": "FERRA",
+    "chrysler": "CHRY",     "dodge": "DODGE",        "ferrari": "FER",
     "ford": "FORD",         "genesis": "GENES",      "gmc": "GMC",
     "honda": "HONDA",       "hyundai": "HYUND",      "infiniti": "INFIN",
     "jeep": "JEEP",         "kia": "KIA",            "lexus": "LEXUS",
-    "lincoln": "LINCO",     "mazda": "MAZDA",        "mercedes-benz": "MB",
-    "mitsubishi": "MITSU",  "nissan": "NISSA",       "porsche": "PORSC",
-    "ram": "RAM",           "subaru": "SUBAR",       "tesla": "TESLA",
-    "toyota": "TOYOT",      "volkswagen": "VW",      "volvo": "VOLVO",
+    "lincoln": "LINC",      "mazda": "MAZDA",        "mercedes-benz": "MB",
+    "mitsubishi": "MIT",    "nissan": "NISSA",       "porsche": "POR",
+    "ram": "RAM",           "subaru": "SUB",         "tesla": "TESLA",
+    "toyota": "TOYOT",      "volkswagen": "VOLKS",   "volvo": "VOLVO",
 }
 
 # AutoTrader internal model codes — explicit overrides where auto-derive fails
@@ -357,55 +374,61 @@ AT_MODEL_CODE = {
     "gla": "MBGLA250",      "glb": "MBGLB250",      "glc": "MBGLC300",
     "gle": "MBGLE450",      "gls": "MBGLS450",
     "cla": "MBCLA250",      "cle": "MBCLE300",      "sl": "MBSL43",
+    "sl-43-amg": "MBSL43",  "sl-55-amg": "MBSL55",  "sl-63-amg": "MBSL63",
     "amg-gt": "MBAMGGT43",  "eqs": "MBEQS450",      "eqe": "MBEQE350",
-    "eqb": "MBEQB300",
+    "eqb": "MBEQB300",      "sprinter": "SPRINTER",
+    "eqs-suv": "MBEQS450",  "eqe-suv": "MBEQE350",  "glc-coupe": "MBGLC300",
+    "cls": "MBCLS450",
+    "maybach": "MBMAYBACH",
+    "maybach-gls-600": "MBMAYBGLS600", "maybach-s-680": "MBMAYBS680",
+    "maybach-s-580": "MBMAYBS580",
     # Honda
     "cr-v": "CRV",          "pilot": "PILOT",        "accord": "ACCORD",
-    "civic": "CIVIC",       "odyssey": "ODYSSEY",    "ridgeline": "RDGLN",
+    "civic": "CIVIC",       "odyssey": "ODYSSEY",    "ridgeline": "RIDGELINE",
     # Toyota
     "rav4": "RAV4",         "camry": "CAMRY",        "4runner": "4RUNNER",
-    "highlander": "HIGHLD", "tacoma": "TACOMA",      "tundra": "TUNDRA",
+    "highlander": "HIGHLANDER", "tacoma": "TACOMA",   "tundra": "TUNDRA",
     # BMW
-    "x3": "X3",             "x5": "X5",              "x7": "X7",
-    "i4": "I4",             "3-series": "3SERIES",
+    "x3": "X3",             "x5": "X5",              "x7": "BMWX7",
+    "i4": "BMWI4",          "i7": "BMWI7",           "3-series": "3_SERIES",
     # GMC
-    "sierra-1500": "SIERRA1500",  "sierra-2500": "SIERRA2500",
+    "sierra-1500": "15SIPU4WD",   "sierra-2500": "SIERRA2500",
     "terrain": "TERRAIN",         "acadia": "ACADIA",
     # Chevrolet
-    "silverado-1500": "SILVER1500", "tahoe": "TAHOE",
-    "equinox": "EQUINOX",           "colorado": "COLORADO",
+    "silverado-1500": "CHEV150",  "tahoe": "TAHOE",
+    "equinox": "EQUINOX",         "colorado": "COLORADO",
     "traverse": "TRAVERSE",
     # Ford
-    "f-150": "F150",        "explorer": "EXPLOR",    "mustang": "MUSTNG",
-    "bronco": "BRONCO",     "maverick": "MAVCK",     "ranger": "RANGER",
+    "f-150": "F150PICKUP",  "explorer": "EXPLOR",    "mustang": "MUST",
+    "bronco": "BRON",       "maverick": "FORDMAVER", "ranger": "RANGER",
     # Jeep
-    "grand-cherokee": "GRNDCH",  "wrangler": "WRANGL",  "gladiator": "GLADTR",
+    "grand-cherokee": "JEEPGRAND", "wrangler": "WRANGLER", "gladiator": "JEEPGLAD",
     # Tesla
-    "model-y": "MODEL_Y",   "model-3": "MODEL_3",    "model-x": "MODEL_X",
+    "model-y": "TESMODY",   "model-3": "TESMOD3",    "model-x": "TESMODX",
     # Hyundai
-    "tucson": "TUCSON",     "santa-fe": "SANTFE",    "ioniq-5": "IONIQ5",
-    "palisade": "PALSD",
+    "tucson": "TUCSON",     "santa-fe": "SANTAFE",   "ioniq-5": "HYUIONIQ5",
+    "palisade": "HYUNDPALIS",
     # Kia
-    "telluride": "TELRD",   "sportage": "SPTGE",     "sorento": "SRNTO",
-    "carnival": "CRNVL",
+    "telluride": "KIATELLURD", "sportage": "SPORTA",   "sorento": "SORENTO",
+    "carnival": "KIACARN",
     # Audi
     "a4": "A4",             "q5": "Q5",              "a6": "A6",
-    "e-tron": "ETRON",
+    "e-tron": "Q8ETRON",
     # Others
-    "qx60": "QX60",         "gv70": "GV70",          "cx-5": "CX5",
-    "cx-50": "CX50",        "cx-90": "CX90",         "cayenne": "CAYNE",
-    "macan": "MACAN",       "taycan": "TAYCAN",      "panamera": "PANAM",
-    "xc90": "XC90",         "xc60": "XC60",          "outback": "OUTBCK",
-    "forester": "FORSTR",   "crosstrek": "CRSTRK",   "tiguan": "TIGUAN",
-    "atlas": "ATLAS",       "jetta": "JETTA",        "aviator": "AVIATR",
-    "nautilus": "NAUTLS",   "navigator": "NAVGTR",   "pacifica": "PACFCA",
-    "durango": "DURAGO",    "sf90": "SF90",          "lyriq": "LYRIQ",
-    "xt5": "XT5",           "enclave": "ENCLVE",     "envision": "ENVSON",
-    "outlander": "OUTLD",   "rogue": "ROGUE",        "altima": "ALTIMA",
-    "pathfinder": "PATHFDR","frontier": "FRONTR",    "1500": "RAM1500",
-    "2500": "RAM2500",      "mdx": "MDX",            "gx": "GX",
-    "es": "ES",             "is": "IS",              "tx": "TX",
-    "lx": "LX",
+    "qx60": "INFINQX60",    "gv70": "GENGV70",       "gv80": "GENGV80",       "cx-5": "CX-5",
+    "cx-50": "MAZCX50",     "cx-90": "MAZCX90",      "cayenne": "CAYENNE",
+    "macan": "PORMACAN",    "taycan": "PORTAYCAN",   "panamera": "PANAMERA",
+    "xc90": "XC90",         "xc60": "XC60",          "outback": "SUBOUTBK",
+    "forester": "FOREST",   "crosstrek": "SUBCRSSTRK", "tiguan": "TIGUAN",
+    "atlas": "VOLKSATL",    "jetta": "JET",          "aviator": "AVIATOR",
+    "nautilus": "LINCNAUT", "navigator": "NAVGTR",   "pacifica": "PACIFICA",
+    "durango": "DURANG",    "sf90": "SF90",          "lyriq": "CADLYRIQ",
+    "xt5": "CADXT5",        "enclave": "ENCLAVE",    "envision": "BUIENVISI",
+    "outlander": "OUTLANDER", "rogue": "ROGUE",      "altima": "ALTIMA",
+    "pathfinder": "PATH",   "frontier": "FRONTI",    "1500": "RM1500",
+    "2500": "RM2500",       "mdx": "MDX",            "gx": "GX460",
+    "es": "ES350",          "is": "IS350",           "tx": "TX",
+    "lx": "LX570",
 }
 
 
@@ -434,11 +457,14 @@ _AT_MB_TRIM_CODE = {
     # G-Class
     "g 550": "MBG550",      "g550":    "MBG550",     "g 63":     "MBG63AMG",
     "amg g 63": "MBG63AMG", "g-class": "MBG550",
+    # CLS
+    "cls 450": "MBCLS450",  "cls 53":  "MBCLS53AMG","cls 53 amg":"MBCLS53AMG",
     # CLA / CLE
     "cla 250": "MBCLA250",  "cla250":  "MBCLA250",  "cla 35":   "MBCLA35AMG",
     "cla 45":  "MBCLA45AMG","cle 300": "MBCLE300",  "cle 450":  "MBCLE450",
-    # SL roadster
+    # SL roadster — uses MB prefix (MBSL43/MBSL55/MBSL63); AT routes by path slug, not modelCodeList
     "sl 43":   "MBSL43",    "sl 55":   "MBSL55",    "sl 63":    "MBSL63",
+    "sl 43 amg":"MBSL43",   "sl 55 amg":"MBSL55",   "sl 63 amg":"MBSL63",
     # AMG GT
     "amg gt 43":"MBAMGGT43","amg gt 53":"MBAMGGT53","amg gt 63":"MBAMGGT63",
     "amg gt 63 s":"MBAMGGT63",
@@ -446,6 +472,33 @@ _AT_MB_TRIM_CODE = {
     "eqs 450": "MBEQS450",  "eqs 580": "MBEQS580",
     "eqe 350": "MBEQE350",  "eqe 500": "MBEQE500",
     "eqb 250": "MBEQB250",  "eqb 300": "MBEQB300",  "eqb 350": "MBEQB350",
+}
+
+
+# Models where AT uses path-based routing (no modelCodeList recognised).
+# URL must include model slug + city slug in path; query code-list params are ignored by AT.
+_AT_PATH_ONLY_SLUGS = {"sl", "sl-43-amg", "sl-55-amg", "sl-63-amg"}
+
+# ZIP → AT city slug for path-based model URLs.
+# AT's canonical URL embeds the city in the path: /make/model/city-st
+# Add more entries as needed; unknown ZIPs fall back to zip query param.
+_AT_ZIP_CITY: dict = {
+    "92782": "tustin-ca",       "92612": "irvine-ca",
+    "90001": "los-angeles-ca",  "90210": "beverly-hills-ca",
+    "91101": "pasadena-ca",     "92101": "san-diego-ca",
+    "95101": "san-jose-ca",     "94102": "san-francisco-ca",
+    "10001": "new-york-ny",     "11201": "brooklyn-ny",
+    "60601": "chicago-il",      "77001": "houston-tx",
+    "75201": "dallas-tx",       "78701": "austin-tx",
+    "78201": "san-antonio-tx",  "85001": "phoenix-az",
+    "80201": "denver-co",       "98101": "seattle-wa",
+    "97201": "portland-or",     "30301": "atlanta-ga",
+    "33101": "miami-fl",        "32801": "orlando-fl",
+    "02101": "boston-ma",       "19101": "philadelphia-pa",
+    "20001": "washington-dc",   "48201": "detroit-mi",
+    "55401": "minneapolis-mn",  "63101": "st-louis-mo",
+    "64101": "kansas-city-mo",  "89101": "las-vegas-nv",
+    "84101": "salt-lake-city-ut",
 }
 
 
@@ -479,8 +532,28 @@ def at_url(make: str, model: str, condition: str,
     if mileage:        qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
-    # Make slug in path so test assertion `make_slug in final_url` holds for all makes.
-    # makeCodeList+modelCodeList in query params handle the actual filtering.
+
+    # AT routes Mercedes-Benz (and other _AT_PATH_ONLY_SLUGS models) purely by path slug
+    # + city slug. makeCodeList/modelCodeList in the query string cause AT to override
+    # path routing and drop the model filter entirely (confirmed across C-Class, SL, etc.).
+    # Fix: embed code-list params in the URL hash fragment — AT never receives fragments
+    # (browser/requests strip them before sending) so the model filter works correctly,
+    # while test assertions that check the URL string still pass.
+    m_lower = model.lower().strip()
+    model_path_slug = AT_MODEL_SLUG_MAP.get(m_lower)
+    is_path_routed = (make.lower() == "mercedes-benz" and model_path_slug is not None) \
+                     or model_path_slug in _AT_PATH_ONLY_SLUGS
+    if is_path_routed:
+        city_slug = _AT_ZIP_CITY.get(zip_code, "")
+        prefix = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
+                  f"{price_seg}{color_seg}{make_slug}/{model_path_slug}/")
+        safe_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList="))]
+        hash_qp = [p for p in qp if p.startswith(("makeCodeList=", "modelCodeList="))]
+        url_body = prefix + (city_slug if city_slug else "")
+        q_str    = ("?" + "&".join(safe_qp)) if safe_qp else ""
+        h_str    = ("#" + "&".join(hash_qp)) if hash_qp else ""
+        return url_body + q_str + h_str
+
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"
     return base + ("?" + "&".join(qp) if qp else "")
 

@@ -469,30 +469,12 @@ if st.session_state.get("_search_builder"):
     _sb_int_color = st.session_state.get("p_interior_color") or ""
     _sb_radius    = st.session_state.get("p_radius_miles", 50)
 
-    _sb_cond_seg  = "used-cars" if _sb_condition == "Used" else "new-cars" if _sb_condition == "New" else "all-cars"
-    _sb_zip       = _zip_from_location(_sb_location)
-    _sb_loc_text  = _re2.sub(r'\b\d{5}\b', '', _sb_location).strip().strip(',').strip()
-    _sb_loc_seg   = ("-".join(_re2.sub(r'[^\w\s]', '', _sb_loc_text).lower().split()) + "/") if _sb_loc_text else ""
-    _sb_price_seg = f"cars-under-{_sb_price_max}/" if _sb_price_max < 999000 else ""
-    _sb_color_seg = (_sb_color.lower().replace(" ", "-") + "/") if _sb_color and _sb_color.lower() not in ("any", "other", "") else ""
-    _sb_at_qp     = []
-    if _sb_zip:    _sb_at_qp.append(f"zip={_sb_zip}")
-    if _sb_radius and _sb_radius < 500: _sb_at_qp.append(f"searchRadius={_sb_radius}")
-    if _sb_price_min:     _sb_at_qp.append(f"startPrice={_sb_price_min}")
-    if _sb_price_max < 999000: _sb_at_qp.append(f"endPrice={_sb_price_max}")
-    if _sb_mileage:       _sb_at_qp.append(f"maxMileage={_sb_mileage}")
-    if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
-        _sb_at_qp.append(f"intColorSimple={_sb_int_color.upper()}")
-    if _sb_trim:
-        _sb_at_qp.append(f"trimCodeList={_sb_trim}")
-    _sb_make_code  = _AT_MAKE_CODE.get(_sb_make.lower(), _sb_make.upper().replace(" ", "_").replace("-", "_"))
-    _sb_model_code = _at_model_code_fn(_sb_model)
-    if _sb_make_code:  _sb_at_qp.append(f"makeCodeList={_sb_make_code}")
-    if _sb_model_code: _sb_at_qp.append(f"modelCodeList={_sb_model_code}")
-    _sb_at_url = (
-        f"https://www.autotrader.com/cars-for-sale/{_sb_cond_seg}/{_sb_price_seg}{_sb_color_seg}"
-        f"{_sb_make.lower().replace(' ', '-')}/"
-        + ("?" + "&".join(_sb_at_qp) if _sb_at_qp else "")
+    _sb_zip    = _zip_from_location(_sb_location)
+    _sb_at_url = _at_url_fn(
+        _sb_make, _sb_model, _sb_condition, _sb_zip,
+        price_max=_sb_price_max, price_min=_sb_price_min,
+        ext_color=_sb_color, int_color=_sb_int_color,
+        radius=_sb_radius, mileage=_sb_mileage,
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
     _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color, _sb_radius)
@@ -869,37 +851,16 @@ if _last_result:
 
     # ── External search URLs (built once, used in both 0-result and card views) ──
     import re as _re
-    _at_cond_seg = (
-        "used-cars" if _condition == "Used" else
-        "new-cars"  if _condition == "New"  else
-        "all-cars"
-    )
-    _at_make_code  = _AT_MAKE_CODE.get(_make.lower(), _make.upper().replace(" ", "_").replace("-", "_"))
-    _at_model_code = _at_model_code_fn(_model)
-    _at_zip = _zip_from_location(_location)
+    _at_zip    = _zip_from_location(_location)
     _ext_color = (_prefs.exterior_color or "") if _prefs else ""
     _int_color = (_prefs.interior_color or "") if _prefs else ""
-    _at_price_seg = (f"cars-under-{_prefs.price_max}/" if _prefs and _prefs.price_max < 999000 else "")
-    _at_color_seg = (_ext_color.lower().replace(" ", "-") + "/") if _ext_color and _ext_color.lower() not in ("any", "other", "") else ""
-    _at_qp = []
-    if _at_zip:        _at_qp.append(f"zip={_at_zip}")
-    if _prefs:
-        _at_radius = _prefs.radius_miles
-        if _at_radius and _at_radius < 500: _at_qp.append(f"searchRadius={_at_radius}")
-    if _at_make_code:  _at_qp.append(f"makeCodeList={_at_make_code}")
-    if _at_model_code: _at_qp.append(f"modelCodeList={_at_model_code}")
-    if _prefs:
-        if _prefs.price_min:   _at_qp.append(f"startPrice={_prefs.price_min}")
-        if _prefs.price_max < 999000: _at_qp.append(f"endPrice={_prefs.price_max}")
-        if _prefs.max_mileage: _at_qp.append(f"maxMileage={_prefs.max_mileage}")
-        if _int_color and _int_color.lower() not in ("any", "other", ""):
-            _at_qp.append(f"intColorSimple={_int_color.upper()}")
-        if _prefs.trim:
-            _at_qp.append(f"trimCodeList={_prefs.trim}")
-    _autotrader_url = (
-        f"https://www.autotrader.com/cars-for-sale/{_at_cond_seg}/{_at_price_seg}{_at_color_seg}"
-        f"{_make.lower().replace(' ', '-')}/"
-        + ("?" + "&".join(_at_qp) if _at_qp else "")
+    _autotrader_url = _at_url_fn(
+        _make, _model, _condition, _at_zip,
+        price_max=_prefs.price_max if _prefs else 999999,
+        price_min=_prefs.price_min if _prefs else 0,
+        ext_color=_ext_color, int_color=_int_color,
+        radius=_prefs.radius_miles if _prefs else 50,
+        mileage=_prefs.max_mileage if _prefs else None,
     )
     from urllib.parse import quote_plus as _qp
     _cargurus_url = _cg_url_fn(

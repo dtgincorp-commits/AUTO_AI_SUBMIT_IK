@@ -20,8 +20,8 @@ import requests
 from urllib.parse import urlparse, parse_qs
 
 from agents.url_helpers import (
-    at_url, _at_model_code,
-    normalize_make,
+    at_url, _at_model_code, AT_MODEL_SLUG_MAP,
+    normalize_make, _AT_PATH_ROUTED_MAKES,
 )
 
 # ── All makes/models to probe (same list as generate_at_test_page.py) ─────────
@@ -105,8 +105,9 @@ _session.headers.update({
 # ── probe logic ───────────────────────────────────────────────────────────────
 
 def probe_one(make: str, model: str) -> dict:
-    make_norm = normalize_make(make)
-    url       = at_url(make_norm, model, CONDITION, ZIP_CODE, radius=RADIUS)
+    make_norm  = normalize_make(make)
+    make_slug  = make_norm.lower().replace(" ", "-")
+    url        = at_url(make_norm, model, CONDITION, ZIP_CODE, radius=RADIUS)
 
     try:
         r = _session.get(url, timeout=15, allow_redirects=True)
@@ -120,7 +121,18 @@ def probe_one(make: str, model: str) -> dict:
                        "AT returned 403 — bot block (treat as inconclusive)",
                        url, final_url)
 
+    final_path   = urlparse(final_url).path.lower()
     final_params = parse_qs(urlparse(final_url).query)
+
+    if make_slug in _AT_PATH_ROUTED_MAKES:
+        m_lower    = model.lower().strip()
+        model_slug = AT_MODEL_SLUG_MAP.get(m_lower, m_lower.replace(" ", "-"))
+        if model_slug and ("/" + model_slug + "/") in (final_path + "/"):
+            return _result(make, model, "pass",
+                           f"slug '{model_slug}' in AT path", url, final_url)
+        return _result(make, model, "fail",
+                       f"slug '{model_slug}' missing from path — AT showing make-only results",
+                       url, final_url)
 
     expected_code = _at_model_code(model)
     if not expected_code:

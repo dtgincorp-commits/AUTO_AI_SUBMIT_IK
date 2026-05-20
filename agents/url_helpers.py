@@ -599,9 +599,9 @@ _AT_MB_TRIM_CODE = {
 }
 
 
-# Models where AT uses path-based routing (no modelCodeList recognised).
-# URL must include model slug + city slug in path; query code-list params are ignored by AT.
-_AT_PATH_ONLY_SLUGS: set = set()
+# Makes where AT uses path-based routing (modelCodeList query param is silently ignored).
+# URL must include make/model slug in path; makeCodeList/modelCodeList must be omitted.
+_AT_PATH_ROUTED_MAKES = {"volvo"}
 
 # ZIP → AT city slug for path-based model URLs.
 # AT's canonical URL embeds the city in the path: /make/model/city-st
@@ -656,6 +656,17 @@ def at_url(make: str, model: str, condition: str,
     if mileage:        qp.append(f"maxMileage={mileage}")
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
+
+    if make_slug in _AT_PATH_ROUTED_MAKES:
+        m_lower = model.lower().strip()
+        path_slug = AT_MODEL_SLUG_MAP.get(m_lower, m_lower.replace(" ", "-"))
+        city_slug = _AT_ZIP_CITY.get(zip_code, "")
+        base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
+                f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
+        if city_slug:
+            base += city_slug + "/"
+        path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList="))]
+        return base + ("?" + "&".join(path_qp) if path_qp else "")
 
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"
     return base + ("?" + "&".join(qp) if qp else "")

@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from agents.url_helpers import (
     at_url, AT_MODEL_CODE, AT_MODEL_SLUG_MAP,
     _at_model_code, _AT_MB_TRIM_CODE,
+    _AT_PATH_ROUTED_MAKES,
 )
 
 ZIP_CODE  = "92782"
@@ -103,6 +104,23 @@ def static_check(make: str, model: str, url: str):
     parsed_url = urlparse(url)
     params     = parse_qs(parsed_url.query)
     code       = params.get("modelCodeList", [""])[0]
+    path       = parsed_url.path
+
+    make_slug = make.lower().replace(" ", "-")
+    if make_slug in _AT_PATH_ROUTED_MAKES:
+        m_lower   = model.lower().strip()
+        slug      = AT_MODEL_SLUG_MAP.get(m_lower, m_lower.replace(" ", "-"))
+        if "/" + slug + "/" in path or path.rstrip("/").endswith("/" + slug):
+            return dict(status="PASS",
+                        reason=f"Path-routed — model slug '/{slug}/' in URL path",
+                        code=slug)
+        if _is_explicit(model):
+            return dict(status="FAIL",
+                        reason=f"Path-routed — expected '/{slug}/' in path but not found",
+                        code=slug)
+        return dict(status="WARN",
+                    reason=f"Path-routed — '{slug}' not explicitly in AT_MODEL_CODE",
+                    code=slug)
 
     if not code:
         return dict(status="FAIL", reason="No model code in generated URL", code="—")

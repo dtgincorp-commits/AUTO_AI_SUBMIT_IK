@@ -882,6 +882,7 @@ if _last_result:
     _cm_model = (_make + "_" + _model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _cm_model = _CM_SLUG_MAP.get(_cm_model, _cm_model)
     _cm_stock = "used" if _condition == "Used" else "new" if _condition == "New" else "all"
+    from urllib.parse import quote as _url_quote
     _cm_qp = [f"stock_type={_cm_stock}", f"makes[]={_cm_make}", f"models[]={_cm_model}"]
     if _at_zip:          _cm_qp.append(f"zip={_at_zip}")
     if _prefs:
@@ -896,7 +897,6 @@ if _last_result:
         if _trim and _trim.lower() not in ("any", ""):
             _cm_qp.append(f"trims[]={_url_quote(_trim, safe='')}")
     _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
-    from urllib.parse import quote as _url_quote
     _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"
 
     # ── No results ──────────────────────────────────────────────────────────

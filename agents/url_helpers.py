@@ -603,9 +603,19 @@ _AT_MB_TRIM_CODE = {
 }
 
 
-# Makes where AT uses path-based routing (modelCodeList query param is silently ignored).
-# URL must include make/model slug in path; makeCodeList/modelCodeList must be omitted.
+# Makes where AT uses path-based routing for ALL models.
 _AT_PATH_ROUTED_MAKES = {"volvo"}
+
+# Specific make+model combos that need path routing even though the make is not fully path-routed.
+# Discovered by checking real AT URLs (e.g. gmc/sierra-2500 is path-routed; gmc/terrain is not).
+# Format: {make_slug: {model_lower: path_slug}}
+_AT_PATH_ROUTED_MODELS: dict = {
+    "gmc": {
+        "sierra 2500":    "sierra-2500",
+        "sierra 2500hd":  "sierra-2500",
+        "sierra 3500hd":  "sierra-3500hd",
+    },
+}
 
 # ZIP → AT city slug for path-based model URLs.
 # AT's canonical URL embeds the city in the path: /make/model/city-st
@@ -663,15 +673,20 @@ def at_url(make: str, model: str, condition: str,
     if int_color and int_color.lower() not in ("any", "other", ""):
         qp.append(f"intColorSimple={int_color.upper()}")
 
-    if make_slug in _AT_PATH_ROUTED_MAKES:
-        m_lower = model.lower().strip()
-        path_slug = AT_MODEL_SLUG_MAP.get(m_lower, m_lower.replace(" ", "-"))
-        city_slug = _AT_ZIP_CITY.get(zip_code, "")
+    m_lower = model.lower().strip()
+    _model_path_slug = (
+        AT_MODEL_SLUG_MAP.get(m_lower, m_lower.replace(" ", "-"))
+        if make_slug in _AT_PATH_ROUTED_MAKES
+        else _AT_PATH_ROUTED_MODELS.get(make_slug, {}).get(m_lower)
+    )
+    if make_slug in _AT_PATH_ROUTED_MAKES or _model_path_slug:
+        path_slug  = _model_path_slug or m_lower.replace(" ", "-")
+        city_slug  = _AT_ZIP_CITY.get(zip_code, "")
         base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
                 f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
         if city_slug:
-            base += city_slug + "/"
-        path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList="))]
+            base = base.rstrip("/") + "/" + city_slug
+        path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
         return base + ("?" + "&".join(path_qp) if path_qp else "")
 
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"

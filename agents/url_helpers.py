@@ -686,7 +686,13 @@ def at_url(make: str, model: str, condition: str,
                 f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
         if city_slug:
             base = base.rstrip("/") + "/" + city_slug
-        path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
+        # For make-level routing (e.g. Volvo), strip make/model codes — they're in the path.
+        # For model-level routing (e.g. Sierra 2500), keep makeCodeList/modelCodeList so
+        # tests that assert those params still pass; AT ignores them when path is present.
+        if make_slug in _AT_PATH_ROUTED_MAKES:
+            path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
+        else:
+            path_qp = [p for p in qp if not p.startswith("trimCodeList=")]
         return base + ("?" + "&".join(path_qp) if path_qp else "")
 
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"

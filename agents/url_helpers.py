@@ -316,7 +316,7 @@ def normalize_make(make: str) -> str:
 def cg_direct_url(make: str, model: str, condition: str,
                   zip_code: str = "", price_max: int = 999999,
                   ext_color: str = "", int_color: str = "",
-                  radius: int = 50) -> str:
+                  radius: int = 50, trim: str = "") -> str:
     """Return a CarGurus inventory listing URL using entity ID, or None if not in lookup."""
     key = f"{make.strip()} {model.strip()}".lower()
     entity_id = CG_ENTITY_IDS.get(key)
@@ -341,19 +341,23 @@ def cg_direct_url(make: str, model: str, condition: str,
         qp.append("searchType=USED")
     elif "cpo" in cond_lower:
         qp.append("searchType=CPO")
+    if trim and trim.lower() not in ("any", ""):
+        qp.append(f"trim%5B%5D={_url_quote(trim, safe='')}")
     return "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action?" + "&".join(qp)
 
 
 def cg_url(make: str, model: str, zip_code: str, price_max: int,
            condition: str, ext_color: str = "", int_color: str = "",
-           radius: int = 50) -> str:
-    direct = cg_direct_url(make, model, condition, zip_code, price_max, ext_color, int_color, radius)
+           radius: int = 50, trim: str = "") -> str:
+    direct = cg_direct_url(make, model, condition, zip_code, price_max, ext_color, int_color, radius, trim=trim)
     if direct:
         return direct
     parts = []
     if condition and condition != "Any":
         parts.append(condition)
     parts.append(f"{make} {model}".strip())
+    if trim and trim.lower() not in ("any", ""):
+        parts.append(trim)
     parts.append("for sale")
     if zip_code:
         parts.append(f"near {zip_code}")
@@ -638,7 +642,7 @@ def _at_model_code(model: str) -> str:
 def at_url(make: str, model: str, condition: str,
            zip_code: str = "", price_max: int = 999999, price_min: int = 0,
            ext_color: str = "", int_color: str = "",
-           radius: int = 50, mileage: int = None) -> str:
+           radius: int = 50, mileage: int = None, trim: str = "") -> str:
     """Build an AutoTrader search URL using makeCodeList+modelCodeList query params."""
     make = normalize_make(make)
     cond_seg   = "used-cars" if condition == "Used" else "new-cars" if condition == "New" else "all-cars"
@@ -651,6 +655,8 @@ def at_url(make: str, model: str, condition: str,
     if radius < 500:   qp.append(f"searchRadius={radius}")
     if make_code:      qp.append(f"makeCodeList={make_code}")
     if model_code:     qp.append(f"modelCodeList={model_code}")
+    if trim and trim.lower() not in ("any", ""):
+        qp.append(f"trimCodeList={_url_quote(trim, safe='')}")
     if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:        qp.append(f"maxMileage={mileage}")
@@ -675,7 +681,7 @@ def at_url(make: str, model: str, condition: str,
 def cm_url(make: str, model: str, condition: str,
            zip_code: str = "", price_max: int = 999999, price_min: int = 0,
            ext_color: str = "", int_color: str = "",
-           radius: int = 50, mileage: int = None) -> str:
+           radius: int = 50, mileage: int = None, trim: str = "") -> str:
     """Build a Cars.com search URL."""
     make = normalize_make(make)
     cm_make  = make.lower().replace(" ", "_").replace("-", "_")
@@ -688,5 +694,7 @@ def cm_url(make: str, model: str, condition: str,
     if price_min:   qp.append(f"price_min={price_min}")
     if price_max and price_max < 999000: qp.append(f"price_max={price_max}")
     if mileage:     qp.append(f"mileage_max={mileage}")
+    if trim and trim.lower() not in ("any", ""):
+        qp.append(f"trims[]={_url_quote(trim, safe='')}")
     # Cars.com color slug params silently drop models[] when invalid — omit entirely
     return "https://www.cars.com/shopping/results/?" + "&".join(qp)

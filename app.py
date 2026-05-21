@@ -474,10 +474,10 @@ if st.session_state.get("_search_builder"):
         _sb_make, _sb_model, _sb_condition, _sb_zip,
         price_max=_sb_price_max, price_min=_sb_price_min,
         ext_color=_sb_color, int_color=_sb_int_color,
-        radius=_sb_radius, mileage=_sb_mileage,
+        radius=_sb_radius, mileage=_sb_mileage, trim=_sb_trim,
     )
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
-    _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color, _sb_radius)
+    _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color, _sb_radius, trim=_sb_trim)
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")
     _sb_cm_model = (_sb_make + "_" + _sb_model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     _sb_cm_model = _CM_SLUG_MAP.get(_sb_cm_model, _sb_cm_model)
@@ -492,6 +492,9 @@ if st.session_state.get("_search_builder"):
         _sb_cm_qp.append(f"exterior_color_slugs[]={_sb_color.lower()}")
     if _sb_int_color and _sb_int_color.lower() not in ("any", "other", ""):
         _sb_cm_qp.append(f"interior_color_slugs[]={_sb_int_color.lower()}")
+    if _sb_trim and _sb_trim.lower() not in ("any", ""):
+        from urllib.parse import quote as _sb_q2
+        _sb_cm_qp.append(f"trims[]={_sb_q2(_sb_trim, safe='')}")
     _sb_cm_url = "https://www.cars.com/shopping/results/?" + "&".join(_sb_cm_qp)
     _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
 
@@ -854,6 +857,7 @@ if _last_result:
     _at_zip    = _zip_from_location(_location)
     _ext_color = (_prefs.exterior_color or "") if _prefs else ""
     _int_color = (_prefs.interior_color or "") if _prefs else ""
+    _trim = (_prefs.trim or "") if _prefs else ""
     _autotrader_url = _at_url_fn(
         _make, _model, _condition, _at_zip,
         price_max=_prefs.price_max if _prefs else 999999,
@@ -861,6 +865,7 @@ if _last_result:
         ext_color=_ext_color, int_color=_int_color,
         radius=_prefs.radius_miles if _prefs else 50,
         mileage=_prefs.max_mileage if _prefs else None,
+        trim=_trim,
     )
     from urllib.parse import quote_plus as _qp
     _cargurus_url = _cg_url_fn(
@@ -870,6 +875,7 @@ if _last_result:
         ext_color=_ext_color,
         int_color=_int_color,
         radius=_prefs.radius_miles if _prefs else 50,
+        trim=_trim,
     )
     # Cars.com slugs use underscores; model slug is make_model combined
     _cm_make  = _make.lower().replace(" ", "_").replace("-", "_")
@@ -887,6 +893,8 @@ if _last_result:
             _cm_qp.append(f"exterior_color_slugs[]={_ext_color.lower()}")
         if _int_color and _int_color.lower() not in ("any", "other", ""):
             _cm_qp.append(f"interior_color_slugs[]={_int_color.lower()}")
+        if _trim and _trim.lower() not in ("any", ""):
+            _cm_qp.append(f"trims[]={_url_quote(_trim, safe='')}")
     _carsdotcom_url = "https://www.cars.com/shopping/results/?" + "&".join(_cm_qp)
     from urllib.parse import quote as _url_quote
     _google_url = f"https://www.google.com/search?q={_url_quote(f'{_condition} {_make} {_model} for sale near {_location}')}"

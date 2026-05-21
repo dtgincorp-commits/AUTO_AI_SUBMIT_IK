@@ -655,8 +655,8 @@ def at_url(make: str, model: str, condition: str,
     if radius < 500:   qp.append(f"searchRadius={radius}")
     if make_code:      qp.append(f"makeCodeList={make_code}")
     if model_code:     qp.append(f"modelCodeList={model_code}")
-    if trim and trim.lower() not in ("any", ""):
-        qp.append(f"trimCodeList={_url_quote(trim, safe='')}")
+    if trim and trim.lower() not in ("any", "") and model_code:
+        qp.append(f"trimCodeList={_url_quote(model_code + '|' + trim, safe='')}")
     if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:        qp.append(f"maxMileage={mileage}")

@@ -637,6 +637,7 @@ if st.session_state.get("_search_builder"):
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
+    st.caption("v2026-05-22")
     st.header("Your Car Preferences")
 
     make = st.text_input("Make", placeholder="e.g. BMW, Toyota", key="p_make")

@@ -1,6 +1,7 @@
 """
 URL builders for AutoTrader, CarGurus, and Cars.com.
 Extracted here so they can be imported by both app.py and test_links.py.
+Updated: 2026-05-22
 """
 from urllib.parse import quote as _url_quote
 

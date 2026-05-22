@@ -638,6 +638,10 @@ if st.session_state.get("_search_builder"):
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
     st.caption("v2026-05-22")
+    import agents.url_helpers as _uh_debug
+    st.caption(f"uh: {_uh_debug.__doc__[:30] if _uh_debug.__doc__ else 'no-doc'}")
+    _dbg_url = _uh_debug.at_url("Mercedes-Benz", "GLC 43", "all", zip_code="92782", ext_color="White", radius=50)
+    st.caption(f"dbg: {_dbg_url[-60:]}")
     st.header("Your Car Preferences")
 
     make = st.text_input("Make", placeholder="e.g. BMW, Toyota", key="p_make")

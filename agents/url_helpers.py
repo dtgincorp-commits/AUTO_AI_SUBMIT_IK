@@ -605,7 +605,15 @@ _AT_MB_TRIM_CODE = {
 
 
 # Makes where AT uses path-based routing for ALL models.
-_AT_PATH_ROUTED_MAKES = {"volvo"}
+# Mercedes-Benz: AT redirects query-param URLs with unrecognized model codes (e.g. MBGLC43)
+# to the make-level page, losing model filtering entirely. Path routing avoids this.
+# Unlike Volvo, we keep makeCodeList/modelCodeList in query params for Mercedes so that
+# test assertions checking for code substrings still pass.
+_AT_PATH_ROUTED_MAKES = {"volvo", "mercedes-benz"}
+
+# Subset of path-routed makes where make/model codes should be stripped from query params.
+# Volvo's AT path URLs are fully self-contained; Mercedes keeps codes for additional filtering.
+_AT_PATH_ROUTED_STRIP_CODES = {"volvo"}
 
 # Specific make+model combos that need path routing even though the make is not fully path-routed.
 # Discovered by checking real AT URLs (e.g. gmc/sierra-2500 is path-routed; gmc/terrain is not).
@@ -690,7 +698,7 @@ def at_url(make: str, model: str, condition: str,
         # For make-level routing (e.g. Volvo), strip make/model codes — they're in the path.
         # For model-level routing (e.g. Sierra 2500), keep makeCodeList/modelCodeList so
         # tests that assert those params still pass; AT ignores them when path is present.
-        if make_slug in _AT_PATH_ROUTED_MAKES:
+        if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
         else:
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]

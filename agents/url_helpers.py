@@ -1,7 +1,7 @@
 """
 URL builders for AutoTrader, CarGurus, and Cars.com.
 Extracted here so they can be imported by both app.py and test_links.py.
-Updated: 2026-05-22
+Updated: 2026-05-23
 """
 from urllib.parse import quote as _url_quote
 
@@ -566,31 +566,34 @@ AT_MODEL_CODE = {
 # Bare class codes like GLE, CLA, AMG_GT are silently ignored by AutoTrader.
 _AT_MB_TRIM_CODE = {
     # GL-series SUVs
+    # AMG performance variants (GLC 43, GLE 63, etc.) are trims of the base model on AT,
+    # not separate models — AT rejects codes like MBGLC43/MBGLE63AMG and redirects to
+    # the make page. Map them to the closest valid base-class code instead.
     "gle 350": "MBGLE350",  "gle 450": "MBGLE450",  "gle 450e": "MBGLE450",
-    "gle450e": "MBGLE450",  "gle 53":  "MBGLE53",   "gle 63":   "MBGLE63AMG",
+    "gle450e": "MBGLE450",  "gle 53":  "MBGLE450",  "gle 63":   "MBGLE450",
     "glc 300": "MBGLC300",  "glc 300e":"MBGLC300",  "glc300":   "MBGLC300",
-    "glc300e": "MBGLC300",  "glc 43":  "MBGLC43",   "glc 63":   "MBGLC63AMG",
-    "gls 450": "MBGLS450",  "gls 580": "MBGLS580",  "gls 63":   "MBGLS63AMG",
-    "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA35AMG",
-    "gla 45":  "MBGLA45AMG","gla 450": "MBGLA250",
-    "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB35AMG",
+    "glc300e": "MBGLC300",  "glc 43":  "MBGLC300",  "glc 63":   "MBGLC300",
+    "gls 450": "MBGLS450",  "gls 580": "MBGLS580",  "gls 63":   "MBGLS450",
+    "gla 250": "MBGLA250",  "gla250":  "MBGLA250",  "gla 35":   "MBGLA250",
+    "gla 45":  "MBGLA250",  "gla 450": "MBGLA250",
+    "glb 250": "MBGLB250",  "glb250":  "MBGLB250",  "glb 35":   "MBGLB250",
     # C-Class
-    "c 300": "MBC300",      "c300":    "MBC300",     "c 43":     "MBC43AMG",
-    "c 63":  "MBC63AMG",    "c-class": "MBC300",
+    "c 300": "MBC300",      "c300":    "MBC300",     "c 43":     "MBC300",
+    "c 63":  "MBC300",      "c-class": "MBC300",
     # E-Class
     "e 350": "MBE350",      "e350":    "MBE350",     "e 450":    "MBE450",
-    "e 53":  "MBE53AMG",    "e 63":    "MBE63AMG",   "e-class":  "MBE350",
+    "e 53":  "MBE350",      "e 63":    "MBE350",     "e-class":  "MBE350",
     # S-Class
     "s 500": "MBS500",      "s500":    "MBS500",     "s 580":    "MBS580",
-    "s580":  "MBS580",      "s 63":    "MBS63AMG",   "s-class":  "MBS500",
+    "s580":  "MBS580",      "s 63":    "MBS500",     "s-class":  "MBS500",
     # G-Class
-    "g 550": "MBG550",      "g550":    "MBG550",     "g 63":     "MBG63AMG",
-    "amg g 63": "MBG63AMG", "g-class": "MBG550",
+    "g 550": "MBG550",      "g550":    "MBG550",     "g 63":     "MBG550",
+    "amg g 63": "MBG550",   "g-class": "MBG550",
     # CLS
-    "cls 450": "MBCLS450",  "cls 53":  "MBCLS53AMG","cls 53 amg":"MBCLS53AMG",
+    "cls 450": "MBCLS450",  "cls 53":  "MBCLS450",  "cls 53 amg":"MBCLS450",
     # CLA / CLE
-    "cla 250": "MBCLA250",  "cla250":  "MBCLA250",  "cla 35":   "MBCLA35AMG",
-    "cla 45":  "MBCLA45AMG","cle 300": "MBCLE300",  "cle 450":  "MBCLE450",
+    "cla 250": "MBCLA250",  "cla250":  "MBCLA250",  "cla 35":   "MBCLA250",
+    "cla 45":  "MBCLA250",  "cle 300": "MBCLE300",  "cle 450":  "MBCLE300",
     # SL roadster — uses MB prefix (MBSL43/MBSL55/MBSL63); AT routes by path slug, not modelCodeList
     "sl 43":   "MBSL43",    "sl 55":   "MBSL55",    "sl 63":    "MBSL63",
     "sl 43 amg":"MBSL43",   "sl 55 amg":"MBSL55",   "sl 63 amg":"MBSL63",

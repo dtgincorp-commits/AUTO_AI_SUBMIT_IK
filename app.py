@@ -945,6 +945,7 @@ if _last_result:
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🔎 &nbsp;AutoTrader
     </a>
+    <span style="font-size:10px;color:#aaa;word-break:break-all">DBG:{_autotrader_url}</span>
     <a href="{_hurl_z(_carsdotcom_url)}" target="_blank"
        style="background:#16a34a;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">

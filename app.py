@@ -637,11 +637,21 @@ if st.session_state.get("_search_builder"):
 
 # ── Sidebar: User Preferences ──────────────────────────────────────────────
 with st.sidebar:
-    st.caption("v2026-05-22")
+    st.caption("v2026-05-22c")
     import agents.url_helpers as _uh_debug
-    st.caption(f"uh: {_uh_debug.__doc__[:30] if _uh_debug.__doc__ else 'no-doc'}")
     _dbg_url = _uh_debug.at_url("Mercedes-Benz", "GLC 43", "all", zip_code="92782", ext_color="White", radius=50)
-    st.caption(f"dbg: {_dbg_url[-60:]}")
+    st.caption(f"fn: {_dbg_url[-55:]}")
+    _dbg_meta = st.session_state.get("_last_meta", {})
+    st.caption(f"make={_dbg_meta.get('make','?')!r} model={_dbg_meta.get('model','?')!r}")
+    if _dbg_meta.get("make"):
+        import agents.url_helpers as _uh2
+        _dbg_prefs = _dbg_meta.get("prefs")
+        _dbg_live = _uh2.at_url(
+            _dbg_meta.get("make",""), _dbg_meta.get("model",""), _dbg_meta.get("condition","Any"),
+            ext_color=(_dbg_prefs.exterior_color if _dbg_prefs else ""),
+            zip_code=_dbg_meta.get("location",""),
+        )
+        st.caption(f"live: {_dbg_live[-55:]}")
     st.header("Your Car Preferences")
 
     make = st.text_input("Make", placeholder="e.g. BMW, Toyota", key="p_make")

@@ -872,6 +872,8 @@ if _last_result:
         mileage=_prefs.max_mileage if _prefs else None,
         trim=_trim,
     )
+    st.sidebar.caption(f"AT inputs: make={_make!r} model={_model!r} color={_ext_color!r} zip={_at_zip!r}")
+    st.sidebar.caption(f"AT url tail: ...{_autotrader_url[-55:]}")
     from urllib.parse import quote_plus as _qp
     _cargurus_url = _cg_url_fn(
         _make, _model, _at_zip,

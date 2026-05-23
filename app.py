@@ -476,6 +476,8 @@ if st.session_state.get("_search_builder"):
         ext_color=_sb_color, int_color=_sb_int_color,
         radius=_sb_radius, mileage=_sb_mileage, trim=_sb_trim,
     )
+    st.sidebar.caption(f"SB make={_sb_make!r} model={_sb_model!r} zip={_sb_zip!r} color={_sb_color!r}")
+    st.sidebar.caption(f"SB at_url: {_sb_at_url[-60:]}")
     from urllib.parse import quote_plus as _sb_qp, quote as _sb_quote
     _sb_cg_url = _cg_url_fn(_sb_make, _sb_model, _sb_zip, _sb_price_max, _sb_condition, _sb_color, _sb_int_color, _sb_radius, trim=_sb_trim)
     _sb_cm_make  = _sb_make.lower().replace(" ", "_").replace("-", "_")

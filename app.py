@@ -1075,9 +1075,8 @@ if _last_result:
         sort_col, _ = st.columns([2, 3])
         with sort_col:
             sort_choice = st.selectbox(
-                "Sort by", list(_SORT_OPTIONS.keys()),
+                "Sort Results", list(_SORT_OPTIONS.keys()),
                 key="results_sort",
-                label_visibility="collapsed",
             )
         # Prepend any VIN-added listings (pinned at top, not sorted/paginated)
         _vin_added = st.session_state.get("vin_added_listings", [])

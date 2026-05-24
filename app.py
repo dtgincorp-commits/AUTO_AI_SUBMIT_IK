@@ -1068,6 +1068,9 @@ if _last_result:
             "Price: High → Low":          lambda l: -l.price,
             "Mileage: Low → High":        lambda l: l.mileage,
             "Year: Newest First":         lambda l: -(l.year or 0),
+            "Color (A→Z)":               lambda l: (l.exterior_color or "zzz").lower(),
+            "Model (A→Z)":               lambda l: " ".join((l.title or "").lower().split()[1:3]),
+            "Trim (A→Z)":                lambda l: " ".join((l.title or "").lower().split()[3:]),
         }
         sort_col, _ = st.columns([2, 3])
         with sort_col:

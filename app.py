@@ -1061,16 +1061,22 @@ if _last_result:
                     )
 
         # ── Sort control ─────────────────────────────────────────────────────
+        # Each entry: (key_fn, reverse). reverse=True for Z→A / High→Low string sorts.
         _SORT_OPTIONS = {
-            "Match Score (Best First)":   lambda l: (-(l.match_score or 0)),
-            "Distance: Closest First":    lambda l: (l.distance_miles if l.distance_miles is not None else 9999),
-            "Price: Low → High":          lambda l: l.price,
-            "Price: High → Low":          lambda l: -l.price,
-            "Mileage: Low → High":        lambda l: l.mileage,
-            "Year: Newest First":         lambda l: -(l.year or 0),
-            "Color (A→Z)":               lambda l: (l.exterior_color or "zzz").lower(),
-            "Model (A→Z)":               lambda l: " ".join((l.title or "").lower().split()[1:3]),
-            "Trim (A→Z)":                lambda l: " ".join((l.title or "").lower().split()[3:]),
+            "Match Score (Best First)":   (lambda l: (-(l.match_score or 0)),                                    False),
+            "Distance: Closest First":    (lambda l: (l.distance_miles if l.distance_miles is not None else 9999), False),
+            "Price: Low → High":          (lambda l: l.price,                                                     False),
+            "Price: High → Low":          (lambda l: -l.price,                                                    False),
+            "Mileage: Low → High":        (lambda l: l.mileage,                                                   False),
+            "Mileage: High → Low":        (lambda l: l.mileage,                                                   True),
+            "Year: Newest First":         (lambda l: -(l.year or 0),                                              False),
+            "Year: Oldest First":         (lambda l: (l.year or 9999),                                            False),
+            "Color (A→Z)":               (lambda l: (l.exterior_color or "zzz").lower(),                         False),
+            "Color (Z→A)":               (lambda l: (l.exterior_color or "").lower(),                            True),
+            "Model (A→Z)":               (lambda l: " ".join((l.title or "").lower().split()[1:3]),               False),
+            "Model (Z→A)":               (lambda l: " ".join((l.title or "").lower().split()[1:3]),               True),
+            "Trim (A→Z)":                (lambda l: " ".join((l.title or "").lower().split()[3:]),                False),
+            "Trim (Z→A)":                (lambda l: " ".join((l.title or "").lower().split()[3:]),                True),
         }
         sort_col, _ = st.columns([2, 3])
         with sort_col:
@@ -1080,7 +1086,8 @@ if _last_result:
             )
         # Prepend any VIN-added listings (pinned at top, not sorted/paginated)
         _vin_added = st.session_state.get("vin_added_listings", [])
-        sorted_listings = sorted(listings, key=_SORT_OPTIONS[sort_choice])
+        _sort_key, _sort_rev = _SORT_OPTIONS[sort_choice]
+        sorted_listings = sorted(listings, key=_sort_key, reverse=_sort_rev)
 
         # ── Pagination setup ─────────────────────────────────────────────────
         total       = len(sorted_listings)

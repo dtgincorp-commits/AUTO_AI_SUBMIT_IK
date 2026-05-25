@@ -1,23 +1,24 @@
 """
-AT model + trim code discovery via Rebrowser cloud browser.
+AT / CarGurus / Cars.com code discovery via Rebrowser cloud browser.
 
 Connects to Rebrowser's CDP endpoint (residential proxy, undetectable) instead
-of a local headless browser that AT blocks. Discovers:
+of a local headless browser that AT/CG/CM blocks. Discovers:
 
-  1. modelCodeList values for every make/model we support
-  2. trimCodeList strings for every model (especially Mercedes AMG variants)
+  1. (AT)  modelCodeList + trimCodeList values for every make/model we support
+  2. (CG)  entityId numeric codes for CarGurus model URLs
+  3. (CM)  slug correctness verification for Cars.com model URLs
 
 Output: at_codes_full.json  — ready-to-paste code blocks printed to console.
 
 Usage:
   1. Add REBROWSER_API_KEY=<your_key> to .env
-  2. .venv/bin/python rebrowser_discover.py
+  2. .venv/bin/python rebrowser_discover.py            # all three sites
+     .venv/bin/python rebrowser_discover.py --at       # AutoTrader only
+     .venv/bin/python rebrowser_discover.py --cg       # CarGurus only
+     .venv/bin/python rebrowser_discover.py --cm       # Cars.com only
+     .venv/bin/python rebrowser_discover.py --make "Mercedes-Benz" --trims
 
-To run a single make only (faster for testing):
-  .venv/bin/python rebrowser_discover.py --make "Mercedes-Benz"
-
-To discover trims for a specific model:
-  .venv/bin/python rebrowser_discover.py --make "Mercedes-Benz" --trims
+Updated: 2026-05-24
 """
 import argparse
 import json
@@ -29,11 +30,10 @@ from playwright.sync_api import sync_playwright
 load_dotenv()
 
 REBROWSER_API_KEY = os.getenv("REBROWSER_API_KEY", "")
-# Rebrowser CDP WebSocket endpoint — paste the exact URL from your dashboard if different
 REBROWSER_WS = f"wss://ws.rebrowser.net/?apiKey={REBROWSER_API_KEY}"
 
-ZIP    = "92782"
-DELAY  = 3.0   # seconds between page navigations (be polite)
+ZIP   = "92782"
+DELAY = 3.0   # seconds between page navigations
 
 MAKES = {
     "Acura":         "acura",
@@ -148,9 +148,73 @@ MODELS_WE_USE = {
                       "V60", "V90", "XC40", "XC60", "XC90"],
 }
 
+# Known CG entity IDs already in url_helpers.py — used to seed/verify
+CG_KNOWN = {
+    "acura mdx": 36336,     "acura rdx": 36337,
+    "bmw x3": 1441,         "bmw x5": 1443,
+    "honda accord": 1265,   "honda civic": 1269,   "honda cr-v": 1271,
+    "toyota camry": 1407,   "toyota rav4": 1411,   "toyota corolla": 1406,
+    "ford f-150": 1344,     "ford mustang": 1347,  "ford explorer": 1340,
+    "chevrolet silverado 1500": 1312, "chevrolet tahoe": 1315,
+    "mercedes-benz c-class": 1422,   "mercedes-benz glc": 1426,
+    "audi q5": 21909,
+}
+
+
+# ── Shared helpers ─────────────────────────────────────────────────────────────
+
+def _connect(p):
+    """Connect to Rebrowser CDP endpoint and return (browser, context, page)."""
+    if not REBROWSER_API_KEY:
+        raise RuntimeError(
+            "REBROWSER_API_KEY not set in .env\n"
+            "Add:  REBROWSER_API_KEY=your_key_here"
+        )
+    print("Connecting to Rebrowser...")
+    browser = p.chromium.connect_over_cdp(REBROWSER_WS)
+    context = browser.new_context(
+        user_agent=(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        viewport={"width": 1280, "height": 900},
+    )
+    page = context.new_page()
+    return browser, context, page
+
+
+def _best_match(target: str, options: list):
+    t = target.lower().replace("-", " ").strip()
+    for opt in options:
+        if opt["label"].lower().replace("-", " ").strip() == t:
+            return opt
+    for opt in options:
+        label = opt["label"].lower().replace("-", " ").strip()
+        if t in label or label.startswith(t):
+            return opt
+    return None
+
+
+def _print_unmatched(makes_to_run: dict, found_map: dict, site: str):
+    unmatched = []
+    for make_name, our_models in MODELS_WE_USE.items():
+        if make_name not in makes_to_run:
+            continue
+        found = set(found_map.get(make_name, {}).keys())
+        for m in our_models:
+            if m not in found:
+                unmatched.append(f"  {make_name} — {m}")
+    if unmatched:
+        print(f"\n# ── [{site}] Still unmatched ──────────────────────────────")
+        for u in unmatched:
+            print(u)
+
+
+# ── AutoTrader ─────────────────────────────────────────────────────────────────
 
 def _extract_code_list(data, depth=0):
-    """Recursively find arrays of {label, code} items in any JSON structure."""
+    """Recursively find [{label, code}] arrays in AT JSON responses."""
     if depth > 12:
         return []
     if isinstance(data, list) and data and isinstance(data[0], dict):
@@ -183,20 +247,7 @@ def _extract_code_list(data, depth=0):
     return []
 
 
-def _best_match(target: str, options: list):
-    t = target.lower().replace("-", " ").strip()
-    for opt in options:
-        if opt["label"].lower().replace("-", " ").strip() == t:
-            return opt
-    for opt in options:
-        label = opt["label"].lower().replace("-", " ").strip()
-        if t in label or label.startswith(t):
-            return opt
-    return None
-
-
-def _capture_page_options(page, url: str) -> list:
-    """Navigate to url, wait for AT's API calls to settle, return all code options found."""
+def _at_capture_options(page, url: str) -> list:
     captured = []
 
     def on_response(response):
@@ -217,7 +268,6 @@ def _capture_page_options(page, url: str) -> list:
     finally:
         page.remove_listener("response", on_response)
 
-    # Deduplicate by code
     seen, unique = set(), []
     for opt in captured:
         if opt["code"] not in seen:
@@ -226,11 +276,11 @@ def _capture_page_options(page, url: str) -> list:
     return unique
 
 
-def discover_model_codes(page, make_name: str, make_slug: str) -> dict:
-    """Return {model_name: model_code} for all MODELS_WE_USE entries for this make."""
-    url = f"https://www.autotrader.com/cars-for-sale/all-cars/{make_slug}/?zip={ZIP}&searchRadius=50"
-    print(f"\n{make_name}... ", end="", flush=True)
-    options = _capture_page_options(page, url)
+def _at_discover_make(page, make_name: str, make_slug: str) -> tuple:
+    url = (f"https://www.autotrader.com/cars-for-sale/all-cars/{make_slug}/"
+           f"?zip={ZIP}&searchRadius=50")
+    print(f"\n  {make_name}... ", end="", flush=True)
+    options = _at_capture_options(page, url)
     print(f"{len(options)} model options", end="")
 
     result = {}
@@ -238,78 +288,57 @@ def discover_model_codes(page, make_name: str, make_slug: str) -> dict:
         m = _best_match(model, options)
         if m:
             result[model] = m["code"]
-        # unmatched → skip silently, printed in summary
     print(f"  ({len(result)}/{len(MODELS_WE_USE.get(make_name,[]))} matched)")
     return result, options
 
 
-def discover_trim_codes(page, make_slug: str, model_slug: str, model_code: str) -> list:
-    """Navigate to a model page and return all trim options AT exposes."""
+def _at_discover_trims(page, make_slug: str, model_name: str) -> list:
+    model_slug = model_name.lower().replace(" ", "-").replace("/", "-")
     url = (f"https://www.autotrader.com/cars-for-sale/all-cars/{make_slug}/{model_slug}/"
            f"?zip={ZIP}&searchRadius=50")
-    options = _capture_page_options(page, url)
-    return options
+    return _at_capture_options(page, url)
 
 
-def run(filter_make=None, discover_trims=False):
-    if not REBROWSER_API_KEY:
-        print("ERROR: REBROWSER_API_KEY not set in .env")
-        print("Add:  REBROWSER_API_KEY=your_key_here")
-        return
-
+def run_at(p, filter_make=None, discover_trims=False):
     makes_to_run = {k: v for k, v in MAKES.items()
                     if filter_make is None or k.lower() == filter_make.lower()}
 
-    model_codes = {}   # make → {model: code}
-    trim_codes  = {}   # make/model → [{"label":..., "code":...}]
-    all_options = {}   # make → full options list (for debugging)
+    model_codes = {}
+    trim_codes  = {}
+    all_options = {}
 
-    print(f"Connecting to Rebrowser...")
-    with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(REBROWSER_WS)
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 900},
-        )
-        page = context.new_page()
-
-        # Warm up — let AT set cookies and recognize the session
-        print("Warming up session on autotrader.com...")
+    browser, _, page = _connect(p)
+    try:
+        print("\nWarming up on autotrader.com...")
         page.goto("https://www.autotrader.com/", timeout=30000, wait_until="domcontentloaded")
         page.wait_for_timeout(3000)
-        print(f"  Page title: {page.title()}\n")
+        print(f"  Title: {page.title()}\n")
 
+        print("[AT] Discovering model codes...")
         for make_name, make_slug in makes_to_run.items():
-            codes, options = discover_model_codes(page, make_name, make_slug)
+            codes, options = _at_discover_make(page, make_name, make_slug)
             model_codes[make_name] = codes
             all_options[make_name] = options
             time.sleep(DELAY)
 
             if discover_trims and codes:
                 trim_codes[make_name] = {}
-                for model_name, model_code in codes.items():
-                    model_slug = model_name.lower().replace(" ", "-").replace("/", "-")
-                    trims = discover_trim_codes(page, make_slug, model_slug, model_code)
+                for model_name in codes:
+                    trims = _at_discover_trims(page, make_slug, model_name)
                     if trims:
                         trim_codes[make_name][model_name] = trims
                         print(f"    {model_name} trims: {[t['label'] for t in trims[:6]]}")
                     time.sleep(DELAY)
-
+    finally:
         browser.close()
 
-    # Save full results
     output = {"model_codes": model_codes, "trim_codes": trim_codes, "all_options": all_options}
     with open("at_codes_full.json", "w") as f:
         json.dump(output, f, indent=2)
-    print("\n\nSaved → at_codes_full.json")
+    print("\nSaved → at_codes_full.json")
 
-    # Print ready-to-paste model code block
     print("\n" + "="*65)
-    print("# ── Paste into AT_MODEL_CODE in agents/url_helpers.py ───────")
+    print("# ── [AT] Paste into AT_MODEL_CODE in url_helpers.py ─────────")
     for make_name, models in model_codes.items():
         if models:
             print(f"\n    # {make_name}")
@@ -317,32 +346,267 @@ def run(filter_make=None, discover_trims=False):
                 slug = model.lower().replace(" ", "-").replace("/", "-")
                 print(f'    "{slug}": "{code}",')
 
-    # Print unmatched
-    unmatched = []
-    for make_name, our_models in MODELS_WE_USE.items():
-        if make_name not in makes_to_run:
-            continue
-        found = set(model_codes.get(make_name, {}).keys())
-        for m in our_models:
-            if m not in found:
-                unmatched.append(f"  {make_name} — {m}")
-    if unmatched:
-        print("\n# ── Still unmatched (check AT_MODEL_SLUG_MAP manually) ──")
-        for u in unmatched:
-            print(u)
-
-    # Print trim codes for Mercedes AMG variants
     if discover_trims and trim_codes.get("Mercedes-Benz"):
-        print("\n# ── Mercedes trim codes (for _AT_MB_TRIM_CODE) ─────────")
+        print("\n# ── [AT] Mercedes trim codes (for _AT_MB_TRIM_CODE) ────────")
         for model, trims in trim_codes["Mercedes-Benz"].items():
             print(f"\n    # {model}")
             for t in trims:
                 print(f'    # "{model.lower()} ...": "{t["code"]}",  # {t["label"]}')
 
+    _print_unmatched(makes_to_run, model_codes, "AT")
+    return model_codes
+
+
+# ── CarGurus ───────────────────────────────────────────────────────────────────
+
+def _extract_cg_entity_ids(data, depth=0):
+    """Recursively find {name/label, entityId} pairs in CG JSON responses."""
+    if depth > 12:
+        return []
+    results = []
+    if isinstance(data, list):
+        for item in data:
+            results.extend(_extract_cg_entity_ids(item, depth + 1))
+    elif isinstance(data, dict):
+        eid = data.get("entityId") or data.get("entity_id")
+        if eid:
+            label = (data.get("name") or data.get("label") or
+                     data.get("displayName") or data.get("title") or "")
+            if label:
+                results.append({"label": str(label), "entityId": str(eid)})
+        for v in data.values():
+            if isinstance(v, (dict, list)):
+                results.extend(_extract_cg_entity_ids(v, depth + 1))
+    return results
+
+
+def _cg_capture_entity_ids(page, url: str) -> list:
+    captured = []
+
+    def on_response(response):
+        try:
+            ct = response.headers.get("content-type", "")
+            if ("json" in ct or "javascript" in ct) and response.status == 200:
+                body = response.json()
+                found = _extract_cg_entity_ids(body)
+                if found:
+                    captured.extend(found)
+        except Exception:
+            pass
+
+    page.on("response", on_response)
+    try:
+        page.goto(url, timeout=35000, wait_until="domcontentloaded")
+        page.wait_for_timeout(5000)
+    except Exception as e:
+        print(f"    nav error: {e}")
+    finally:
+        page.remove_listener("response", on_response)
+
+    seen, unique = set(), []
+    for opt in captured:
+        key = opt["entityId"]
+        if key not in seen:
+            seen.add(key)
+            unique.append(opt)
+    return unique
+
+
+def run_cg(p, filter_make=None):
+    makes_to_run = {k: v for k, v in MAKES.items()
+                    if filter_make is None or k.lower() == filter_make.lower()}
+
+    entity_ids = {}
+
+    browser, _, page = _connect(p)
+    try:
+        print("\nWarming up on cargurus.com...")
+        page.goto("https://www.cargurus.com/", timeout=35000, wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
+        print(f"  Title: {page.title()}\n")
+
+        print("[CG] Discovering entity IDs...")
+        for make_name in makes_to_run:
+            cg_slug = make_name.lower().replace(" ", "-").replace(".", "")
+            url = (f"https://www.cargurus.com/Cars/new/nl-New-{cg_slug}"
+                   f"?zip={ZIP}&distance=50")
+            print(f"\n  {make_name}... ", end="", flush=True)
+            options = _cg_capture_entity_ids(page, url)
+
+            # Fallback: inventory listing endpoint also exposes model facets
+            if len(options) < 2:
+                url2 = (f"https://www.cargurus.com/Cars/inventoryListing/"
+                        f"viewDetailsFilterViewInventoryListing.action"
+                        f"?zip={ZIP}&showNegotiable=true&sortDir=ASC"
+                        f"&entitySelectingHelper.selectedEntity={cg_slug}&distance=50")
+                options2 = _cg_capture_entity_ids(page, url2)
+                options = options or options2
+
+            print(f"{len(options)} entity IDs", end="")
+
+            result = {}
+            for model in MODELS_WE_USE.get(make_name, []):
+                m = _best_match(model, [{"label": o["label"], "code": o["entityId"]} for o in options])
+                if m:
+                    result[model] = m["code"]
+            entity_ids[make_name] = result
+            print(f"  ({len(result)}/{len(MODELS_WE_USE.get(make_name,[]))} matched)")
+            time.sleep(DELAY)
+    finally:
+        browser.close()
+
+    print("\n" + "="*65)
+    print("# ── [CG] Paste into CG_ENTITY_IDS in url_helpers.py ────────")
+    for make_name, models in entity_ids.items():
+        if models:
+            print(f"\n    # {make_name}")
+            for model, eid in models.items():
+                slug = model.lower().replace(" ", "-").replace("/", "-")
+                known = CG_KNOWN.get(f"{make_name.lower()} {model.lower()}")
+                note = f"  # was {known}" if known and str(known) != str(eid) else ""
+                print(f'    "{slug}": {eid},{note}')
+
+    _print_unmatched(makes_to_run, entity_ids, "CG")
+    return entity_ids
+
+
+# ── Cars.com ───────────────────────────────────────────────────────────────────
+
+def _cm_make_slug(make_name: str) -> str:
+    return make_name.lower().replace(" ", "_").replace("-", "_").replace(".", "")
+
+
+def _cm_model_slug(model_name: str) -> str:
+    return (model_name.lower()
+            .replace(" ", "_").replace("-", "_")
+            .replace(".", "").replace("/", "_"))
+
+
+def _cm_check_slug(page, make_name: str, model_name: str) -> dict:
+    make_slug  = _cm_make_slug(make_name)
+    model_slug = _cm_model_slug(model_name)
+    full_slug  = f"{make_slug}-{model_slug}"
+
+    url = (f"https://www.cars.com/shopping/results/"
+           f"?makes[]={make_slug}&models[]={full_slug}"
+           f"&zip={ZIP}&maximum_distance=50&stock_type=all")
+
+    try:
+        page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        page.wait_for_timeout(2500)
+        final_url = page.url
+
+        # Redirected to make-level page means model slug was wrong
+        redirected = (model_slug not in final_url.lower()
+                      and make_slug in final_url.lower())
+
+        try:
+            count_el = page.query_selector(
+                "[data-test='total-listings-count'], .total-listings, "
+                "[data-qa='listing-count']"
+            )
+            count_text = count_el.inner_text().strip() if count_el else ""
+        except Exception:
+            count_text = ""
+
+        return {
+            "make": make_name, "model": model_name, "slug": full_slug,
+            "url": url, "final_url": final_url,
+            "redirected": redirected, "count_text": count_text,
+            "ok": not redirected,
+        }
+    except Exception as e:
+        return {
+            "make": make_name, "model": model_name, "slug": full_slug,
+            "url": url, "final_url": "", "redirected": False,
+            "count_text": "", "ok": False, "error": str(e),
+        }
+
+
+def run_cm(p, filter_make=None):
+    makes_to_run = {k: v for k, v in MAKES.items()
+                    if filter_make is None or k.lower() == filter_make.lower()}
+
+    results = {}
+    bad     = []
+
+    browser, _, page = _connect(p)
+    try:
+        print("\nWarming up on cars.com...")
+        page.goto("https://www.cars.com/", timeout=30000, wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
+        print(f"  Title: {page.title()}\n")
+
+        print("[CM] Verifying Cars.com slugs...")
+        for make_name in makes_to_run:
+            results[make_name] = {}
+            models = MODELS_WE_USE.get(make_name, [])
+            print(f"\n  {make_name} ({len(models)} models)...")
+            for model_name in models:
+                info = _cm_check_slug(page, make_name, model_name)
+                results[make_name][model_name] = info
+                status = "OK " if info["ok"] else "BAD"
+                redirect_note = (f"  !! → {info['final_url'][:70]}"
+                                 if info["redirected"] else "")
+                print(f"    [{status}] {model_name}  →  {info['slug']}"
+                      + (f"  ({info['count_text']})" if info["count_text"] else "")
+                      + redirect_note)
+                if not info["ok"]:
+                    bad.append(info)
+                time.sleep(DELAY)
+    finally:
+        browser.close()
+
+    print("\n" + "="*65)
+    if bad:
+        print("# ── [CM] BAD slugs — fix in CM_SLUG_MAP in url_helpers.py ──")
+        for info in bad:
+            make_slug  = _cm_make_slug(info["make"])
+            model_slug = _cm_model_slug(info["model"])
+            print(f'\n    # {info["make"]} {info["model"]}')
+            print(f'    # Current slug: "{make_slug}-{model_slug}"')
+            print(f'    # Redirected to: {info.get("final_url","")[:80]}')
+            print(f'    # "{model_slug}": "CORRECT_SLUG_HERE",')
+    else:
+        print("# ── [CM] All slugs verified OK! ──────────────────────────────")
+
+    return results
+
+
+# ── Entry point ────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Discover AT model codes, CG entity IDs, and verify CM slugs "
+            "via Rebrowser undetectable cloud browser."
+        )
+    )
+    parser.add_argument("--at",    action="store_true", help="Run AutoTrader discovery only")
+    parser.add_argument("--cg",    action="store_true", help="Run CarGurus entity ID discovery only")
+    parser.add_argument("--cm",    action="store_true", help="Run Cars.com slug verification only")
+    parser.add_argument("--make",  help="Limit to one make (e.g. 'Mercedes-Benz')")
+    parser.add_argument("--trims", action="store_true",
+                        help="(AT only) Also discover trim codes per model")
+    args = parser.parse_args()
+
+    run_all = not (args.at or args.cg or args.cm)
+
+    if not REBROWSER_API_KEY:
+        print("ERROR: REBROWSER_API_KEY not set in .env")
+        print("Add:  REBROWSER_API_KEY=your_key_here")
+        return
+
+    with sync_playwright() as p:
+        if run_all or args.at:
+            run_at(p, filter_make=args.make, discover_trims=args.trims)
+
+        if run_all or args.cg:
+            run_cg(p, filter_make=args.make)
+
+        if run_all or args.cm:
+            run_cm(p, filter_make=args.make)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--make", help="Run for a single make only (e.g. 'Mercedes-Benz')")
-    parser.add_argument("--trims", action="store_true", help="Also discover trim codes per model")
-    args = parser.parse_args()
-    run(filter_make=args.make, discover_trims=args.trims)
+    main()

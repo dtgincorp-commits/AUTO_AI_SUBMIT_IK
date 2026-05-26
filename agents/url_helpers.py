@@ -18,7 +18,7 @@ CG_ENTITY_IDS = {
     "audi q4 e-tron": 3142, "audi q4 etron": 3142,
     "audi q8 e-tron": 3325, "audi q8 etron": 3325,
     "audi e-tron gt": 3115, "audi etron gt": 3115,
-    "audi tt": 32,
+    "audi tt": 32, "audi tt rs": 2177, "audi ttrs": 2177,
     "audi e-tron": 2829, "audi etron": 2829,
     "audi rs3": 2564, "audi rs 3": 2564,
     "audi rs5": 2136, "audi rs 5": 2136,

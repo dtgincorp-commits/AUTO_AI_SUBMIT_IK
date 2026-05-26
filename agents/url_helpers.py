@@ -486,7 +486,7 @@ def cg_direct_url(make: str, model: str, condition: str,
     if spt_id:
         seg += f"_spt{spt_id}"
 
-    base = f"https://www.cargurus.com/Cars/new/{seg}"
+    base = f"https://www.cargurus.com/Cars/{seg}"
 
     # Query params
     qp = []

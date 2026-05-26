@@ -41,7 +41,7 @@ CG_ENTITY_IDS = {
     "chevrolet malibu": 622, "chevrolet suburban": 638, "chevrolet tahoe": 639,
     "chevrolet trailblazer": 642, "chevrolet traverse": 1521, "chevrolet trax": 2272,
     # Chrysler
-    "chrysler pacifica": 177,
+    "chrysler pacifica": 177, "chrysler voyager": 183,
     # Dodge
     "dodge charger": 733, "dodge durango": 651, "dodge hornet": 3260,
     # Ferrari

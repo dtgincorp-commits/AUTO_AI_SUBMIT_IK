@@ -167,7 +167,7 @@ CG_ENTITY_IDS = {
     "mercedes-benz gls 63": 2421, "mercedes gls 63": 2421,
     "mercedes-benz sprinter": 1830,
     # Mitsubishi
-    "mitsubishi outlander": 429,
+    "mitsubishi eclipse cross": 2666, "mitsubishi outlander": 429,
     # Nissan
     "nissan altima": 237, "nissan ariya": 3216, "nissan armada": 238, "nissan frontier": 240,
     "nissan maxima": 242,

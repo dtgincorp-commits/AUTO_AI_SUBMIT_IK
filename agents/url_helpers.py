@@ -20,30 +20,40 @@ CG_ENTITY_IDS = {
     "audi e-tron gt": 3115, "audi etron gt": 3115,
     "audi tt": 32,
     "audi e-tron": 2829, "audi etron": 2829,
+    "audi rs3": 2564, "audi rs 3": 2564,
+    "audi rs5": 2136, "audi rs 5": 2136,
+    "audi rs6": 686, "audi rs 6": 686,
+    "audi rs7": 2230, "audi rs 7": 2230,
+    "audi sq5": 2237, "audi sq 5": 2237,
+    "audi sq7": 3019, "audi sq 7": 3019,
+    "audi sq8": 3020, "audi sq 8": 3020,
     # BMW
     "bmw 2 series": 2262, "bmw 3 series": 2240, "bmw 4 series": 2244,
     "bmw 5 series": 1628, "bmw 7 series": 1517, "bmw 8 series": 1627,
-    "bmw i4": 3155, "bmw i5": 3334, "bmw ix": 3156,
-    "bmw m3": 390, "bmw m4": 2258, "bmw m5": 391,
+    "bmw i4": 3155, "bmw i5": 3334, "bmw i7": 3236, "bmw ix": 3156,
+    "bmw m2": 2396, "bmw m3": 390, "bmw m4": 2258, "bmw m5": 391, "bmw m8": 2902,
     "bmw x1": 2160, "bmw x2": 2623, "bmw x3": 392, "bmw x4": 2271,
-    "bmw x5": 393, "bmw x6": 1137, "bmw x7": 2656, "bmw z4": 395,
+    "bmw x5": 393, "bmw x5 m": 2120, "bmw x5m": 2120,
+    "bmw x6": 1137, "bmw x6 m": 2139, "bmw x6m": 2139,
+    "bmw x7": 2656, "bmw xm": 3278, "bmw z4": 395,
     # Buick
     "buick enclave": 1029, "buick encore gx": 2901, "buick envision": 2398, "buick envista": 3333,
     # Cadillac
     "cadillac ct4": 2963, "cadillac ct5": 2876,
-    "cadillac escalade": 142, "cadillac lyriq": 3157,
+    "cadillac escalade": 142, "cadillac escalade esv": 143, "cadillac lyriq": 3157,
     "cadillac xt4": 2673, "cadillac xt5": 2393, "cadillac xt6": 2843,
     # Chevrolet
     "chevrolet blazer": 602, "chevrolet blazer ev": 3351, "chevrolet colorado": 614, "chevrolet corvette": 1,
     "chevrolet equinox": 616,
     "chevrolet equinox ev": 3267, "chevrolet express cargo": 618, "chevrolet silverado 1500": 630,
     "chevrolet silverado 2500hd": 634, "chevrolet silverado 3500hd": 1027,
-    "chevrolet malibu": 622, "chevrolet suburban": 638, "chevrolet tahoe": 639,
+    "chevrolet malibu": 622, "chevrolet silverado ev": 3222,
+    "chevrolet suburban": 638, "chevrolet tahoe": 639,
     "chevrolet trailblazer": 642, "chevrolet traverse": 1521, "chevrolet trax": 2272,
     # Chrysler
     "chrysler pacifica": 177, "chrysler voyager": 183,
     # Dodge
-    "dodge charger": 733, "dodge durango": 651, "dodge hornet": 3260,
+    "dodge challenger": 894, "dodge charger": 733, "dodge durango": 651, "dodge hornet": 3260,
     # Ferrari
     "ferrari 296 gtb": 3240, "ferrari 296gtb": 3240,
     "ferrari 812": 2654, "ferrari 812 superfast": 2654, "ferrari 812 gts": 2654,
@@ -58,7 +68,7 @@ CG_ENTITY_IDS = {
     "ford maverick": 1293, "ford mustang": 2, "ford mustang mach-e": 2990,
     "ford mustang mach e": 2990, "ford ranger": 354, "ford transit cargo": 1067,
     # Genesis
-    "genesis g70": 2701, "genesis g80": 2438, "genesis g90": 2401,
+    "genesis g70": 2701, "genesis g80": 2438, "genesis electrified g80": 2438, "genesis g90": 2401,
     "genesis gv60": 3251, "genesis gv70": 3163, "genesis electrified gv70": 3163, "genesis gv80": 3038,
     # GMC
     "gmc acadia": 925, "gmc canyon": 103, "gmc hummer ev": 3104,
@@ -66,9 +76,9 @@ CG_ENTITY_IDS = {
     "gmc terrain": 2042, "gmc yukon": 130, "gmc yukon xl": 132,
     # Honda
     "honda accord": 585, "honda accord hybrid": 2256, "honda cr-v": 589, "honda crv": 589,
-    "honda prologue": 3357,
     "honda cr-v hybrid": 3002, "honda civic": 586, "honda civic hatchback": 2441,
     "honda civic hybrid": 2923, "honda hr-v": 1271, "honda hrv": 1271,
+    "honda prologue": 3357,
     "honda odyssey": 592, "honda passport": 593, "honda pilot": 594, "honda ridgeline": 734,
     # Hyundai
     "hyundai elantra": 92, "hyundai elantra hybrid": 3139,
@@ -82,7 +92,8 @@ CG_ENTITY_IDS = {
     "infiniti qx60": 2243, "infiniti qx80": 2248,
     # Jeep
     "jeep compass": 905, "jeep gladiator": 2021, "jeep grand cherokee": 490,
-    "jeep grand cherokee l": 3108, "jeep wrangler": 494,
+    "jeep grand cherokee l": 3108, "jeep grand wagoneer": 491,
+    "jeep renegade": 2268, "jeep wagoneer": 493, "jeep wrangler": 494,
     # Kia
     "kia carnival": 3117, "kia carnival hybrid": 3408, "kia ev6": 3127, "kia ev9": 3322,
     "kia k5": 3092, "kia niro": 2405, "kia seltos": 2991, "kia sorento": 162, "kia soul": 2020,
@@ -172,15 +183,17 @@ CG_ENTITY_IDS = {
     "mercedes-benz gls 63": 2421, "mercedes gls 63": 2421,
     "mercedes-benz sprinter": 1830,
     # Mitsubishi
-    "mitsubishi eclipse cross": 2666, "mitsubishi outlander": 429,
+    "mitsubishi eclipse cross": 2666, "mitsubishi mirage": 426,
+    "mitsubishi outlander": 429, "mitsubishi outlander phev": 2652,
+    "mitsubishi outlander sport": 2093,
     # Nissan
     "nissan altima": 237, "nissan ariya": 3216, "nissan armada": 238, "nissan frontier": 240,
-    "nissan maxima": 242,
+    "nissan maxima": 242, "nissan titan": 251,
     "nissan kicks": 2660, "nissan leaf": 2077, "nissan murano": 243, "nissan pathfinder": 245,
     "nissan rogue": 1047, "nissan sentra": 249, "nissan versa": 937, "nissan z": 3204,
     # RAM
     "ram 1500": 2110, "ram1500": 2110, "ram 2500": 2102, "ram 3500": 2103,
-    "ram promaster": 2229,
+    "ram promaster": 2229, "ram promaster city": 2279,
     # Subaru
     "subaru ascent": 2650, "subaru brz": 2134, "subaru crosstrek": 2387, "subaru impreza": 375,
     "subaru forester": 374, "subaru legacy": 378, "subaru outback": 380,
@@ -196,7 +209,8 @@ CG_ENTITY_IDS = {
     "lexus tx hybrid": 3345, "lexus tx 350h": 3345, "lexus tx 500h": 3345,
     # Porsche
     "porsche 718 boxster": 2416, "porsche 718 cayman": 2430, "porsche 911": 404,
-    "porsche cayenne": 410, "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
+    "porsche cayenne": 410, "porsche cayenne e-hybrid": 2723,
+    "porsche macan": 2261, "porsche macan electric": 3416,
     "porsche panamera": 2930, "porsche panamera e-hybrid": 2930, "porsche taycan": 2974,
     # Tesla
     "tesla cybertruck": 3353,
@@ -206,11 +220,14 @@ CG_ENTITY_IDS = {
     "tesla model y": 3044, "tesla modely": 3044,
     # Toyota
     "toyota 4runner": 290, "toyota bz4x": 3220, "toyota camry": 292, "toyota corolla": 295,
+    "toyota corolla cross": 3154, "toyota corolla hybrid": 2840,
     "toyota crown": 1156, "toyota gr86": 2436, "toyota gr 86": 2436,
-    "toyota highlander": 298, "toyota land cruiser": 299,
+    "toyota gr corolla": 3243, "toyota highlander": 298, "toyota highlander hybrid": 757,
+    "toyota land cruiser": 299,
     "toyota prius": 15, "toyota prius prime": 2426,
     "toyota rav4": 306, "toyota rav 4": 306, "toyota rav4 hybrid": 2318,
     "toyota sequoia": 307, "toyota sienna": 308,
+    "toyota supra": 309,
     "toyota tacoma": 311, "toyota tundra": 313, "toyota tundra hybrid": 3414,
     "toyota venza": 1516,
     # Volkswagen
@@ -223,6 +240,7 @@ CG_ENTITY_IDS = {
     "volkswagen taos": 3131, "volkswagen tiguan": 1104, "vw tiguan": 1104,
     "volkswagen arteon": 2669, "vw arteon": 2669,
     "volkswagen golf": 198, "vw golf": 198,
+    "volkswagen id.buzz": 3233, "vw id.buzz": 3233,
     # Volvo
     "volvo ec40": 3404,
     "volvo ex30": 3358, "volvo ex40": 3441, "volvo ex90": 3372,

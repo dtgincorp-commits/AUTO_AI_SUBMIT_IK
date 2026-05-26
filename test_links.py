@@ -88,17 +88,19 @@ class TestCarGurusURL:
         url = cg_url("Toyota", "RAV4", "90001", 999999, "New")
         assert "nl-New-Toyota-RAV4-d" in url
 
-    def test_new_car_with_ext_color_uses_query_param(self):
+    def test_new_car_with_ext_color_uses_path_slug(self):
         url = cg_url("Honda", "CR-V", "90001", 999999, "New", ext_color="white")
-        assert "nl-New-Honda-CR-V-d" in url
+        assert "s-New-White-Honda-CR-V-d" in url
+        assert "_spt333" in url
         qp = _qp(url)
-        assert qp.get("exteriorColorSimple") == "WHITE"
+        assert "exteriorColorSimple" not in qp
 
-    def test_interior_color_added_as_query_param(self):
+    def test_interior_color_not_in_cg_url(self):
+        # CG has no working URL param for interior color — omit to avoid false expectations
         url = cg_url("Lexus", "TX 500H", "92782", 80000, "Used",
                      ext_color="silver", int_color="black")
-        qp = _qp(url)
-        assert qp.get("interior_color") == "Black"
+        assert "interior_color" not in url
+        assert "_spt408" in url  # exterior silver still encoded
 
     def test_lexus_tx_500h_resolves_to_hybrid_entity(self):
         url = cg_url("Lexus", "TX 500H", "92782", 80000, "Used")
@@ -172,17 +174,16 @@ class TestCarsDotComURL:
         url = cm_url("Honda", "CR-V", "Used", zip_code="92782", price_max=40000)
         assert "cars.com" in url
         assert "makes[]=honda" in url
-        assert "models[]=honda_cr_v" in url
         assert "stock_type=used" in url
 
     def test_lexus_tx_500h_slug_remapped(self):
+        # Cars.com drops models[] client-side; we no longer send it
         url = cm_url("Lexus", "TX 500H", "Used", zip_code="92782")
-        assert "models[]=lexus_tx" in url
-        assert "lexus_tx_500h" not in url
+        assert "makes[]=lexus" in url
 
     def test_lexus_tx_hybrid_slug_remapped(self):
         url = cm_url("Lexus", "TX Hybrid", "Used", zip_code="92782")
-        assert "models[]=lexus_tx" in url
+        assert "makes[]=lexus" in url
 
     def test_mercedes_normalized(self):
         url = cm_url("Mercedes", "GLE", "Used", zip_code="10001")

@@ -8,7 +8,8 @@ from urllib.parse import quote as _url_quote
 # ── CarGurus entity IDs ──────────────────────────────────────────────────────
 CG_ENTITY_IDS = {
     # Acura
-    "acura adx": 3387, "acura mdx": 16,
+    "acura adx": 3387, "acura mdx": 16, "acura rdx": 921,
+    "acura tlx": 2278, "acura integra": 36, "acura zdx": 2065,
     # Audi
     "audi a3": 24, "audi a4": 25, "audi a4 allroad": 2149,
     "audi a5": 2508, "audi a5 sportback": 2508,
@@ -16,14 +17,19 @@ CG_ENTITY_IDS = {
     "audi e-tron": 2829, "audi etron": 2829,
     # BMW
     "bmw 2 series": 2262, "bmw 3 series": 2240, "bmw 4 series": 2244,
-    "bmw i4": 3155,
-    "bmw x1": 2160, "bmw x3": 392, "bmw x5": 393, "bmw x7": 2656,
+    "bmw 7 series": 1517, "bmw 8 series": 1627,
+    "bmw i4": 3155, "bmw i5": 3334, "bmw ix": 3156,
+    "bmw m3": 390, "bmw m4": 2258, "bmw m5": 391,
+    "bmw x1": 2160, "bmw x2": 2623, "bmw x3": 392, "bmw x4": 2271,
+    "bmw x5": 393, "bmw x6": 1137, "bmw x7": 2656, "bmw z4": 395,
     # Buick
     "buick enclave": 1029, "buick encore gx": 2901, "buick envision": 2398, "buick envista": 3333,
     # Cadillac
-    "cadillac lyriq": 3157, "cadillac xt5": 2393,
+    "cadillac ct4": 2963, "cadillac ct5": 2876,
+    "cadillac lyriq": 3157,
+    "cadillac xt4": 2673, "cadillac xt5": 2393, "cadillac xt6": 2843,
     # Chevrolet
-    "chevrolet blazer ev": 3351, "chevrolet colorado": 614, "chevrolet equinox": 616,
+    "chevrolet blazer": 602, "chevrolet blazer ev": 3351, "chevrolet colorado": 614, "chevrolet equinox": 616,
     "chevrolet equinox ev": 3267, "chevrolet express cargo": 618, "chevrolet silverado 1500": 630,
     "chevrolet silverado 2500hd": 634, "chevrolet silverado 3500hd": 1027,
     "chevrolet suburban": 638, "chevrolet tahoe": 639, "chevrolet trailblazer": 642,
@@ -31,7 +37,7 @@ CG_ENTITY_IDS = {
     # Chrysler
     "chrysler pacifica": 177,
     # Dodge
-    "dodge durango": 651,
+    "dodge durango": 651, "dodge hornet": 3260,
     # Ferrari
     "ferrari sf90": 3033, "ferrari sf90 stradale": 3033,
     # Ford
@@ -41,31 +47,36 @@ CG_ENTITY_IDS = {
     "ford maverick": 1293, "ford mustang": 2, "ford mustang mach-e": 2990,
     "ford mustang mach e": 2990, "ford ranger": 354, "ford transit cargo": 1067,
     # Genesis
-    "genesis gv70": 3163, "genesis gv80": 3038,
+    "genesis g70": 2701, "genesis g80": 2438, "genesis g90": 2401,
+    "genesis gv60": 3251, "genesis gv70": 3163, "genesis gv80": 3038,
     # GMC
     "gmc acadia": 925, "gmc canyon": 103, "gmc sierra 1500": 116,
-    "gmc sierra 2500": 119, "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973, "gmc terrain": 2042,
+    "gmc sierra 2500": 119, "gmc sierra 2500hd": 119, "gmc sierra 3500hd": 973,
+    "gmc terrain": 2042, "gmc yukon xl": 132,
     # Honda
     "honda accord": 585, "honda accord hybrid": 2256, "honda cr-v": 589, "honda crv": 589,
     "honda cr-v hybrid": 3002, "honda civic": 586, "honda civic hatchback": 2441,
     "honda civic hybrid": 2923, "honda hr-v": 1271, "honda hrv": 1271,
     "honda odyssey": 592, "honda passport": 593, "honda pilot": 594, "honda ridgeline": 734,
     # Hyundai
-    "hyundai elantra": 92, "hyundai elantra hybrid": 3139, "hyundai ioniq 5": 3120,
+    "hyundai elantra": 92, "hyundai elantra hybrid": 3139,
+    "hyundai ioniq 5": 3120, "hyundai ioniq 6": 3297,
     "hyundai kona": 2663, "hyundai palisade": 2836, "hyundai santa cruz": 3128,
     "hyundai santa fe": 94, "hyundai santa fe hybrid": 3144,
     "hyundai sonata": 96, "hyundai tucson": 98, "hyundai tucson hybrid": 3141,
+    "hyundai venue": 2882,
     # Infiniti
-    "infiniti qx60": 2243,
+    "infiniti q60": 2251, "infiniti qx50": 2247, "infiniti qx55": 3132,
+    "infiniti qx60": 2243, "infiniti qx80": 2248,
     # Jeep
     "jeep compass": 905, "jeep gladiator": 2021, "jeep grand cherokee": 490,
     "jeep grand cherokee l": 3108, "jeep wrangler": 494,
     # Kia
-    "kia carnival": 3117, "kia carnival hybrid": 3408, "kia k5": 3092, "kia niro": 2405,
-    "kia seltos": 2991, "kia sorento": 162, "kia soul": 2020,
+    "kia carnival": 3117, "kia carnival hybrid": 3408, "kia ev6": 3127, "kia ev9": 3322,
+    "kia k5": 3092, "kia niro": 2405, "kia seltos": 2991, "kia sorento": 162, "kia soul": 2020,
     "kia sportage": 164, "kia sportage hybrid": 3239, "kia telluride": 2830,
     # Lincoln
-    "lincoln aviator": 524, "lincoln corsair": 2884, "lincoln nautilus": 2680,
+    "lincoln aviator": 524, "lincoln corsair": 2884, "lincoln nautilus": 2680, "lincoln navigator": 530,
     # Mazda
     "mazda cx-30": 2875, "mazda cx 30": 2875, "mazda cx-5": 2133, "mazda cx5": 2133,
     "mazda cx 5": 2133, "mazda cx-50": 3215, "mazda cx-90": 3315,
@@ -100,35 +111,54 @@ CG_ENTITY_IDS = {
     "mercedes-benz maybach": 82, "mercedes maybach": 82,
     "mercedes-benz s-class maybach": 82, "mercedes s-class maybach": 82,
     "mercedes-benz gla": 2286, "mercedes gla": 2286,
-    "mercedes gla 250": 2286, "mercedes gla250": 2286, "mercedes gla 35": 2286,
+    "mercedes-benz gla 250": 2286, "mercedes gla 250": 2286, "mercedes gla250": 2286,
+    "mercedes-benz gla 35": 2286, "mercedes gla 35": 2286,
+    "mercedes-benz gla 45": 2286, "mercedes gla 45": 2286,
     "mercedes-benz glb": 2905, "mercedes glb": 2905,
-    "mercedes glb 250": 2905, "mercedes glb250": 2905,
+    "mercedes-benz glb 250": 2905, "mercedes glb 250": 2905, "mercedes glb250": 2905,
+    "mercedes-benz glb 35": 2905, "mercedes glb 35": 2905,
     "mercedes-benz sl": 84, "mercedes sl": 84, "mercedes sl-class": 84,
-    "mercedes sl 43": 84, "mercedes sl 55": 84, "mercedes sl 63": 84,
+    "mercedes-benz sl 43": 84, "mercedes sl 43": 84,
+    "mercedes-benz sl 55": 84, "mercedes sl 55": 84,
+    "mercedes-benz sl 63": 84, "mercedes sl 63": 84,
     "mercedes-benz eqe": 3253, "mercedes eqe": 3253,
-    "mercedes eqe 350": 3253, "mercedes eqe 500": 3253,
+    "mercedes-benz eqe 350": 3253, "mercedes eqe 350": 3253,
+    "mercedes-benz eqe 500": 3253, "mercedes eqe 500": 3253,
     "mercedes-benz eqb": 3252, "mercedes eqb": 3252,
-    "mercedes eqb 250": 3252, "mercedes eqb 300": 3252, "mercedes eqb 350": 3252,
+    "mercedes-benz eqb 250": 3252, "mercedes eqb 250": 3252, "mercedes eqb 300": 3252,
+    "mercedes-benz eqb 350": 3252, "mercedes eqb 350": 3252,
     "mercedes-benz cle": 3375, "mercedes cle": 3375,
-    "mercedes cle 300": 3375, "mercedes cle 450": 3375,
+    "mercedes-benz cle 300": 3375, "mercedes cle 300": 3375,
+    "mercedes-benz cle 450": 3375, "mercedes cle 450": 3375,
     "mercedes-benz glc": 2361, "mercedes glc": 2361,
+    "mercedes-benz glc 300": 2361, "mercedes glc 300": 2361, "mercedes glc300": 2361,
+    "mercedes-benz glc 43": 2361, "mercedes glc 43": 2361,
+    "mercedes-benz glc 63": 2361, "mercedes glc 63": 2361,
     "mercedes-benz glc 300e": 2361, "mercedes glc 300e": 2361,
     "mercedes-benz gle": 2317, "mercedes gle": 2317,
+    "mercedes-benz gle 350": 2317, "mercedes gle 350": 2317, "mercedes gle350": 2317,
+    "mercedes-benz gle 450": 2317, "mercedes gle 450": 2317, "mercedes gle450": 2317,
+    "mercedes-benz gle 53": 2317, "mercedes gle 53": 2317,
+    "mercedes-benz gle 63": 2317, "mercedes gle 63": 2317,
     "mercedes-benz gle 450e": 2317, "mercedes gle 450e": 2317,
     "mercedes-benz gls": 2421, "mercedes gls": 2421,
+    "mercedes-benz gls 450": 2421, "mercedes gls 450": 2421, "mercedes gls450": 2421,
+    "mercedes-benz gls 580": 2421, "mercedes gls 580": 2421,
+    "mercedes-benz gls 63": 2421, "mercedes gls 63": 2421,
     "mercedes-benz sprinter": 1830,
     # Mitsubishi
     "mitsubishi outlander": 429,
     # Nissan
-    "nissan altima": 237, "nissan armada": 238, "nissan frontier": 240, "nissan kicks": 2660,
-    "nissan murano": 243, "nissan pathfinder": 245, "nissan rogue": 1047,
-    "nissan sentra": 249, "nissan versa": 937,
+    "nissan altima": 237, "nissan ariya": 3216, "nissan armada": 238, "nissan frontier": 240,
+    "nissan kicks": 2660, "nissan leaf": 2077, "nissan murano": 243, "nissan pathfinder": 245,
+    "nissan rogue": 1047, "nissan sentra": 249, "nissan versa": 937, "nissan z": 3204,
     # RAM
     "ram 1500": 2110, "ram1500": 2110, "ram 2500": 2102, "ram 3500": 2103,
     "ram promaster": 2229,
     # Subaru
-    "subaru ascent": 2650, "subaru crosstrek": 2387, "subaru forester": 374,
-    "subaru legacy": 378, "subaru outback": 380,
+    "subaru ascent": 2650, "subaru brz": 2134, "subaru crosstrek": 2387,
+    "subaru forester": 374, "subaru legacy": 378, "subaru outback": 380,
+    "subaru solterra": 3219, "subaru wrx": 2292,
     # Lexus
     "lexus es": 2720, "lexus es hybrid": 2721, "lexus gs": 2822, "lexus gx": 2063,
     "lexus is": 2824, "lexus lc": 2400, "lexus lx": 3042, "lexus lx hybrid": 3438,
@@ -136,24 +166,36 @@ CG_ENTITY_IDS = {
     "lexus tx": 3343, "lexus tx 350": 3343,
     "lexus tx hybrid": 3345, "lexus tx 350h": 3345, "lexus tx 500h": 3345,
     # Porsche
-    "porsche 718 boxster": 2416, "porsche 718 cayman": 2430,
-    "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
-    "porsche panamera e-hybrid": 2930, "porsche taycan": 2974,
+    "porsche 718 boxster": 2416, "porsche 718 cayman": 2430, "porsche 911": 404,
+    "porsche cayenne": 410, "porsche cayenne e-hybrid": 2723, "porsche macan": 2261,
+    "porsche panamera": 2930, "porsche panamera e-hybrid": 2930, "porsche taycan": 2974,
     # Tesla
+    "tesla cybertruck": 3353,
     "tesla model 3": 2475, "tesla model3": 2475,
+    "tesla model s": 2039, "tesla models": 2039,
     "tesla model x": 2132, "tesla modelx": 2132,
     "tesla model y": 3044, "tesla modely": 3044,
     # Toyota
-    "toyota 4runner": 290, "toyota camry": 292, "toyota corolla": 295,
+    "toyota 4runner": 290, "toyota bz4x": 3220, "toyota camry": 292, "toyota corolla": 295,
+    "toyota crown": 1156, "toyota gr86": 2436, "toyota gr 86": 2436,
+    "toyota land cruiser": 299,
     "toyota rav4": 306, "toyota rav 4": 306, "toyota rav4 hybrid": 2318,
-    "toyota sienna": 308,
+    "toyota sequoia": 307, "toyota sienna": 308,
     "toyota tacoma": 311, "toyota tundra": 313, "toyota tundra hybrid": 3414,
+    "toyota venza": 1516,
     # Volkswagen
     "volkswagen atlas": 2507, "vw atlas": 2507,
-    "volkswagen atlas cross sport": 2995, "volkswagen jetta": 200, "vw jetta": 200,
+    "volkswagen atlas cross sport": 2995, "vw atlas cross sport": 2995,
+    "volkswagen golf gti": 199, "vw golf gti": 199, "volkswagen gti": 199,
+    "volkswagen golf r": 2131, "vw golf r": 2131,
+    "volkswagen id.4": 3098, "volkswagen id4": 3098, "vw id.4": 3098, "vw id4": 3098,
+    "volkswagen jetta": 200, "vw jetta": 200,
     "volkswagen taos": 3131, "volkswagen tiguan": 1104, "vw tiguan": 1104,
     # Volvo
-    "volvo xc60": 1629, "volvo xc90": 523,
+    "volvo ex30": 3358, "volvo ex40": 3441, "volvo ex90": 3372,
+    "volvo s60": 511, "volvo s90": 515,
+    "volvo v60": 2266, "volvo v90": 520,
+    "volvo xc40": 2624, "volvo xc60": 1629, "volvo xc90": 523,
 }
 
 # CarGurus exterior-color spt tag IDs
@@ -234,6 +276,72 @@ CM_SLUG_MAP = {
     "ford_f_150_lightning":   "ford_f-150-lightning",
     "ford_mustang_mach_e":    "ford_mustang-mach-e",
     "hyundai_elantra_hybrid": "hyundai_elantra-hybrid",
+    # Mercedes-Benz: Cars.com confirmed slugs (local Playwright test 2026-05-25)
+    # "gle" alone is invalid — must use trim-level slug like "gle_450"
+    "mercedes_benz_gle":      "mercedes_benz_gle_450",   # bare "GLE" → 450 (most common)
+    "mercedes_benz_gle_350":  "mercedes_benz_gle_450",   # 350 not in CM, use 450
+    "mercedes_benz_gle_53":   "mercedes_benz_gle_53_4matic",
+    "mercedes_benz_gle_63":   "mercedes_benz_amg_gle_63_s",
+    "mercedes_benz_gle_450e": "mercedes_benz_gle_450e",
+    # GLC, GLS, GLA, GLB — base slugs confirmed OK, trim variants map to base
+    "mercedes_benz_glc_43":   "mercedes_benz_glc",
+    "mercedes_benz_glc_63":   "mercedes_benz_glc",
+    "mercedes_benz_gls_450":  "mercedes_benz_gls",
+    "mercedes_benz_gls_580":  "mercedes_benz_gls",
+    "mercedes_benz_gls_63":   "mercedes_benz_gls",
+    "mercedes_benz_gla_250":  "mercedes_benz_gla",
+    "mercedes_benz_gla_35":   "mercedes_benz_gla",
+    "mercedes_benz_gla_45":   "mercedes_benz_gla",
+    "mercedes_benz_glb_250":  "mercedes_benz_glb",
+    "mercedes_benz_glb_35":   "mercedes_benz_glb",
+    # C/E/S/G-Class — confirmed OK with _class suffix
+    "mercedes_benz_c_300":    "mercedes_benz_c_class",
+    "mercedes_benz_c_43":     "mercedes_benz_c_class",
+    "mercedes_benz_c_63":     "mercedes_benz_c_class",
+    "mercedes_benz_e_350":    "mercedes_benz_e_class",
+    "mercedes_benz_e_450":    "mercedes_benz_e_class",
+    "mercedes_benz_e_53":     "mercedes_benz_e_class",
+    "mercedes_benz_e_63":     "mercedes_benz_e_class",
+    "mercedes_benz_s_500":    "mercedes_benz_s_class",
+    "mercedes_benz_s_580":    "mercedes_benz_s_class",
+    "mercedes_benz_s_63":     "mercedes_benz_s_class",
+    "mercedes_benz_g_63":     "mercedes_benz_g_class",
+    # CLE, SL — confirmed OK as base
+    "mercedes_benz_cle_300":  "mercedes_benz_cle",
+    "mercedes_benz_cle_450":  "mercedes_benz_cle",
+    "mercedes_benz_sl_43":    "mercedes_benz_sl",
+    "mercedes_benz_sl_55":    "mercedes_benz_sl",
+    "mercedes_benz_sl_63":    "mercedes_benz_sl",
+    # EQ electric — need separate check, use base for now
+    "mercedes_benz_eqe_350":  "mercedes_benz_eqe",
+    "mercedes_benz_eqe_500":  "mercedes_benz_eqe",
+    "mercedes_benz_eqs_450":  "mercedes_benz_eqs",
+    "mercedes_benz_eqs_580":  "mercedes_benz_eqs",
+    "mercedes_benz_eqb_250":  "mercedes_benz_eqb",
+    "mercedes_benz_eqb_300":  "mercedes_benz_eqb",
+    "mercedes_benz_eqb_350":  "mercedes_benz_eqb",
+    # BMW AMG/M variants → base slug
+    "bmw_i4_edrive40":        "bmw_i4",
+    "bmw_i4_m50":             "bmw_i4",
+    "bmw_ix_xdrive40":        "bmw_ix",
+    "bmw_ix_xdrive50":        "bmw_ix",
+    "bmw_ix_m60":             "bmw_ix",
+    "bmw_x3_m":               "bmw_x3",
+    "bmw_x3_m40i":            "bmw_x3",
+    "bmw_x5_m50i":            "bmw_x5",
+    "bmw_x7_m60i":            "bmw_x7",
+    # Audi trim variants → base slug
+    "audi_q5_sportback":      "audi_q5",
+    "audi_q7_55":             "audi_q7",
+    "audi_e_tron_gt":         "audi_e-tron-gt",
+    "audi_rs_e_tron_gt":      "audi_rs-e-tron-gt",
+    # Porsche variants
+    "porsche_cayenne_e_hybrid":   "porsche_cayenne",
+    "porsche_cayenne_coupe":      "porsche_cayenne",
+    "porsche_cayenne_turbo":      "porsche_cayenne",
+    "porsche_macan_ev":           "porsche_macan",
+    "porsche_panamera_4s":        "porsche_panamera",
+    "porsche_panamera_turbo":     "porsche_panamera",
 }
 
 # Make name normalization
@@ -329,22 +437,45 @@ def cg_direct_url(make: str, model: str, condition: str,
     if entity_id is None:
         return None
 
-    qp = [f"entityId=d{entity_id}"]
+    make_slug  = make.strip().replace(" ", "-")
+    model_slug = model.strip().replace(" ", "-")
+    cond_lower = (condition or "").lower()
+
+    ext_norm = (ext_color or "").strip().lower()
+    has_color = ext_norm and ext_norm not in ("any", "other")
+    spt_id    = CG_COLOR_SPT.get(ext_norm, 0) if has_color else 0
+
+    # Color goes in the URL path for both new and used — CG ignores query-param color filters.
+    # New+color:  s-New-{Color}-{Make}-{Model}-d{id}_spt{id}
+    # New only:   nl-New-{Make}-{Model}-d{id}
+    # Used+color: s-Used-{Color}-{Make}-{Model}-d{id}_spt{id}
+    # Used only:  l-Used-{Make}-{Model}-d{id}
+    color_part = f"-{ext_norm.capitalize()}" if has_color else ""
+    if cond_lower == "new":
+        prefix = "s-New" if has_color else "nl-New"
+    elif "cpo" in cond_lower:
+        prefix = "l-CPO"
+        color_part = ""   # CPO color filter unsupported
+    else:
+        prefix = "s-Used" if has_color else "l-Used"
+
+    seg = f"{prefix}{color_part}-{make_slug}-{model_slug}-d{entity_id}"
+    if spt_id:
+        seg += f"_spt{spt_id}"
+
+    base = f"https://www.cargurus.com/Cars/new/{seg}"
+
+    # Query params
+    qp = []
     if zip_code:
         qp.append(f"zip={zip_code}")
         qp.append(f"distance={radius}")
     if price_max and price_max < 999000:
-        qp.append(f"max_price={price_max}")
-    cond_lower = (condition or "").lower()
-    if cond_lower == "new":
-        qp.append("searchType=NEW")
-    elif cond_lower == "used":
-        qp.append("searchType=USED")
-    elif "cpo" in cond_lower:
-        qp.append("searchType=CPO")
+        qp.append(f"maxPrice={price_max}")
     if trim and trim.lower() not in ("any", ""):
         qp.append(f"trim%5B%5D={_url_quote(trim, safe='')}")
-    return "https://www.cargurus.com/Cars/inventorylisting/viewDetailsFilterViewInventoryListing.action?" + "&".join(qp)
+
+    return base + ("?" + "&".join(qp) if qp else "")
 
 
 def cg_url(make: str, model: str, zip_code: str, price_max: int,
@@ -627,6 +758,15 @@ _AT_PATH_ROUTED_MODELS: dict = {
         "sierra 2500hd":  "sierra-2500",
         "sierra 3500hd":  "sierra-3500hd",
     },
+    "honda": {
+        "accord": "accord", "accord hybrid": "accord-hybrid",
+        "civic": "civic",   "civic hatchback": "civic-hatchback",
+        "civic hybrid": "civic-hybrid",
+        "cr-v": "cr-v",     "crv": "cr-v",     "cr-v hybrid": "cr-v-hybrid",
+        "hr-v": "hr-v",     "hrv": "hr-v",
+        "odyssey": "odyssey", "passport": "passport",
+        "pilot": "pilot",   "ridgeline": "ridgeline",
+    },
 }
 
 # ZIP → AT city slug for path-based model URLs.
@@ -721,7 +861,7 @@ def cm_url(make: str, model: str, condition: str,
     cm_model = (make + "_" + model).lower().replace(" ", "_").replace("-", "_").replace("/", "_").replace(".", "")
     cm_model = CM_SLUG_MAP.get(cm_model, cm_model)
     stock    = "used" if condition == "Used" else "new" if condition == "New" else "all"
-    qp = [f"stock_type={stock}", f"makes[]={cm_make}", f"models[]={cm_model}"]
+    qp = [f"stock_type={stock}", f"makes[]={cm_make}"]
     if zip_code:    qp.append(f"zip={zip_code}")
     if radius < 500: qp.append(f"maximum_distance={radius}")
     if price_min:   qp.append(f"price_min={price_min}")
@@ -729,5 +869,10 @@ def cm_url(make: str, model: str, condition: str,
     if mileage:     qp.append(f"mileage_max={mileage}")
     if trim and trim.lower() not in ("any", ""):
         qp.append(f"trims[]={_url_quote(trim, safe='')}")
-    # Cars.com color slug params silently drop models[] when invalid — omit entirely
+    ext_norm = (ext_color or "").strip().lower()
+    if ext_norm and ext_norm not in ("any", "other"):
+        qp.append(f"exterior_color_slugs[]={ext_norm}")
+    int_norm = (int_color or "").strip().lower()
+    if int_norm and int_norm not in ("any", "other"):
+        qp.append(f"interior_color_slugs[]={int_norm}")
     return "https://www.cars.com/shopping/results/?" + "&".join(qp)

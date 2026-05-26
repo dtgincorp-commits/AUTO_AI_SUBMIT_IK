@@ -24,13 +24,14 @@ import argparse
 import json
 import os
 import time
+import requests as _requests
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
 load_dotenv()
 
 REBROWSER_API_KEY = os.getenv("REBROWSER_API_KEY", "")
-REBROWSER_WS = f"wss://ws.rebrowser.net/?apiKey={REBROWSER_API_KEY}"
+REBROWSER_API    = "https://rebrowser.net/api"
 
 ZIP   = "92782"
 DELAY = 3.0   # seconds between page navigations
@@ -83,7 +84,7 @@ MODELS_WE_USE = {
                       "Equinox", "Equinox EV", "Malibu", "Silverado 1500",
                       "Silverado 2500HD", "Silverado 3500HD", "Suburban",
                       "Tahoe", "Trailblazer", "Traverse", "Trax"],
-    "Chrysler":      ["Pacifica"],
+    "Chrysler":      ["Pacifica", "Voyager"],
     "Dodge":         ["Charger", "Durango", "Hornet"],
     "Ferrari":       ["SF90"],
     "Ford":          ["Bronco", "Bronco Sport", "Escape", "Expedition",
@@ -163,15 +164,36 @@ CG_KNOWN = {
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
+def _start_run():
+    """Call Rebrowser startRun API and return (run_id, ws_endpoint)."""
+    resp = _requests.get(f"{REBROWSER_API}/startRun",
+                         params={"apiKey": REBROWSER_API_KEY}, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    run  = data["run"]
+    return run["id"], run["browserWSEndpoint"]
+
+
+def _finish_run(run_id: int):
+    try:
+        _requests.get(f"{REBROWSER_API}/finishRun",
+                      params={"apiKey": REBROWSER_API_KEY, "runId": run_id},
+                      timeout=15)
+    except Exception:
+        pass
+
+
 def _connect(p):
-    """Connect to Rebrowser CDP endpoint and return (browser, context, page)."""
+    """Start a Rebrowser run, connect via CDP, return (browser, context, page, run_id)."""
     if not REBROWSER_API_KEY:
         raise RuntimeError(
             "REBROWSER_API_KEY not set in .env\n"
             "Add:  REBROWSER_API_KEY=your_key_here"
         )
-    print("Connecting to Rebrowser...")
-    browser = p.chromium.connect_over_cdp(REBROWSER_WS)
+    print("Starting Rebrowser run...")
+    run_id, ws_url = _start_run()
+    print(f"  Run ID: {run_id}  |  Connecting...")
+    browser = p.chromium.connect_over_cdp(ws_url)
     context = browser.new_context(
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -181,7 +203,7 @@ def _connect(p):
         viewport={"width": 1280, "height": 900},
     )
     page = context.new_page()
-    return browser, context, page
+    return browser, context, page, run_id
 
 
 def _best_match(target: str, options: list):
@@ -307,11 +329,11 @@ def run_at(p, filter_make=None, discover_trims=False):
     trim_codes  = {}
     all_options = {}
 
-    browser, _, page = _connect(p)
+    browser, _, page, run_id = _connect(p)
     try:
         print("\nWarming up on autotrader.com...")
-        page.goto("https://www.autotrader.com/", timeout=30000, wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
+        page.goto("https://www.autotrader.com/", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_timeout(5000)
         print(f"  Title: {page.title()}\n")
 
         print("[AT] Discovering model codes...")
@@ -331,6 +353,7 @@ def run_at(p, filter_make=None, discover_trims=False):
                     time.sleep(DELAY)
     finally:
         browser.close()
+        _finish_run(run_id)
 
     output = {"model_codes": model_codes, "trim_codes": trim_codes, "all_options": all_options}
     with open("at_codes_full.json", "w") as f:
@@ -359,57 +382,27 @@ def run_at(p, filter_make=None, discover_trims=False):
 
 # ── CarGurus ───────────────────────────────────────────────────────────────────
 
-def _extract_cg_entity_ids(data, depth=0):
-    """Recursively find {name/label, entityId} pairs in CG JSON responses."""
-    if depth > 12:
-        return []
-    results = []
-    if isinstance(data, list):
-        for item in data:
-            results.extend(_extract_cg_entity_ids(item, depth + 1))
-    elif isinstance(data, dict):
-        eid = data.get("entityId") or data.get("entity_id")
-        if eid:
-            label = (data.get("name") or data.get("label") or
-                     data.get("displayName") or data.get("title") or "")
-            if label:
-                results.append({"label": str(label), "entityId": str(eid)})
-        for v in data.values():
-            if isinstance(v, (dict, list)):
-                results.extend(_extract_cg_entity_ids(v, depth + 1))
+import re as _re
+
+def _cg_parse_links(html: str) -> list:
+    """Extract {label, entityId} from CG page HTML by scanning href patterns.
+
+    CG encodes entity IDs directly in anchor hrefs:
+      /Cars/new/nl-New-Honda-Accord-d167
+    This is more reliable than XHR interception.
+    """
+    # Match both model links and make links
+    pattern = _re.compile(
+        r'href=["\'](?:/Cars/[^"\']*?nl-New-[^"\']*?-d(\d+)[^"\']*)["\'][^>]*>([^<]+)<',
+        _re.IGNORECASE,
+    )
+    seen, results = set(), []
+    for eid, label in pattern.findall(html):
+        label = label.strip()
+        if eid not in seen and label:
+            seen.add(eid)
+            results.append({"label": label, "entityId": eid})
     return results
-
-
-def _cg_capture_entity_ids(page, url: str) -> list:
-    captured = []
-
-    def on_response(response):
-        try:
-            ct = response.headers.get("content-type", "")
-            if ("json" in ct or "javascript" in ct) and response.status == 200:
-                body = response.json()
-                found = _extract_cg_entity_ids(body)
-                if found:
-                    captured.extend(found)
-        except Exception:
-            pass
-
-    page.on("response", on_response)
-    try:
-        page.goto(url, timeout=35000, wait_until="domcontentloaded")
-        page.wait_for_timeout(5000)
-    except Exception as e:
-        print(f"    nav error: {e}")
-    finally:
-        page.remove_listener("response", on_response)
-
-    seen, unique = set(), []
-    for opt in captured:
-        key = opt["entityId"]
-        if key not in seen:
-            seen.add(key)
-            unique.append(opt)
-    return unique
 
 
 def run_cg(p, filter_make=None):
@@ -418,42 +411,54 @@ def run_cg(p, filter_make=None):
 
     entity_ids = {}
 
-    browser, _, page = _connect(p)
+    browser, _, page, run_id = _connect(p)
     try:
-        print("\nWarming up on cargurus.com...")
-        page.goto("https://www.cargurus.com/", timeout=35000, wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
+        # Load CG's "Browse All New Cars" index — every make/model link is here
+        print("\nLoading CarGurus browse page...")
+        page.goto("https://www.cargurus.com/Cars/new/nl-New-Cars.html",
+                  timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_timeout(5000)
         print(f"  Title: {page.title()}\n")
 
-        print("[CG] Discovering entity IDs...")
+        # Parse the full HTML once — contains all make/model links
+        html = page.content()
+        all_links = _cg_parse_links(html)
+        print(f"  Found {len(all_links)} entity links on browse page")
+
+        print("[CG] Matching entity IDs...")
         for make_name in makes_to_run:
-            cg_slug = make_name.lower().replace(" ", "-").replace(".", "")
-            url = (f"https://www.cargurus.com/Cars/new/nl-New-{cg_slug}"
-                   f"?zip={ZIP}&distance=50")
             print(f"\n  {make_name}... ", end="", flush=True)
-            options = _cg_capture_entity_ids(page, url)
-
-            # Fallback: inventory listing endpoint also exposes model facets
-            if len(options) < 2:
-                url2 = (f"https://www.cargurus.com/Cars/inventoryListing/"
-                        f"viewDetailsFilterViewInventoryListing.action"
-                        f"?zip={ZIP}&showNegotiable=true&sortDir=ASC"
-                        f"&entitySelectingHelper.selectedEntity={cg_slug}&distance=50")
-                options2 = _cg_capture_entity_ids(page, url2)
-                options = options or options2
-
-            print(f"{len(options)} entity IDs", end="")
-
             result = {}
             for model in MODELS_WE_USE.get(make_name, []):
-                m = _best_match(model, [{"label": o["label"], "code": o["entityId"]} for o in options])
+                m = _best_match(model, [{"label": o["label"], "code": o["entityId"]}
+                                        for o in all_links])
                 if m:
                     result[model] = m["code"]
+
+            # If no matches from browse page, try make-specific page
+            if not result:
+                cg_slug = make_name.lower().replace(" ", "-").replace(".", "")
+                url = (f"https://www.cargurus.com/Cars/new/nl-New-{cg_slug}"
+                       f"?zip={ZIP}&distance=50")
+                try:
+                    page.goto(url, timeout=35000, wait_until="domcontentloaded")
+                    page.wait_for_timeout(4000)
+                    make_html = page.content()
+                    make_links = _cg_parse_links(make_html)
+                    for model in MODELS_WE_USE.get(make_name, []):
+                        m = _best_match(model, [{"label": o["label"], "code": o["entityId"]}
+                                                for o in make_links])
+                        if m:
+                            result[model] = m["code"]
+                    time.sleep(DELAY)
+                except Exception as e:
+                    print(f"(fallback nav error: {e})", end="")
+
             entity_ids[make_name] = result
-            print(f"  ({len(result)}/{len(MODELS_WE_USE.get(make_name,[]))} matched)")
-            time.sleep(DELAY)
+            print(f"({len(result)}/{len(MODELS_WE_USE.get(make_name,[]))} matched)")
     finally:
         browser.close()
+        _finish_run(run_id)
 
     print("\n" + "="*65)
     print("# ── [CG] Paste into CG_ENTITY_IDS in url_helpers.py ────────")
@@ -530,11 +535,11 @@ def run_cm(p, filter_make=None):
     results = {}
     bad     = []
 
-    browser, _, page = _connect(p)
+    browser, _, page, run_id = _connect(p)
     try:
         print("\nWarming up on cars.com...")
-        page.goto("https://www.cars.com/", timeout=30000, wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
+        page.goto("https://www.cars.com/", timeout=45000, wait_until="domcontentloaded")
+        page.wait_for_timeout(5000)
         print(f"  Title: {page.title()}\n")
 
         print("[CM] Verifying Cars.com slugs...")
@@ -556,6 +561,7 @@ def run_cm(p, filter_make=None):
                 time.sleep(DELAY)
     finally:
         browser.close()
+        _finish_run(run_id)
 
     print("\n" + "="*65)
     if bad:

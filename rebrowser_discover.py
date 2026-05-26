@@ -86,7 +86,7 @@ MODELS_WE_USE = {
                       "Tahoe", "Trailblazer", "Traverse", "Trax"],
     "Chrysler":      ["Pacifica", "Voyager"],
     "Dodge":         ["Charger", "Durango", "Hornet"],
-    "Ferrari":       ["SF90"],
+    "Ferrari":       ["296 GTB", "812", "F8 Tributo", "F8 Spider", "Roma", "Purosangue", "SF90"],
     "Ford":          ["Bronco", "Bronco Sport", "Escape", "Expedition",
                       "Explorer", "F-150", "F-150 Lightning",
                       "F-250 Super Duty", "F-350 Super Duty",

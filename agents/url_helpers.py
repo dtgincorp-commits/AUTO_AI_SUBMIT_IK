@@ -45,6 +45,11 @@ CG_ENTITY_IDS = {
     # Dodge
     "dodge charger": 733, "dodge durango": 651, "dodge hornet": 3260,
     # Ferrari
+    "ferrari 296 gtb": 3240, "ferrari 296gtb": 3240,
+    "ferrari 812": 2654, "ferrari 812 superfast": 2654, "ferrari 812 gts": 2654,
+    "ferrari f8": 3048, "ferrari f8 tributo": 3048, "ferrari f8 spider": 3048,
+    "ferrari roma": 2994,
+    "ferrari purosangue": 3288,
     "ferrari sf90": 3033, "ferrari sf90 stradale": 3033,
     # Ford
     "ford bronco": 320, "ford bronco sport": 3094, "ford escape": 330, "ford expedition": 333,

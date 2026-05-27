@@ -557,6 +557,11 @@ if st.session_state.get("_search_builder"):
     with _sb_right:
         st.markdown("**📌 Pin a car by VIN**")
         st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
+        _sb_fc, _sb_lc = st.columns(2)
+        with _sb_fc:
+            st.text_input("First Name", placeholder="First", key="sb_vin_first_name")
+        with _sb_lc:
+            st.text_input("Last Name", placeholder="Last", key="sb_vin_last_name")
         _sb_vin_val = st.text_input(
             "VIN", placeholder="e.g. 5UX13EU03T9384714",
             label_visibility="collapsed", key="sb_vin_lookup_input",
@@ -595,6 +600,33 @@ if st.session_state.get("_search_builder"):
                         _sb_added.append(_sb_listing)
                         from agents.search_agent import fetch_vin_details as _fvd
                         st.session_state.setdefault("vin_details", {})[_sb_vin_val.strip().upper()] = _fvd(_sb_vin_val.strip())
+                        # Save to MySQL nn.vin_lookups
+                        try:
+                            import mysql.connector as _mc
+                            _det_save = st.session_state.get("vin_details", {}).get(_sb_vin_val.strip().upper(), {})
+                            _cn = _mc.connect(host="localhost", port=3306, user="root", password="fruitL00p", database="nn")
+                            _cu = _cn.cursor()
+                            _cu.execute(
+                                "INSERT INTO vin_lookups (first_name, last_name, vin, year, make, model, trim_level, price, mileage, dealer_name, image_url) "
+                                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                                (
+                                    st.session_state.get("sb_vin_first_name", "") or "",
+                                    st.session_state.get("sb_vin_last_name", "") or "",
+                                    _sb_listing.vin,
+                                    _det_save.get("year") or _sb_listing.year,
+                                    _sb_listing.make,
+                                    _sb_listing.model,
+                                    _sb_listing.trim,
+                                    _sb_listing.asking_price,
+                                    _sb_listing.mileage,
+                                    _sb_listing.dealer_name,
+                                    _sb_listing.image_url,
+                                )
+                            )
+                            _cn.commit()
+                            _cn.close()
+                        except Exception as _dbe:
+                            pass  # DB save is best-effort; don't break the UI
                         st.success(f"Added: **{_sb_listing.title}**")
                         st.rerun()
                     else:

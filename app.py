@@ -562,6 +562,7 @@ if st.session_state.get("_search_builder"):
             st.text_input("First Name", placeholder="First", key="sb_vin_first_name")
         with _sb_lc:
             st.text_input("Last Name", placeholder="Last", key="sb_vin_last_name")
+        st.text_input("Client Phone", placeholder="+1 949-555-0123", key="sb_vin_phone")
         _sb_vin_val = st.text_input(
             "VIN", placeholder="e.g. 5UX13EU03T9384714",
             label_visibility="collapsed", key="sb_vin_lookup_input",
@@ -607,26 +608,27 @@ if st.session_state.get("_search_builder"):
                             _cn = _mc.connect(host="localhost", port=3306, user="root", password="fruitL00p", database="nn")
                             _cu = _cn.cursor()
                             _cu.execute(
-                                "INSERT INTO vin_lookups (first_name, last_name, vin, year, make, model, trim_level, price, mileage, dealer_name, image_url) "
-                                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                                "INSERT INTO vin_lookups (first_name, last_name, phone, vin, year, make, model, trim_level, price, mileage, dealer_name, image_url) "
+                                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                                 (
                                     st.session_state.get("sb_vin_first_name", "") or "",
                                     st.session_state.get("sb_vin_last_name", "") or "",
+                                    st.session_state.get("sb_vin_phone", "") or "",
                                     _sb_listing.vin,
                                     _det_save.get("year") or _sb_listing.year,
-                                    _sb_listing.make,
-                                    _sb_listing.model,
-                                    _sb_listing.trim,
-                                    _sb_listing.asking_price,
+                                    _det_save.get("make", ""),
+                                    _det_save.get("model", ""),
+                                    _det_save.get("trim", ""),
+                                    _sb_listing.asking_price or _sb_listing.price,
                                     _sb_listing.mileage,
-                                    _sb_listing.dealer_name,
-                                    _sb_listing.image_url,
+                                    _sb_listing.dealer_name or _det_save.get("dealer_name", ""),
+                                    _det_save.get("photo_url", ""),
                                 )
                             )
                             _cn.commit()
                             _cn.close()
                         except Exception as _dbe:
-                            pass  # DB save is best-effort; don't break the UI
+                            st.warning(f"DB save failed: {_dbe}")
                         st.success(f"Added: **{_sb_listing.title}**")
                         st.rerun()
                     else:

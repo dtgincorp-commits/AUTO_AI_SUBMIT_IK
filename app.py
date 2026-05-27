@@ -310,6 +310,11 @@ def _render_vin_widget(prefs, key_prefix=""):
     with st.container(border=True):
         st.markdown("**📌 Pin a car by VIN**")
         st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")
+        _fc, _lc = st.columns(2)
+        with _fc:
+            st.text_input("First Name", placeholder="First", key=f"{key_prefix}vin_first_name")
+        with _lc:
+            st.text_input("Last Name", placeholder="Last", key=f"{key_prefix}vin_last_name")
         _vin_input = st.text_input(
             "VIN", placeholder="e.g. 5UX13EU03T9384714",
             label_visibility="collapsed", key=f"{key_prefix}vin_lookup_input",

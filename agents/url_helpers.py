@@ -673,7 +673,7 @@ AT_MODEL_CODE = {
     "outlander": "OUTLANDER", "rogue": "ROGUE",      "altima": "ALTIMA",
     "pathfinder": "PATH",   "frontier": "FRONTI",    "1500": "RM1500",
     "2500": "RM2500",       "mdx": "MDX",            "gx": "GX460",
-    "es": "ES350",          "is": "IS350",           "tx": "TX",
+    "es": "ES350",          "is": "IS350",
     "lx": "LX570",
     # ── Round 2 additions (all confirmed via live AT probe) ──────────────────
     # Acura

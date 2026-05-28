@@ -844,12 +844,13 @@ _AT_ZIP_CITY: dict = {
 
 
 def _at_model_code(model: str) -> str:
-    """Return AutoTrader modelCodeList value for a given model string."""
+    """Return AutoTrader modelCodeList value, or '' if not in our known table."""
     m = model.lower().strip()
     if m in _AT_MB_TRIM_CODE:
         return _AT_MB_TRIM_CODE[m]
     slug = AT_MODEL_SLUG_MAP.get(m, m.replace(" ", "-").replace("/", "-"))
-    return AT_MODEL_CODE.get(slug, slug.upper().replace("-", "")) if slug else ""
+    # Only return a code if it's explicitly in our table — never guess
+    return AT_MODEL_CODE.get(slug, "") if slug else ""
 
 
 def at_url(make: str, model: str, condition: str,
@@ -896,6 +897,16 @@ def at_url(make: str, model: str, condition: str,
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
         else:
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]
+        return base + ("?" + "&".join(path_qp) if path_qp else "")
+
+    # If no model code found, use path-based slug so the model isn't silently dropped
+    if not model_code and model.strip() and model.lower().strip() not in ("any", ""):
+        path_slug = model.lower().strip().replace(" ", "-").replace("/", "-")
+        city_slug = _AT_ZIP_CITY.get(zip_code, "")
+        base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/{path_slug}/"
+        if city_slug:
+            base = base.rstrip("/") + "/" + city_slug
+        path_qp = [p for p in qp if not p.startswith("modelCodeList=")]
         return base + ("?" + "&".join(path_qp) if path_qp else "")
 
     base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/"

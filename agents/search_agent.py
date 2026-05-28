@@ -45,9 +45,17 @@ def _normalize_make_model(make: str, model: str) -> tuple:
         _cb = get_langfuse_callbacks()
         raw = chain.invoke({"make": make, "model": model}, config={"callbacks": _cb} if _cb else {})
         data = json.loads(raw)
-        return data.get("make", make), data.get("model", model)
+        norm_make  = data.get("make", make)
+        norm_model = data.get("model", model)
     except Exception:
-        return make, model
+        norm_make, norm_model = make, model
+    # Final pass: canonicalize against NHTSA to ensure exact official model name
+    try:
+        from agents.nhtsa import canonicalize_model
+        norm_model = canonicalize_model(norm_make, norm_model)
+    except Exception:
+        pass
+    return norm_make, norm_model
 
 
 def _parse_location(location: str) -> dict:

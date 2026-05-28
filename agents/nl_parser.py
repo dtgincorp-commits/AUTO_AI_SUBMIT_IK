@@ -57,6 +57,14 @@ def parse_query(query: str) -> tuple[dict, str]:
         raw = chain.invoke({"query": query}, config={"callbacks": _cb} if _cb else {}).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-        return json.loads(raw.strip()), ""
+        parsed = json.loads(raw.strip())
+        # Canonicalize make+model against NHTSA — fixes edge cases like RS Q8, Urus, etc.
+        if parsed.get("make") and parsed.get("model"):
+            try:
+                from agents.nhtsa import canonicalize_model
+                parsed["model"] = canonicalize_model(parsed["make"], parsed["model"])
+            except Exception:
+                pass
+        return parsed, ""
     except Exception as e:
         return {}, str(e)

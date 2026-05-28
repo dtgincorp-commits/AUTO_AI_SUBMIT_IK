@@ -31,6 +31,8 @@ _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages([
         "CLS450/CLS53 → model='CLS'; "
         "SUVs keep full names: GLS 450, GLE 350, GLC 300, GLB 250, GLA 250 stay as-is. "
         "BMW: X5/X3/X7 stay as-is; 3 Series/5 Series/7 Series use 'X Series' format. "
+        "Audi RS/SQ models: ALWAYS preserve the RS or SQ prefix as part of the model name. "
+        "RS Q8 stays 'RS Q8'; RS Q3 stays 'RS Q3'; RS3 stays 'RS3'; RS5 stays 'RS5'; RS6 stays 'RS6'; RS7 stays 'RS7'; SQ5 stays 'SQ5'; SQ7 stays 'SQ7'; SQ8 stays 'SQ8'. "
         "Always return the make as the full official brand name e.g. 'Mercedes-Benz' not 'Mercedes'."
     )),
     ("human", "Correct this car make and model: make='{make}', model='{model}'"),
@@ -43,9 +45,17 @@ def _normalize_make_model(make: str, model: str) -> tuple:
         _cb = get_langfuse_callbacks()
         raw = chain.invoke({"make": make, "model": model}, config={"callbacks": _cb} if _cb else {})
         data = json.loads(raw)
-        return data.get("make", make), data.get("model", model)
+        norm_make  = data.get("make", make)
+        norm_model = data.get("model", model)
     except Exception:
-        return make, model
+        norm_make, norm_model = make, model
+    # Final pass: canonicalize against NHTSA to ensure exact official model name
+    try:
+        from agents.nhtsa import canonicalize_model
+        norm_model = canonicalize_model(norm_make, norm_model)
+    except Exception:
+        pass
+    return norm_make, norm_model
 
 
 def _parse_location(location: str) -> dict:

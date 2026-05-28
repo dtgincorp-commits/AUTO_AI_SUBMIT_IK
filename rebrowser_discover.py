@@ -69,7 +69,7 @@ MAKES = {
     "Volvo":         "volvo",
 }
 
-MODELS_WE_USE = {
+_MODELS_FALLBACK = {
     "Acura":         ["MDX", "RDX", "TLX", "Integra", "ZDX", "ADX"],
     "Audi":          ["A3", "A4", "A4 Allroad", "A5", "A6", "A7", "A8",
                       "Q3", "Q5", "Q7", "Q8", "Q4 e-tron", "Q8 e-tron",
@@ -155,6 +155,28 @@ MODELS_WE_USE = {
     "Volvo":         ["EC40", "EX30", "EX40", "EX90", "S60", "S90",
                       "V60", "V90", "XC40", "XC60", "XC90"],
 }
+
+# Build MODELS_WE_USE dynamically from NHTSA, falling back to hardcoded list
+def _build_models_we_use():
+    try:
+        from agents.nhtsa import get_all_models, SUPPORTED_MAKES
+        nhtsa = get_all_models()
+        result = {}
+        for make in SUPPORTED_MAKES:
+            models = nhtsa.get(make, [])
+            if models:
+                result[make] = models
+            elif make in _MODELS_FALLBACK:
+                result[make] = _MODELS_FALLBACK[make]
+        # Add any makes in fallback not in NHTSA list
+        for make, models in _MODELS_FALLBACK.items():
+            if make not in result:
+                result[make] = models
+        return result
+    except Exception:
+        return _MODELS_FALLBACK
+
+MODELS_WE_USE = _build_models_we_use()
 
 # Known CG entity IDs already in url_helpers.py — used to seed/verify
 CG_KNOWN = {

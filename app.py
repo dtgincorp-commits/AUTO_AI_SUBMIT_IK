@@ -611,9 +611,9 @@ if st.session_state.get("_search_builder"):
                                 "INSERT INTO vin_lookups (first_name, last_name, phone, vin, year, make, model, trim_level, price, mileage, dealer_name, image_url) "
                                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                                 (
-                                    st.session_state.get("sb_vin_first_name", "") or "",
-                                    st.session_state.get("sb_vin_last_name", "") or "",
-                                    st.session_state.get("sb_vin_phone", "") or "",
+                                    (st.session_state.get("sb_vin_first_name") or "").strip(),
+                                    (st.session_state.get("sb_vin_last_name") or "").strip(),
+                                    (st.session_state.get("sb_vin_phone") or "").strip(),
                                     _sb_listing.vin,
                                     _det_save.get("year") or _sb_listing.year,
                                     _det_save.get("make", ""),
@@ -628,11 +628,14 @@ if st.session_state.get("_search_builder"):
                             _cn.commit()
                             _cn.close()
                         except Exception as _dbe:
-                            st.warning(f"DB save failed: {_dbe}")
+                            import traceback; traceback.print_exc()
+                            st.session_state["_vin_db_err"] = str(_dbe)
                         st.success(f"Added: **{_sb_listing.title}**")
                         st.rerun()
                     else:
                         st.info("This VIN is already pinned.")
+        if "_vin_db_err" in st.session_state:
+            st.warning(f"DB save failed: {st.session_state.pop('_vin_db_err')}")
         _sb_pinned = st.session_state.get("vin_added_listings", [])
         if _sb_pinned:
             st.markdown(f"**{len(_sb_pinned)} pinned:**")

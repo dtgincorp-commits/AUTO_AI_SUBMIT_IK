@@ -15,28 +15,27 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
     for listing in listings:
         breakdown = {}
 
-        # Make match (10 points)
-        l_make = (listing.make or "").lower().strip()
+        # Make match (10 points) — inferred from listing title
+        l_title = (listing.title or "").lower().strip()
         p_make = (prefs.make or "").lower().strip()
         if not p_make or p_make == "any":
             make_pts, make_reason = 10.0, "No make preference — full marks"
-        elif p_make in l_make or l_make in p_make:
-            make_pts, make_reason = 10.0, f"Make '{listing.make}' matches"
+        elif p_make in l_title:
+            make_pts, make_reason = 10.0, f"Make '{prefs.make}' found in title"
         else:
-            make_pts, make_reason = 0.0, f"Make '{listing.make}' does not match '{prefs.make}'"
+            make_pts, make_reason = 0.0, f"Make '{prefs.make}' not found in title '{listing.title}'"
         breakdown["make"] = {"points": make_pts, "max": 10, "reason": make_reason}
 
-        # Model match (40 points)
-        l_model = (listing.model or "").lower().strip()
+        # Model match (40 points) — inferred from listing title
         p_model = (prefs.model or "").lower().strip()
         if not p_model or p_model == "any":
             model_pts, model_reason = 40.0, "No model preference — full marks"
-        elif p_model in l_model or l_model in p_model:
-            model_pts, model_reason = 40.0, f"Model '{listing.model}' matches"
-        elif any(w in l_model for w in p_model.split() if len(w) > 2):
-            model_pts, model_reason = 20.0, f"Model '{listing.model}' partially matches '{prefs.model}'"
+        elif p_model in l_title:
+            model_pts, model_reason = 40.0, f"Model '{prefs.model}' found in title"
+        elif any(w in l_title for w in p_model.split() if len(w) > 2):
+            model_pts, model_reason = 20.0, f"Model partially matched in title '{listing.title}'"
         else:
-            model_pts, model_reason = 0.0, f"Model '{listing.model}' does not match '{prefs.model}'"
+            model_pts, model_reason = 0.0, f"Model '{prefs.model}' not found in title '{listing.title}'"
         breakdown["model"] = {"points": model_pts, "max": 40, "reason": model_reason}
 
         # Price proximity (20 points max)

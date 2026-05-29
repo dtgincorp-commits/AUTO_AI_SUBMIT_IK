@@ -798,11 +798,23 @@ _AT_MB_TRIM_CODE = {
 # to the make-level page, losing model filtering entirely. Path routing avoids this.
 # Unlike Volvo, we keep makeCodeList/modelCodeList in query params for Mercedes so that
 # test assertions checking for code substrings still pass.
-_AT_PATH_ROUTED_MAKES = {"volvo", "mercedes-benz", "lexus"}
+_AT_PATH_ROUTED_MAKES = {
+    "volvo", "mercedes-benz", "lexus",
+    "toyota", "honda", "hyundai", "kia", "nissan", "subaru", "mazda", "mitsubishi",
+    "ford", "chevrolet", "gmc", "ram", "jeep", "dodge", "buick", "cadillac", "lincoln",
+    "bmw", "audi", "volkswagen", "porsche",
+    "acura", "infiniti", "genesis",
+}
 
 # Subset of path-routed makes where make/model codes should be stripped from query params.
 # Volvo's AT path URLs are fully self-contained; Mercedes keeps codes for additional filtering.
-_AT_PATH_ROUTED_STRIP_CODES = {"volvo"}
+_AT_PATH_ROUTED_STRIP_CODES = {
+    "volvo",
+    "toyota", "honda", "hyundai", "kia", "nissan", "subaru", "mazda", "mitsubishi",
+    "ford", "chevrolet", "gmc", "ram", "jeep", "dodge", "buick", "cadillac", "lincoln",
+    "bmw", "audi", "volkswagen", "porsche",
+    "acura", "infiniti", "genesis",
+}
 
 # Specific make+model combos that need path routing even though the make is not fully path-routed.
 # Discovered by checking real AT URLs (e.g. gmc/sierra-2500 is path-routed; gmc/terrain is not).
@@ -889,8 +901,9 @@ def at_url(make: str, model: str, condition: str,
     )
     if make_slug in _AT_PATH_ROUTED_MAKES or _model_path_slug:
         path_slug  = _model_path_slug or m_lower.replace(" ", "-")
-        # Append trim to path slug when present (e.g. tx + 500h → tx-500h)
-        if trim and trim.lower() not in ("any", ""):
+        # Lexus only: append powertrain/trim to path slug (e.g. tx + 500h → tx-500h)
+        # Other makes: AT doesn't support trim in path (rav4-prime → stripped to all Toyotas)
+        if make_slug == "lexus" and trim and trim.lower() not in ("any", ""):
             trim_slug = trim.lower().replace(" ", "-").replace("/", "-")
             path_slug = f"{path_slug}-{trim_slug}"
         city_slug  = _AT_ZIP_CITY.get(zip_code, "")

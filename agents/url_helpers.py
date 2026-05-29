@@ -295,6 +295,10 @@ AT_MODEL_SLUG_MAP = {
     "eqe": "eqe",         "eqe 350": "eqe",    "eqe 500": "eqe",
     "eqb": "eqb",         "eqb 250": "eqb",    "eqb 300": "eqb",
     "eqb 350": "eqb",
+    # Genesis — "GV 80" / "GV 70" with space → no-space slug
+    "gv 80": "gv80",      "gv 70": "gv70",     "gv 60": "gv60",
+    "gv 90": "gv90",      "g 70": "g70",        "g 80": "g80",
+    "g 90": "g90",
 }
 
 # Cars.com model slug overrides
@@ -554,7 +558,7 @@ AT_MAKE_CODE = {
     "acura": "ACURA",       "audi": "AUDI",         "bmw": "BMW",
     "buick": "BUICK",       "cadillac": "CAD",       "chevrolet": "CHEV",
     "chrysler": "CHRY",     "dodge": "DODGE",        "ferrari": "FER",
-    "ford": "FORD",         "genesis": "GENES",      "gmc": "GMC",
+    "ford": "FORD",         "genesis": "GENESIS",    "gmc": "GMC",
     "honda": "HONDA",       "hyundai": "HYUND",      "infiniti": "INFIN",
     "jeep": "JEEP",         "kia": "KIA",            "lexus": "LEXUS",
     "lincoln": "LINC",      "mazda": "MAZDA",        "mercedes-benz": "MB",
@@ -661,7 +665,7 @@ AT_MODEL_CODE = {
     # Acura — additional
     "adx": "ACURADX",
     # Others
-    "qx60": "INFINQX60",    "gv70": "GENGV70",       "gv80": "GENGV80",       "cx-5": "CX-5",
+    "qx60": "INFINQX60",    "cx-5": "CX-5",
     "cx-50": "MAZCX50",     "cx-90": "MAZCX90",      "cayenne": "CAYENNE",
     "macan": "PORMACAN",    "taycan": "PORTAYCAN",   "panamera": "PANAMERA",
     "xc90": "XC90",         "xc60": "XC60",          "outback": "SUBOUTBK",
@@ -672,9 +676,9 @@ AT_MODEL_CODE = {
     "xt5": "CADXT5",        "enclave": "ENCLAVE",    "envision": "BUIENVISI",
     "outlander": "OUTLANDER", "rogue": "ROGUE",      "altima": "ALTIMA",
     "pathfinder": "PATH",   "frontier": "FRONTI",    "1500": "RM1500",
-    "2500": "RM2500",       "mdx": "MDX",            "gx": "GX460",
-    "es": "ES350",          "is": "IS350",           "tx": "TX",
-    "lx": "LX570",
+    "2500": "RM2500",       "mdx": "MDX",
+    "gx": "GX460",         "es": "ES350",           "is": "IS350",
+    "tx": "TX",            "lx": "LX570",
     # ── Round 2 additions (all confirmed via live AT probe) ──────────────────
     # Acura
     "tlx": "TLX",               "rdx": "RDX",
@@ -794,7 +798,7 @@ _AT_MB_TRIM_CODE = {
 # to the make-level page, losing model filtering entirely. Path routing avoids this.
 # Unlike Volvo, we keep makeCodeList/modelCodeList in query params for Mercedes so that
 # test assertions checking for code substrings still pass.
-_AT_PATH_ROUTED_MAKES = {"volvo", "mercedes-benz"}
+_AT_PATH_ROUTED_MAKES = {"volvo", "mercedes-benz", "lexus"}
 
 # Subset of path-routed makes where make/model codes should be stripped from query params.
 # Volvo's AT path URLs are fully self-contained; Mercedes keeps codes for additional filtering.
@@ -885,6 +889,10 @@ def at_url(make: str, model: str, condition: str,
     )
     if make_slug in _AT_PATH_ROUTED_MAKES or _model_path_slug:
         path_slug  = _model_path_slug or m_lower.replace(" ", "-")
+        # Append trim to path slug when present (e.g. tx + 500h → tx-500h)
+        if trim and trim.lower() not in ("any", ""):
+            trim_slug = trim.lower().replace(" ", "-").replace("/", "-")
+            path_slug = f"{path_slug}-{trim_slug}"
         city_slug  = _AT_ZIP_CITY.get(zip_code, "")
         base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
                 f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
@@ -901,7 +909,8 @@ def at_url(make: str, model: str, condition: str,
 
     # If no model code found, use path-based slug so the model isn't silently dropped
     if not model_code and model.strip() and model.lower().strip() not in ("any", ""):
-        path_slug = model.lower().strip().replace(" ", "-").replace("/", "-")
+        m_lower_slug = model.lower().strip()
+        path_slug = AT_MODEL_SLUG_MAP.get(m_lower_slug, m_lower_slug.replace(" ", "-").replace("/", "-"))
         city_slug = _AT_ZIP_CITY.get(zip_code, "")
         base = f"https://www.autotrader.com/cars-for-sale/{cond_seg}/{price_seg}{color_seg}{make_slug}/{path_slug}/"
         if city_slug:

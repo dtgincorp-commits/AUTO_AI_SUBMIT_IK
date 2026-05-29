@@ -15,61 +15,85 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
     for listing in listings:
         breakdown = {}
 
-        # Price proximity (40 points max)
+        # Make match (10 points)
+        l_make = (listing.make or "").lower().strip()
+        p_make = (prefs.make or "").lower().strip()
+        if not p_make or p_make == "any":
+            make_pts, make_reason = 10.0, "No make preference — full marks"
+        elif p_make in l_make or l_make in p_make:
+            make_pts, make_reason = 10.0, f"Make '{listing.make}' matches"
+        else:
+            make_pts, make_reason = 0.0, f"Make '{listing.make}' does not match '{prefs.make}'"
+        breakdown["make"] = {"points": make_pts, "max": 10, "reason": make_reason}
+
+        # Model match (40 points)
+        l_model = (listing.model or "").lower().strip()
+        p_model = (prefs.model or "").lower().strip()
+        if not p_model or p_model == "any":
+            model_pts, model_reason = 40.0, "No model preference — full marks"
+        elif p_model in l_model or l_model in p_model:
+            model_pts, model_reason = 40.0, f"Model '{listing.model}' matches"
+        elif any(w in l_model for w in p_model.split() if len(w) > 2):
+            model_pts, model_reason = 20.0, f"Model '{listing.model}' partially matches '{prefs.model}'"
+        else:
+            model_pts, model_reason = 0.0, f"Model '{listing.model}' does not match '{prefs.model}'"
+        breakdown["model"] = {"points": model_pts, "max": 40, "reason": model_reason}
+
+        # Price proximity (20 points max)
         mid_price = (prefs.price_min + prefs.price_max) / 2
         price_range = max(prefs.price_max - prefs.price_min, 1)
         price_diff = abs(listing.price - mid_price)
-        price_pts = round(max(0, 40 - (price_diff / price_range) * 40), 1)
+        price_pts = round(max(0, 20 - (price_diff / price_range) * 20), 1)
         breakdown["price"] = {
             "points": price_pts,
-            "max": 40,
+            "max": 20,
             "reason": f"${listing.price:,} is ${price_diff:,.0f} from your budget midpoint (${mid_price:,.0f})",
         }
 
-        # Mileage (30 points max)
+        # Mileage (25 points max)
         # Scraped sources (Craigslist, CarGurus, eBay) return mileage=0 when unknown,
         # not when the car actually has 0 miles. Treat 0 as unknown → half credit.
         _SCRAPED = {"CarGurus", "Craigslist", "eBay Motors"}
         mileage_unknown = listing.mileage == 0 and listing.source in _SCRAPED
         if mileage_unknown:
-            mileage_pts = 15.0
+            mileage_pts = 12.5
             reason = "Mileage not reported by this source — partial credit"
         elif prefs.max_mileage and listing.mileage <= prefs.max_mileage:
-            mileage_pts = round(30 * (1 - listing.mileage / prefs.max_mileage), 1)
+            mileage_pts = round(25 * (1 - listing.mileage / prefs.max_mileage), 1)
             reason = f"{listing.mileage:,} mi is {prefs.max_mileage - listing.mileage:,} mi under your {prefs.max_mileage:,} mi cap"
         elif prefs.max_mileage and listing.mileage > prefs.max_mileage:
             mileage_pts = 0.0
             reason = f"{listing.mileage:,} mi exceeds your {prefs.max_mileage:,} mi cap"
         else:
-            mileage_pts = 30.0
+            mileage_pts = 25.0
             reason = "No mileage cap set — full marks"
-        breakdown["mileage"] = {"points": mileage_pts, "max": 30, "reason": reason}
+        breakdown["mileage"] = {"points": mileage_pts, "max": 25, "reason": reason}
 
-        # Exterior color (15 points)
+        # Exterior color (10 points)
         if not prefs.exterior_color:
-            ext_pts, ext_reason = 15.0, "No color preference — full marks"
+            ext_pts, ext_reason = 10.0, "No color preference — full marks"
         elif prefs.exterior_color and listing.exterior_color:
             if prefs.exterior_color.lower() in listing.exterior_color.lower():
-                ext_pts, ext_reason = 15.0, f"'{listing.exterior_color}' matches your preference '{prefs.exterior_color}'"
+                ext_pts, ext_reason = 10.0, f"'{listing.exterior_color}' matches your preference '{prefs.exterior_color}'"
             else:
                 ext_pts, ext_reason = 0.0, f"'{listing.exterior_color}' does not match your preference '{prefs.exterior_color}'"
         else:
-            ext_pts, ext_reason = 7.5, "Color preference set but listing color unknown"
-        breakdown["exterior_color"] = {"points": ext_pts, "max": 15, "reason": ext_reason}
+            ext_pts, ext_reason = 5.0, "Color preference set but listing color unknown"
+        breakdown["exterior_color"] = {"points": ext_pts, "max": 10, "reason": ext_reason}
 
-        # Interior color (15 points)
+        # Interior color (5 points)
         if not prefs.interior_color:
-            int_pts, int_reason = 15.0, "No color preference — full marks"
+            int_pts, int_reason = 5.0, "No color preference — full marks"
         elif prefs.interior_color and listing.interior_color:
             if prefs.interior_color.lower() in listing.interior_color.lower():
-                int_pts, int_reason = 15.0, f"'{listing.interior_color}' matches your preference '{prefs.interior_color}'"
+                int_pts, int_reason = 5.0, f"'{listing.interior_color}' matches your preference '{prefs.interior_color}'"
             else:
                 int_pts, int_reason = 0.0, f"'{listing.interior_color}' does not match your preference '{prefs.interior_color}'"
         else:
-            int_pts, int_reason = 7.5, "Color preference set but listing color unknown"
-        breakdown["interior_color"] = {"points": int_pts, "max": 15, "reason": int_reason}
+            int_pts, int_reason = 2.5, "Color preference set but listing color unknown"
+        breakdown["interior_color"] = {"points": int_pts, "max": 5, "reason": int_reason}
 
-        total = price_pts + mileage_pts + ext_pts + int_pts
+        total = make_pts + model_pts + price_pts + mileage_pts + ext_pts + int_pts
         listing.match_score = round(total, 1)
         if market_context:
             breakdown["market_insight"] = {

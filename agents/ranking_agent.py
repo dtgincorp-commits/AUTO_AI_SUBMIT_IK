@@ -15,28 +15,17 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
     for listing in listings:
         breakdown = {}
 
-        # Make match (10 points) — inferred from listing title
-        l_title = (listing.title or "").lower().strip()
-        p_make = (prefs.make or "").lower().strip()
-        if not p_make or p_make == "any":
-            make_pts, make_reason = 10.0, "No make preference — full marks"
-        elif p_make in l_title:
-            make_pts, make_reason = 10.0, f"Make '{prefs.make}' found in title"
-        else:
-            make_pts, make_reason = 0.0, f"Make '{prefs.make}' not found in title '{listing.title}'"
-        breakdown["make"] = {"points": make_pts, "max": 10, "reason": make_reason}
-
-        # Model match (40 points) — inferred from listing title
+        # Model match (50 points) — inferred from listing title
         p_model = (prefs.model or "").lower().strip()
         if not p_model or p_model == "any":
-            model_pts, model_reason = 40.0, "No model preference — full marks"
+            model_pts, model_reason = 50.0, "No model preference — full marks"
         elif p_model in l_title:
-            model_pts, model_reason = 40.0, f"Model '{prefs.model}' found in title"
+            model_pts, model_reason = 50.0, f"Model '{prefs.model}' found in title"
         elif any(w in l_title for w in p_model.split() if len(w) > 2):
-            model_pts, model_reason = 20.0, f"Model partially matched in title '{listing.title}'"
+            model_pts, model_reason = 25.0, f"Model partially matched in title '{listing.title}'"
         else:
             model_pts, model_reason = 0.0, f"Model '{prefs.model}' not found in title '{listing.title}'"
-        breakdown["model"] = {"points": model_pts, "max": 40, "reason": model_reason}
+        breakdown["model"] = {"points": model_pts, "max": 50, "reason": model_reason}
 
         # Price proximity (20 points max)
         mid_price = (prefs.price_min + prefs.price_max) / 2
@@ -49,24 +38,24 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
             "reason": f"${listing.price:,} is ${price_diff:,.0f} from your budget midpoint (${mid_price:,.0f})",
         }
 
-        # Mileage (25 points max)
+        # Mileage (15 points max)
         # Scraped sources (Craigslist, CarGurus, eBay) return mileage=0 when unknown,
         # not when the car actually has 0 miles. Treat 0 as unknown → half credit.
         _SCRAPED = {"CarGurus", "Craigslist", "eBay Motors"}
         mileage_unknown = listing.mileage == 0 and listing.source in _SCRAPED
         if mileage_unknown:
-            mileage_pts = 12.5
+            mileage_pts = 7.5
             reason = "Mileage not reported by this source — partial credit"
         elif prefs.max_mileage and listing.mileage <= prefs.max_mileage:
-            mileage_pts = round(25 * (1 - listing.mileage / prefs.max_mileage), 1)
+            mileage_pts = round(15 * (1 - listing.mileage / prefs.max_mileage), 1)
             reason = f"{listing.mileage:,} mi is {prefs.max_mileage - listing.mileage:,} mi under your {prefs.max_mileage:,} mi cap"
         elif prefs.max_mileage and listing.mileage > prefs.max_mileage:
             mileage_pts = 0.0
             reason = f"{listing.mileage:,} mi exceeds your {prefs.max_mileage:,} mi cap"
         else:
-            mileage_pts = 25.0
+            mileage_pts = 15.0
             reason = "No mileage cap set — full marks"
-        breakdown["mileage"] = {"points": mileage_pts, "max": 25, "reason": reason}
+        breakdown["mileage"] = {"points": mileage_pts, "max": 15, "reason": reason}
 
         # Exterior color (10 points)
         if not prefs.exterior_color:

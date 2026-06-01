@@ -25,9 +25,9 @@ TESTS = [
     ("Toyota", "Camry",  "XSE",                "real_trim",    ["camry", "trimCodeList=XSE"],                [],                          "Camry XSE"),
     ("Toyota", "Highlander", "Platinum",       "real_trim",    ["highlander", "trimCodeList=Platinum"],      [],                          "Highlander Platinum"),
     # ── Lexus ──────────────────────────────────────────────────────────────
-    ("Lexus",  "TX",     "500h",               "real_trim",    ["tx-500h"],                                  ["trimCodeList"],             "Lexus TX 500h — path slug"),
-    ("Lexus",  "RX",     "500h",               "real_trim",    ["rx-500h"],                                  ["trimCodeList"],             "Lexus RX 500h — path slug"),
-    ("Lexus",  "NX",     "350",                "real_trim",    ["nx-350"],                                   ["trimCodeList"],             "Lexus NX 350 — path slug"),
+    ("Lexus",  "TX",     "500h",               "real_trim",    ["tx-500h"],                                  [],                          "Lexus TX 500h — path slug"),
+    ("Lexus",  "RX",     "500h",               "real_trim",    ["rx-500h"],                                  [],                          "Lexus RX 500h — path slug"),
+    ("Lexus",  "NX",     "350",                "real_trim",    ["nx-350"],                                   [],                          "Lexus NX 350 — path slug"),
     # ── Ford / GM ──────────────────────────────────────────────────────────
     ("Ford",   "F-150",  "Lariat",             "real_trim",    ["f-150", "trimCodeList=Lariat"],             [],                          "F-150 Lariat"),
     ("Ford",   "F-150",  "Raptor",             "real_trim",    ["f-150", "trimCodeList=Raptor"],             [],                          "F-150 Raptor"),
@@ -58,8 +58,8 @@ TESTS = [
     ("Hyundai", "Tucson", "Hybrid SEL",        "real_trim",    ["tucson", "trimCodeList=SEL"],               ["Hybrid"],                  "Tucson Hybrid SEL — strip Hybrid"),
     ("Kia",    "Telluride", "SX Prestige",     "real_trim",    ["telluride", "trimCodeList=SX"],             [],                          "Telluride SX Prestige"),
     # ── Mercedes ───────────────────────────────────────────────────────────
-    ("Mercedes-Benz", "GLE 450", "AMG Line",   "package",      ["gle"],                                      ["trimCodeList"],             "MB GLE 450 AMG Line — package"),
-    ("Mercedes-Benz", "GLC 300", "AMG Line",   "package",      ["glc"],                                      ["trimCodeList"],             "MB GLC 300 AMG Line — package"),
+    ("Mercedes-Benz", "GLE 450", "AMG Line",   "package",      ["gle", "trimCodeList"],                       [],                          "MB GLE 450 AMG Line — best-guess trimCodeList"),
+    ("Mercedes-Benz", "GLC 300", "AMG Line",   "package",      ["glc", "trimCodeList"],                       [],                          "MB GLC 300 AMG Line — best-guess trimCodeList"),
 ]
 
 PASS = "✅"; FAIL = "❌"; WARN = "⚠️"

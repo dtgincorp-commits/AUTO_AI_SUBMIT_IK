@@ -998,7 +998,10 @@ def at_url(make: str, model: str, condition: str,
             if make_slug != "lexus" and _trim_type in ("real_trim", "package") and _trim_qp:
                 path_qp.append(_trim_qp)
         else:
+            # Keep makeCodeList/modelCodeList; rebuild trimCodeList with modelCode|trim prefix
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]
+            if _trim_type in ("real_trim", "package") and _trim_at and model_code:
+                path_qp.append(f"trimCodeList={_url_quote(model_code + '|' + _trim_at, safe='')}")
         return base + ("?" + "&".join(path_qp) if path_qp else "")
 
     # If no model code found, use path-based slug so the model isn't silently dropped

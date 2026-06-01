@@ -887,6 +887,9 @@ def at_url(make: str, model: str, condition: str,
     if model_code:     qp.append(f"modelCodeList={model_code}")
     if trim and trim.lower() not in ("any", "") and model_code:
         qp.append(f"trimCodeList={_url_quote(model_code + '|' + trim, safe='')}")
+    # Plain trim param for path-routed non-Lexus makes (model is in path, not in trimCodeList prefix)
+    _trim_qp = (f"trimCodeList={_url_quote(trim, safe='')}"
+                if trim and trim.lower() not in ("any", "") else None)
     if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:        qp.append(f"maxMileage={mileage}")
@@ -916,6 +919,9 @@ def at_url(make: str, model: str, condition: str,
         # tests that assert those params still pass; AT ignores them when path is present.
         if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
+            # For non-Lexus path-routed makes, encode trim as plain trimCodeList query param
+            if make_slug != "lexus" and _trim_qp:
+                path_qp.append(_trim_qp)
         else:
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]
         return base + ("?" + "&".join(path_qp) if path_qp else "")

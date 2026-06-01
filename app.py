@@ -153,6 +153,21 @@ div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 <div class="nl-heading">🚀 &nbsp;What car are you hunting for?</div>
 """, unsafe_allow_html=True)
 
+with st.expander("💡 Search tips — make, model, trim & powertrain", expanded=False):
+    st.markdown("""
+**Always include make + model.** Don't just say "BMW M Sport" — include the model: "BMW X5 M Sport".
+
+| What you want | What to type |
+|---|---|
+| Specific trim | "Honda CR-V **TrailSport**", "Ford F-150 **Lariat**", "Jeep Wrangler **Rubicon**" |
+| Option package | "BMW X5 **M Sport**", "Audi Q7 **S line**" — we try it, but the car site may show all trims for that model |
+| Hybrid + trim | "Toyota RAV4 **Hybrid XSE**", "Honda CR-V **Hybrid TrailSport**" — just say it naturally |
+| Lexus powertrain | "Lexus TX **500h**", "Lexus RX **500h**" — powertrain is part of the model on Lexus |
+| Porsche variant | "Porsche Cayenne **S**", "Porsche Macan **GTS**" — variant goes in the URL path |
+
+**The green/red AT URL check** under Your Search tells you instantly whether make, model, and trim made it into the link.
+""")
+
 with st.form("nl_form", clear_on_submit=False):
     _nl_col, _build_col, _btn_col = st.columns([4, 1.6, 1.6])
     with _nl_col:
@@ -553,6 +568,7 @@ if st.session_state.get("_search_builder"):
         if st.button("✕ Clear", key="clear_search_builder"):
             del st.session_state["_search_builder"]
             st.rerun()
+
 
     with _sb_right:
         st.markdown("**📌 Pin a car by VIN**")

@@ -555,27 +555,38 @@ if st.session_state.get("_search_builder"):
             st.rerun()
 
         # ── AT URL static validation (auto-runs, no LLM needed) ────────────
+        # Words that are packages/trims, not model names — if NL parser puts these in model field it's a misparse
+        _PACKAGE_WORDS = {"m", "s", "sport", "line", "prestige", "premium", "luxury",
+                          "plus", "limited", "base", "elite", "select", "se", "le", "xle"}
+
         def _validate_at_url(url: str, model: str, trim: str) -> tuple[bool, str]:
             issues = []
+            warnings = []
             path = url.split("?")[0].lower()
             query = url.split("?")[1].lower() if "?" in url else ""
+            # Detect likely misparse — model looks like a package word, not a real model
+            if model and model.lower().strip() in _PACKAGE_WORDS:
+                warnings.append(f"⚠️ '{model}' looks like a trim/package, not a model — try including the full model name (e.g. 'BMW X5 M Sport')")
             # Check model in path
             if model and model.lower() not in ("any", ""):
                 slug = model.lower().strip().replace(" ", "-").replace("/", "-")
                 first_word = slug.split("-")[0]
                 if slug not in path and not (len(first_word) > 2 and first_word in path):
                     issues.append(f"model '{model}' not in URL path")
-            # Check trim in query params
+            # Check trim in query params (skip if trim was classified as package — intentionally absent)
             if trim and trim.lower() not in ("any", ""):
                 trim_slug = trim.lower().replace(" ", "%20").replace(" ", "-")
                 trim_plain = trim.lower()
                 if "trimcodelist" not in query and trim_slug not in path and trim_plain not in path:
-                    issues.append(f"trim '{trim}' not in URL")
+                    # Don't flag as error — trim may be a package intentionally excluded
+                    warnings.append(f"ℹ️ trim '{trim}' not in URL — may be a package AT doesn't filter")
             if issues:
-                return False, "❌ " + "; ".join(issues)
+                return False, "❌ " + "; ".join(issues) + (" — " + " ".join(warnings) if warnings else "")
+            if warnings:
+                return False, " ".join(warnings)
             parts = []
-            if model and model.lower() not in ("any", ""): parts.append(f"model ✓")
-            if trim and trim.lower() not in ("any", ""): parts.append(f"trim ✓")
+            if model and model.lower() not in ("any", ""): parts.append("model ✓")
+            if trim and trim.lower() not in ("any", ""): parts.append("trim ✓")
             return True, "✅ " + (", ".join(parts) or "URL looks correct")
 
         _va_ok, _va_msg = _validate_at_url(_sb_at_url, _sb_model, _sb_trim or "")

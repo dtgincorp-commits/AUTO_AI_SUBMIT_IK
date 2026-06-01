@@ -617,7 +617,7 @@ if st.session_state.get("_search_builder"):
                     "You are an AutoTrader URL validator. "
                     "Given a URL and the car the user searched for, check if the URL correctly "
                     "encodes the make AND model (both must appear — either in the URL path or as query params). "
-                    "Return ONLY JSON: {\"valid\": true/false, \"reason\": \"one sentence\"}"
+                    "Return ONLY JSON: {{\"valid\": true/false, \"reason\": \"one sentence\"}}"
                 )),
                 ("human", "Make: {make}\nModel: {model}\nTrim: {trim}\nURL: {url}"),
             ])

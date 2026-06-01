@@ -16,6 +16,7 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
         breakdown = {}
 
         # Model match (50 points) — inferred from listing title
+        l_title = (listing.title or "").lower().strip()
         p_model = (prefs.model or "").lower().strip()
         if not p_model or p_model == "any":
             model_pts, model_reason = 50.0, "No model preference — full marks"

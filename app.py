@@ -617,6 +617,8 @@ if st.session_state.get("_search_builder"):
                     "You are an AutoTrader URL validator. "
                     "Given a URL and the car the user searched for, check if the URL correctly "
                     "encodes the make AND model (both must appear — either in the URL path or as query params). "
+                    "If a trim was provided, also check whether it appears in the URL (path slug or trimCodeList param). "
+                    "If trim is missing from the URL, set valid=false and mention it in the reason. "
                     "Return ONLY JSON: {{\"valid\": true/false, \"reason\": \"one sentence\"}}"
                 )),
                 ("human", "Make: {make}\nModel: {model}\nTrim: {trim}\nURL: {url}"),

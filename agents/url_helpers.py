@@ -887,9 +887,11 @@ def classify_trim(make: str, model: str, trim: str) -> tuple[str, str]:
                 "You are an automotive expert. Classify the trim/package for a car model as it relates to AutoTrader URLs.\n"
                 "Return ONLY JSON with two fields:\n"
                 "  type: 'real_trim' (official trim level AT filters by, e.g. Prestige, TrailSport, Lariat, Rubicon, Limited, Sport, XSE, Platinum),\n"
-                "        'package' (option package AT does NOT filter by URL, e.g. M Sport, S line, Tech Package, Premium Package, Night Edition),\n"
+                "        'package' (option package e.g. M Sport, S line, Tech Package, Premium Package, Night Edition),\n"
                 "        'path_segment' (Porsche variants AT encodes as a URL path segment, e.g. S, GTS, Turbo, Turbo S, 4S)\n"
-                "  at_name: exact spelling AT uses (lowercase for path_segment, original case for others)\n"
+                "  at_name: your best guess at the exact spelling AT would use in trimCodeList for this trim/package — "
+                "even for packages, provide the most likely AT spelling so we can try it (AT ignores it if wrong). "
+                "Use lowercase for path_segment, original case for others.\n"
                 "Examples:\n"
                 "BMW X5 'M Sport' → {{\"type\":\"package\",\"at_name\":\"M Sport\"}}\n"
                 "Audi Q7 'S line' → {{\"type\":\"package\",\"at_name\":\"S line\"}}\n"
@@ -957,12 +959,12 @@ def at_url(make: str, model: str, condition: str,
     if radius < 500:   qp.append(f"searchRadius={radius}")
     if make_code:      qp.append(f"makeCodeList={make_code}")
     if model_code:     qp.append(f"modelCodeList={model_code}")
-    # trimCodeList for non-path-routed makes: only real trims, with modelCode prefix
-    if _trim_type == "real_trim" and _trim_at and model_code:
+    # trimCodeList for non-path-routed makes: real trims + packages (best-guess), with modelCode prefix
+    if _trim_type in ("real_trim", "package") and _trim_at and model_code:
         qp.append(f"trimCodeList={_url_quote(model_code + '|' + _trim_at, safe='')}")
-    # plain trimCodeList for path-routed makes (model already in path)
+    # plain trimCodeList for path-routed makes — try for both real_trim and package (AT ignores if wrong)
     _trim_qp = (f"trimCodeList={_url_quote(_trim_at, safe='')}"
-                if _trim_type == "real_trim" and _trim_at else None)
+                if _trim_type in ("real_trim", "package") and _trim_at else None)
     if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:        qp.append(f"maxMileage={mileage}")
@@ -992,8 +994,8 @@ def at_url(make: str, model: str, condition: str,
             base = base.rstrip("/") + "/" + city_slug
         if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
-            # real trims only — packages are intentionally excluded
-            if make_slug != "lexus" and _trim_type == "real_trim" and _trim_qp:
+            # real trims + packages (best-guess) — AT ignores trimCodeList if it doesn't match
+            if make_slug != "lexus" and _trim_type in ("real_trim", "package") and _trim_qp:
                 path_qp.append(_trim_qp)
         else:
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]

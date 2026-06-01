@@ -37,11 +37,11 @@ TESTS = [
     ("Jeep",   "Wrangler", "Rubicon",          "real_trim",    ["wrangler", "trimCodeList=Rubicon"],         [],                          "Wrangler Rubicon"),
     ("Ram",    "1500",   "Laramie",            "real_trim",    ["1500", "trimCodeList=Laramie"],             [],                          "Ram 1500 Laramie"),
     # ── BMW ────────────────────────────────────────────────────────────────
-    ("BMW",    "X5",     "M Sport",            "package",      ["x5"],                                       ["trimCodeList"],             "BMW X5 M Sport — package, no trim param"),
-    ("BMW",    "X3",     "M Sport",            "package",      ["x3"],                                       ["trimCodeList"],             "BMW X3 M Sport — package"),
+    ("BMW",    "X5",     "M Sport",            "package",      ["x5", "trimCodeList"],                       [],                          "BMW X5 M Sport — package, best-guess trimCodeList added"),
+    ("BMW",    "X3",     "M Sport",            "package",      ["x3", "trimCodeList"],                       [],                          "BMW X3 M Sport — package, best-guess trimCodeList added"),
     # ── Audi ───────────────────────────────────────────────────────────────
     ("Audi",   "Q5",     "Prestige",           "real_trim",    ["q5", "trimCodeList=Prestige"],              [],                          "Audi Q5 Prestige"),
-    ("Audi",   "Q7",     "S line",             "package",      ["q7"],                                       ["trimCodeList"],             "Audi Q7 S line — package"),
+    ("Audi",   "Q7",     "S line",             "package",      ["q7", "trimCodeList"],                       [],                          "Audi Q7 S line — package, best-guess trimCodeList added"),
     ("Audi",   "Q5",     "Premium Plus",       "real_trim",    ["q5", "trimCodeList=Premium"],               [],                          "Audi Q5 Premium Plus"),
     # ── Porsche ────────────────────────────────────────────────────────────
     ("Porsche", "Cayenne", "S",                "path_segment", ["cayenne/s"],                                ["trimCodeList"],             "Porsche Cayenne S — path segment"),

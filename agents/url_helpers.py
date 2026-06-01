@@ -875,6 +875,14 @@ def at_url(make: str, model: str, condition: str,
            radius: int = 50, mileage: int = None, trim: str = "") -> str:
     """Build an AutoTrader search URL using makeCodeList+modelCodeList query params."""
     make = normalize_make(make)
+    # Strip powertrain prefixes AT doesn't recognize as trim names
+    _trim_prefixes = ("hybrid ", "plug-in hybrid ", "phev ", "electric ")
+    _trim_lower = (trim or "").lower().strip()
+    for _pfx in _trim_prefixes:
+        if _trim_lower.startswith(_pfx):
+            trim = trim[len(_pfx):].strip()
+            _trim_lower = trim.lower().strip()
+            break
     cond_seg   = "used-cars" if condition == "Used" else "new-cars" if condition == "New" else "all-cars"
     price_seg  = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg  = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""

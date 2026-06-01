@@ -363,6 +363,10 @@ AT_MODEL_SLUG_MAP = {
     "r1t": "r1t",         "r1s": "r1s",          "r2": "r2",
     # Lucid
     "air": "air",         "gravity": "gravity",
+    # Ford — AT uses no-hyphen slug for F-series trucks
+    "f-150": "f150",      "f 150": "f150",
+    "f-250": "f250",      "f 250": "f250",
+    "f-350": "f350",      "f 350": "f350",
 }
 
 # Cars.com model slug overrides
@@ -1064,7 +1068,7 @@ def at_url(make: str, model: str, condition: str,
         if city_slug:
             base = base.rstrip("/") + "/" + city_slug
         # AT drops model path for these slugs when trimCodeList is present — skip trim param
-        _AT_NO_TRIM_SLUGS = {"f-150", "f-250", "f-350", "silverado-1500", "silverado-2500hd", "silverado-3500hd"}
+        _AT_NO_TRIM_SLUGS = {"f150", "f250", "f350", "silverado-1500", "silverado-2500hd", "silverado-3500hd"}
         if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
             # real trims + packages (best-guess) — skip for models where AT breaks on trimCodeList

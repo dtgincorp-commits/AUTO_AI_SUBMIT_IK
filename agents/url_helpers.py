@@ -262,7 +262,7 @@ CG_ENTITY_IDS = {
     # Lucid
     "lucid air": 3161, "lucid gravity": 3447,
     # Maserati
-    "maserati ghibli": 2314, "maserati granturismo": 346,
+    "maserati ghibli": 2314, "maserati granturismo": 346, "maserati grancabrio": 3385,
     "maserati grecale": 3246, "maserati levante": 2416,
     "maserati mc20": 3101, "maserati quattroporte": 349,
     # Rivian

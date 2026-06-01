@@ -241,6 +241,36 @@ CG_ENTITY_IDS = {
     "volkswagen arteon": 2669, "vw arteon": 2669,
     "volkswagen golf": 198, "vw golf": 198,
     "volkswagen id.buzz": 3233, "vw id.buzz": 3233,
+    # Alfa Romeo
+    "alfa romeo giulia": 2508, "alfa romeo stelvio": 2583, "alfa romeo tonale": 3284,
+    # Aston Martin
+    "aston martin db11": 2597, "aston martin db12": 3391, "aston martin dbs": 2598,
+    "aston martin dbx": 2962, "aston martin vantage": 2596,
+    # Bentley
+    "bentley bentayga": 2530, "bentley continental gt": 118,
+    "bentley flying spur": 119, "bentley mulsanne": 120,
+    # Jaguar
+    "jaguar e-pace": 2638, "jaguar f-pace": 2392, "jaguar f-type": 2170,
+    "jaguar i-pace": 2700, "jaguar xe": 2351, "jaguar xf": 931, "jaguar xj": 935,
+    # Lamborghini
+    "lamborghini huracan": 2283, "lamborghini urus": 2694, "lamborghini revuelto": 3388,
+    # Land Rover
+    "land rover defender": 2945, "land rover discovery": 2007,
+    "land rover discovery sport": 2281, "land rover range rover": 266,
+    "land rover range rover evoque": 2067, "land rover range rover sport": 267,
+    "land rover range rover velar": 2607,
+    # Lucid
+    "lucid air": 3161, "lucid gravity": 3447,
+    # Maserati
+    "maserati ghibli": 2314, "maserati granturismo": 346,
+    "maserati grecale": 3246, "maserati levante": 2416,
+    "maserati mc20": 3101, "maserati quattroporte": 349,
+    # Rivian
+    "rivian r1s": 3138, "rivian r1t": 3073, "rivian r2": 3448,
+    # Rolls-Royce
+    "rolls-royce cullinan": 2757, "rolls-royce ghost": 351,
+    "rolls-royce phantom": 352, "rolls-royce spectre": 3362,
+    "rolls-royce wraith": 2174,
     # Volvo
     "volvo ec40": 3404,
     "volvo ex30": 3358, "volvo ex40": 3441, "volvo ex90": 3372,
@@ -299,6 +329,40 @@ AT_MODEL_SLUG_MAP = {
     "gv 80": "gv80",      "gv 70": "gv70",     "gv 60": "gv60",
     "gv 90": "gv90",      "g 70": "g70",        "g 80": "g80",
     "g 90": "g90",
+    # Land Rover — multi-word model names
+    "range rover": "range-rover",
+    "range rover sport": "range-rover-sport",
+    "range rover velar": "range-rover-velar",
+    "range rover evoque": "range-rover-evoque",
+    "new range rover": "range-rover",
+    "discovery sport": "discovery-sport",
+    # Jaguar
+    "f-pace": "f-pace",   "e-pace": "e-pace",   "i-pace": "i-pace",
+    "f-type": "f-type",   "f pace": "f-pace",   "e pace": "e-pace",
+    "i pace": "i-pace",   "f type": "f-type",
+    # Alfa Romeo
+    "giulia (952)": "giulia",
+    # Aston Martin
+    "aston martin": "aston-martin",
+    "db11": "db11",       "db12": "db12",        "dbs": "dbs",
+    "dbx": "dbx",         "vantage": "vantage",
+    # Rolls-Royce
+    "rolls-royce": "rolls-royce",
+    "ghost": "ghost",     "cullinan": "cullinan", "spectre": "spectre",
+    "phantom": "phantom", "wraith": "wraith",     "dawn": "dawn",
+    # Lamborghini
+    "urus": "urus",       "huracan": "huracan",   "huracán": "huracan",
+    "revuelto": "revuelto",
+    # Bentley
+    "bentayga": "bentayga", "continental gt": "continental-gt",
+    "flying spur": "flying-spur", "bentley bentayga": "bentayga",
+    # Maserati
+    "granturismo": "granturismo", "grancabrio": "grancabrio",
+    "quattroporte": "quattroporte",
+    # Rivian
+    "r1t": "r1t",         "r1s": "r1s",          "r2": "r2",
+    # Lucid
+    "air": "air",         "gravity": "gravity",
 }
 
 # Cars.com model slug overrides
@@ -565,6 +629,11 @@ AT_MAKE_CODE = {
     "mitsubishi": "MIT",    "nissan": "NISSA",       "porsche": "POR",
     "ram": "RAM",           "subaru": "SUB",         "tesla": "TESLA",
     "toyota": "TOYOT",      "volkswagen": "VOLKS",   "volvo": "VOLVO",
+    # Newly added
+    "alfa romeo": "ALFA",        "jaguar": "JAG",          "land rover": "LNDROVER",
+    "maserati": "MASERATI",      "lucid": "LUCID",         "rivian": "RIVIAN",
+    "bentley": "BENT",           "aston martin": "ASTON",  "lamborghini": "LAMB",
+    "rolls-royce": "ROLLSROYCE",
 }
 
 # AutoTrader internal model codes — explicit overrides where auto-derive fails
@@ -804,6 +873,8 @@ _AT_PATH_ROUTED_MAKES = {
     "ford", "chevrolet", "gmc", "ram", "jeep", "dodge", "buick", "cadillac", "lincoln",
     "bmw", "audi", "volkswagen", "porsche",
     "acura", "infiniti", "genesis",
+    "alfa romeo", "jaguar", "land rover", "maserati", "lucid", "rivian",
+    "bentley", "aston martin", "lamborghini", "rolls-royce",
 }
 
 # Subset of path-routed makes where make/model codes should be stripped from query params.

@@ -82,7 +82,7 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
             int_pts, int_reason = 2.5, "Color preference set but listing color unknown"
         breakdown["interior_color"] = {"points": int_pts, "max": 5, "reason": int_reason}
 
-        total = make_pts + model_pts + price_pts + mileage_pts + ext_pts + int_pts
+        total = model_pts + price_pts + mileage_pts + ext_pts + int_pts
         listing.match_score = round(total, 1)
         if market_context:
             breakdown["market_insight"] = {

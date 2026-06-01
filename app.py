@@ -153,6 +153,21 @@ div[data-testid="stForm"] { border: none !important; padding: 0 !important; }
 <div class="nl-heading">🚀 &nbsp;What car are you hunting for?</div>
 """, unsafe_allow_html=True)
 
+with st.expander("💡 Search tips — make, model, trim & powertrain", expanded=False):
+    st.markdown("""
+**Always include make + model.** Don't just say "BMW M Sport" — include the model: "BMW X5 M Sport".
+
+| What you want | What to type |
+|---|---|
+| Specific trim | "Honda CR-V **TrailSport**", "Ford F-150 **Lariat**", "Jeep Wrangler **Rubicon**" |
+| Option package | "BMW X5 **M Sport**", "Audi Q7 **S line**" — we try it, but the car site may show all trims for that model |
+| Hybrid + trim | "Toyota RAV4 **Hybrid XSE**", "Honda CR-V **Hybrid TrailSport**" — just say it naturally |
+| Lexus powertrain | "Lexus TX **500h**", "Lexus RX **500h**" — powertrain is part of the model on Lexus |
+| Porsche variant | "Porsche Cayenne **S**", "Porsche Macan **GTS**" — variant goes in the URL path |
+
+**The green/red AT URL check** under Your Search tells you instantly whether make, model, and trim made it into the link.
+""")
+
 with st.form("nl_form", clear_on_submit=False):
     _nl_col, _build_col, _btn_col = st.columns([4, 1.6, 1.6])
     with _nl_col:
@@ -554,51 +569,6 @@ if st.session_state.get("_search_builder"):
             del st.session_state["_search_builder"]
             st.rerun()
 
-        # ── AT URL static validation (auto-runs, no LLM needed) ────────────
-        # Words that are packages/trims, not model names — if NL parser puts these in model field it's a misparse
-        _PACKAGE_WORDS = {"m", "s", "sport", "line", "prestige", "premium", "luxury",
-                          "plus", "limited", "base", "elite", "select", "se", "le", "xle"}
-
-        def _validate_at_url(url: str, model: str, trim: str) -> tuple[bool, str]:
-            issues = []
-            warnings = []
-            path = url.split("?")[0].lower()
-            query = url.split("?")[1].lower() if "?" in url else ""
-            # Detect likely misparse — model looks like a package word, not a real model
-            if model and model.lower().strip() in _PACKAGE_WORDS:
-                warnings.append(f"⚠️ '{model}' looks like a trim/package, not a model — try including the full model name (e.g. 'BMW X5 M Sport')")
-            # Check model in path
-            if model and model.lower() not in ("any", ""):
-                slug = model.lower().strip().replace(" ", "-").replace("/", "-")
-                first_word = slug.split("-")[0]
-                if slug not in path and not (len(first_word) > 2 and first_word in path):
-                    issues.append(f"model '{model}' not in URL path")
-            # Check trim in query params (skip if trim was classified as package — intentionally absent)
-            if trim and trim.lower() not in ("any", ""):
-                trim_slug = trim.lower().replace(" ", "%20").replace(" ", "-")
-                trim_plain = trim.lower()
-                if "trimcodelist" not in query and trim_slug not in path and trim_plain not in path:
-                    # Don't flag as error — trim may be a package intentionally excluded
-                    warnings.append(f"ℹ️ trim '{trim}' not in URL — may be a package AT doesn't filter")
-            if issues:
-                return False, "❌ " + "; ".join(issues) + (" — " + " ".join(warnings) if warnings else "")
-            if warnings:
-                return False, " ".join(warnings)
-            parts = []
-            if model and model.lower() not in ("any", ""): parts.append("model ✓")
-            if trim and trim.lower() not in ("any", ""): parts.append("trim ✓")
-            return True, "✅ " + (", ".join(parts) or "URL looks correct")
-
-        _va_ok, _va_msg = _validate_at_url(_sb_at_url, _sb_model, _sb_trim or "")
-        _va_color  = "#166534" if _va_ok else "#7f1d1d"
-        _va_border = "#16a34a" if _va_ok else "#dc2626"
-        st.markdown(
-            f'<div style="background:{_va_color};border:1px solid {_va_border};border-radius:6px;'
-            f'padding:6px 10px;font-size:11px;color:#fff;margin-top:4px">'
-            f'<b>AT URL check:</b> {_va_msg}<br>'
-            f'<span style="color:#94a3b8;word-break:break-all">{_sb_at_url}</span></div>',
-            unsafe_allow_html=True,
-        )
 
     with _sb_right:
         st.markdown("**📌 Pin a car by VIN**")

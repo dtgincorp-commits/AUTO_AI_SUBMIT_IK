@@ -1067,12 +1067,10 @@ def at_url(make: str, model: str, condition: str,
                     f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
         if city_slug:
             base = base.rstrip("/") + "/" + city_slug
-        # AT drops model path for these slugs when trimCodeList is present — skip trim param
-        _AT_NO_TRIM_SLUGS = {"f150", "f250", "f350", "silverado-1500", "silverado-2500hd", "silverado-3500hd"}
         if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
-            # real trims + packages (best-guess) — skip for models where AT breaks on trimCodeList
-            if make_slug != "lexus" and path_slug not in _AT_NO_TRIM_SLUGS and _trim_type in ("real_trim", "package") and _trim_qp:
+            # real trims + packages (best-guess) — AT converts trimCodeList to path segment
+            if make_slug != "lexus" and _trim_type in ("real_trim", "package") and _trim_qp:
                 path_qp.append(_trim_qp)
         else:
             # Keep makeCodeList/modelCodeList; rebuild trimCodeList with modelCode|trim prefix

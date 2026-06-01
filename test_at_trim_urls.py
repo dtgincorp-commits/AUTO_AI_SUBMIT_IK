@@ -29,8 +29,8 @@ TESTS = [
     ("Lexus",  "RX",     "500h",               "real_trim",    ["rx-500h"],                                  [],                          "Lexus RX 500h — path slug"),
     ("Lexus",  "NX",     "350",                "real_trim",    ["nx-350"],                                   [],                          "Lexus NX 350 — path slug"),
     # ── Ford / GM ──────────────────────────────────────────────────────────
-    ("Ford",   "F-150",  "Lariat",             "real_trim",    ["f150"],                                     ["trimCodeList", "f-150"],   "F-150 Lariat — correct slug f150, no trimCodeList"),
-    ("Ford",   "F-150",  "Raptor",             "real_trim",    ["f150"],                                     ["trimCodeList", "f-150"],   "F-150 Raptor — correct slug f150, no trimCodeList"),
+    ("Ford",   "F-150",  "Lariat",             "real_trim",    ["f150", "trimCodeList=Lariat"],              ["f-150"],                   "F-150 Lariat — f150 slug + trimCodeList → AT path /f150/lariat/"),
+    ("Ford",   "F-150",  "Raptor",             "real_trim",    ["f150", "trimCodeList=Raptor"],              ["f-150"],                   "F-150 Raptor — f150 slug + trimCodeList → AT path /f150/raptor/"),
     ("Chevrolet", "Tahoe", "LT",               "real_trim",    ["tahoe", "trimCodeList=LT"],                 [],                          "Tahoe LT"),
     ("GMC",    "Sierra 1500", "Denali",        "real_trim",    ["sierra", "trimCodeList=Denali"],            [],                          "Sierra Denali"),
     # ── Jeep / Ram ─────────────────────────────────────────────────────────

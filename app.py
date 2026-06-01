@@ -554,6 +554,99 @@ if st.session_state.get("_search_builder"):
             del st.session_state["_search_builder"]
             st.rerun()
 
+        # ── AT URL Validation test buttons ──────────────────────────────────
+        st.markdown("**🧪 AT URL Validation (test only)**")
+        _va_col1, _va_col2, _va_col3 = st.columns(3)
+
+        def _at_url_has_model(url: str, model: str) -> tuple[bool, str]:
+            """Option A: check model slug is present in the URL path."""
+            if not model or model.lower() in ("any", ""):
+                return True, "No model set — nothing to check"
+            slug = model.lower().strip().replace(" ", "-").replace("/", "-")
+            # also check first word for multi-word models
+            first_word = slug.split("-")[0]
+            path = url.split("?")[0].lower()
+            if slug in path or (len(first_word) > 2 and first_word in path):
+                return True, f"✅ Model slug '{slug}' found in URL path"
+            return False, f"❌ Model slug '{slug}' NOT in URL path — model may be dropped"
+
+        if _va_col1.button("A: Static Check", key="va_static", use_container_width=True):
+            _ok, _msg = _at_url_has_model(_sb_at_url, _sb_model)
+            st.session_state["_va_result"] = ("A", _ok, _msg, _sb_at_url)
+
+        if _va_col2.button("B: HTTP Probe", key="va_http", use_container_width=True):
+            import urllib.request as _ur
+            _make_only_url = f"https://www.autotrader.com/cars-for-sale/all-cars/{_sb_make.lower().replace(' ','-')}/"
+            _headers = {"User-Agent": "Mozilla/5.0"}
+            def _count_results(u):
+                try:
+                    req = _ur.Request(u, headers=_headers)
+                    with _ur.urlopen(req, timeout=8) as r:
+                        body = r.read(8000).decode("utf-8", errors="ignore")
+                    import re
+                    m = re.search(r'"totalCount"\s*:\s*(\d+)', body)
+                    return int(m.group(1)) if m else -1
+                except Exception as e:
+                    return f"err:{e}"
+            with st.spinner("Probing AT (may take a few seconds)…"):
+                _n_model  = _count_results(_sb_at_url)
+                _n_make   = _count_results(_make_only_url)
+            if isinstance(_n_model, str) or isinstance(_n_make, str):
+                _msg = f"⚠️ Could not reach AT: {_n_model} / {_n_make}"
+                _ok = False
+            elif _n_model < 0 or _n_make < 0:
+                _msg = "⚠️ Result count not found in AT response"
+                _ok = False
+            elif _n_make > 0 and _n_model >= _n_make * 0.9:
+                _msg = (f"❌ Model URL returned {_n_model:,} results — same as make-only "
+                        f"({_n_make:,}). Model filter likely ignored.")
+                _ok = False
+            else:
+                _msg = f"✅ Model URL: {_n_model:,} results vs make-only: {_n_make:,} — model filter active"
+                _ok = True
+            st.session_state["_va_result"] = ("B", _ok, _msg, _sb_at_url)
+
+        if _va_col3.button("C: LLM Audit", key="va_llm", use_container_width=True):
+            from langchain_openai import ChatOpenAI as _CLLM
+            from langchain_core.prompts import ChatPromptTemplate as _CPT
+            from langchain_core.output_parsers import StrOutputParser as _SOP
+            from config import LLM_MODEL, OPENAI_API_KEY
+            import json as _json
+            _audit_prompt = _CPT.from_messages([
+                ("system", (
+                    "You are an AutoTrader URL validator. "
+                    "Given a URL and the car the user searched for, check if the URL correctly "
+                    "encodes the make AND model (both must appear — either in the URL path or as query params). "
+                    "Return ONLY JSON: {\"valid\": true/false, \"reason\": \"one sentence\"}"
+                )),
+                ("human", "Make: {make}\nModel: {model}\nTrim: {trim}\nURL: {url}"),
+            ])
+            with st.spinner("Asking LLM to audit URL…"):
+                try:
+                    _llm = _CLLM(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
+                    _chain = _audit_prompt | _llm | _SOP()
+                    _raw = _chain.invoke({"make": _sb_make, "model": _sb_model, "trim": _sb_trim or "", "url": _sb_at_url}).strip()
+                    if _raw.startswith("```"): _raw = _raw.split("\n",1)[1].rsplit("```",1)[0]
+                    _res = _json.loads(_raw)
+                    _ok = _res.get("valid", False)
+                    _reason = _res.get("reason", _raw)
+                    _msg = ("✅ " if _ok else "❌ ") + _reason
+                except Exception as _e:
+                    _ok, _msg = False, f"⚠️ LLM error: {_e}"
+            st.session_state["_va_result"] = ("C", _ok, _msg, _sb_at_url)
+
+        if "_va_result" in st.session_state:
+            _opt, _ok, _msg, _checked_url = st.session_state["_va_result"]
+            _color = "#166534" if _ok else "#7f1d1d"
+            _border = "#16a34a" if _ok else "#dc2626"
+            st.markdown(
+                f'<div style="background:{_color};border:1px solid {_border};border-radius:6px;'
+                f'padding:6px 10px;font-size:11px;color:#fff;margin-top:4px">'
+                f'<b>Option {_opt}:</b> {_msg}<br>'
+                f'<span style="color:#94a3b8;word-break:break-all">{_checked_url}</span></div>',
+                unsafe_allow_html=True,
+            )
+
     with _sb_right:
         st.markdown("**📌 Pin a car by VIN**")
         st.caption("Paste a VIN from AutoTrader, Cars.com, or anywhere else")

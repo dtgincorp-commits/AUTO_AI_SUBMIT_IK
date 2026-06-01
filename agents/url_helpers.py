@@ -859,6 +859,66 @@ _AT_ZIP_CITY: dict = {
 }
 
 
+# ── Trim classifier ─────────────────────────────────────────────────────────
+_trim_cache: dict = {}
+
+def classify_trim(make: str, model: str, trim: str) -> tuple[str, str]:
+    """
+    Classify a trim string for AT URL building.
+    Returns (type, at_name) where type is one of:
+      'real_trim'    — add as trimCodeList query param
+      'package'      — option package AT won't filter; skip from URL
+      'path_segment' — AT uses /make/model/trim/city path (e.g. Porsche S, GTS)
+    Falls back to ('real_trim', trim) on any error.
+    """
+    if not trim or trim.lower() in ("any", ""):
+        return "real_trim", trim
+    key = (make.lower(), model.lower(), trim.lower())
+    if key in _trim_cache:
+        return _trim_cache[key]
+    try:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.output_parsers import StrOutputParser
+        from config import LLM_MODEL, OPENAI_API_KEY
+        import json as _json
+        _prompt = ChatPromptTemplate.from_messages([
+            ("system", (
+                "You are an automotive expert. Classify the trim/package for a car model as it relates to AutoTrader URLs.\n"
+                "Return ONLY JSON with two fields:\n"
+                "  type: 'real_trim' (official trim level AT filters by, e.g. Prestige, TrailSport, Lariat, Rubicon, Limited, Sport, XSE, Platinum),\n"
+                "        'package' (option package AT does NOT filter by URL, e.g. M Sport, S line, Tech Package, Premium Package, Night Edition),\n"
+                "        'path_segment' (Porsche variants AT encodes as a URL path segment, e.g. S, GTS, Turbo, Turbo S, 4S)\n"
+                "  at_name: exact spelling AT uses (lowercase for path_segment, original case for others)\n"
+                "Examples:\n"
+                "BMW X5 'M Sport' → {{\"type\":\"package\",\"at_name\":\"M Sport\"}}\n"
+                "Audi Q7 'S line' → {{\"type\":\"package\",\"at_name\":\"S line\"}}\n"
+                "Audi Q5 'Prestige' → {{\"type\":\"real_trim\",\"at_name\":\"Prestige\"}}\n"
+                "Honda CR-V 'TrailSport' → {{\"type\":\"real_trim\",\"at_name\":\"TrailSport\"}}\n"
+                "Toyota RAV4 'XSE' → {{\"type\":\"real_trim\",\"at_name\":\"XSE\"}}\n"
+                "Ford F-150 'Lariat' → {{\"type\":\"real_trim\",\"at_name\":\"Lariat\"}}\n"
+                "Jeep Wrangler 'Rubicon' → {{\"type\":\"real_trim\",\"at_name\":\"Rubicon\"}}\n"
+                "Porsche Cayenne 'S' → {{\"type\":\"path_segment\",\"at_name\":\"s\"}}\n"
+                "Porsche Macan 'GTS' → {{\"type\":\"path_segment\",\"at_name\":\"gts\"}}\n"
+                "Porsche 911 'Carrera S' → {{\"type\":\"path_segment\",\"at_name\":\"carrera-s\"}}\n"
+                "Genesis GV80 'Prestige' → {{\"type\":\"real_trim\",\"at_name\":\"Prestige\"}}\n"
+                "Cadillac Escalade 'Premium Luxury' → {{\"type\":\"real_trim\",\"at_name\":\"Premium Luxury\"}}\n"
+            )),
+            ("human", "Make: {make}\nModel: {model}\nTrim: {trim}"),
+        ])
+        _llm   = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
+        _chain = _prompt | _llm | StrOutputParser()
+        _raw   = _chain.invoke({"make": make, "model": model, "trim": trim}).strip()
+        if _raw.startswith("```"):
+            _raw = _raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        _res   = _json.loads(_raw.strip())
+        result = (_res.get("type", "real_trim"), _res.get("at_name", trim))
+    except Exception:
+        result = ("real_trim", trim)
+    _trim_cache[key] = result
+    return result
+
+
 def _at_model_code(model: str) -> str:
     """Return AutoTrader modelCodeList value, or '' if not in our known table."""
     m = model.lower().strip()
@@ -875,14 +935,18 @@ def at_url(make: str, model: str, condition: str,
            radius: int = 50, mileage: int = None, trim: str = "") -> str:
     """Build an AutoTrader search URL using makeCodeList+modelCodeList query params."""
     make = normalize_make(make)
-    # Strip powertrain prefixes AT doesn't recognize as trim names
+    # Strip powertrain prefixes AT doesn't use in trim names
     _trim_prefixes = ("hybrid ", "plug-in hybrid ", "phev ", "electric ")
     _trim_lower = (trim or "").lower().strip()
     for _pfx in _trim_prefixes:
         if _trim_lower.startswith(_pfx):
             trim = trim[len(_pfx):].strip()
-            _trim_lower = trim.lower().strip()
             break
+
+    # Classify trim via LLM (cached) — determines URL encoding strategy
+    _trim_has  = bool(trim and trim.lower() not in ("any", ""))
+    _trim_type, _trim_at = classify_trim(make, model, trim) if _trim_has else ("none", "")
+
     cond_seg   = "used-cars" if condition == "Used" else "new-cars" if condition == "New" else "all-cars"
     price_seg  = f"cars-under-{price_max}/" if price_max and price_max < 999000 else ""
     color_seg  = (ext_color.lower().replace(" ", "-") + "/") if ext_color and ext_color.lower() not in ("any", "other", "") else ""
@@ -893,11 +957,12 @@ def at_url(make: str, model: str, condition: str,
     if radius < 500:   qp.append(f"searchRadius={radius}")
     if make_code:      qp.append(f"makeCodeList={make_code}")
     if model_code:     qp.append(f"modelCodeList={model_code}")
-    if trim and trim.lower() not in ("any", "") and model_code:
-        qp.append(f"trimCodeList={_url_quote(model_code + '|' + trim, safe='')}")
-    # Plain trim param for path-routed non-Lexus makes (model is in path, not in trimCodeList prefix)
-    _trim_qp = (f"trimCodeList={_url_quote(trim, safe='')}"
-                if trim and trim.lower() not in ("any", "") else None)
+    # trimCodeList for non-path-routed makes: only real trims, with modelCode prefix
+    if _trim_type == "real_trim" and _trim_at and model_code:
+        qp.append(f"trimCodeList={_url_quote(model_code + '|' + _trim_at, safe='')}")
+    # plain trimCodeList for path-routed makes (model already in path)
+    _trim_qp = (f"trimCodeList={_url_quote(_trim_at, safe='')}"
+                if _trim_type == "real_trim" and _trim_at else None)
     if price_min:      qp.append(f"startPrice={price_min}")
     if price_max and price_max < 999000: qp.append(f"endPrice={price_max}")
     if mileage:        qp.append(f"maxMileage={mileage}")
@@ -911,24 +976,24 @@ def at_url(make: str, model: str, condition: str,
         else _AT_PATH_ROUTED_MODELS.get(make_slug, {}).get(m_lower)
     )
     if make_slug in _AT_PATH_ROUTED_MAKES or _model_path_slug:
-        path_slug  = _model_path_slug or m_lower.replace(" ", "-")
-        # Lexus only: append powertrain/trim to path slug (e.g. tx + 500h → tx-500h)
-        # Other makes: AT doesn't support trim in path (rav4-prime → stripped to all Toyotas)
-        if make_slug == "lexus" and trim and trim.lower() not in ("any", ""):
-            trim_slug = trim.lower().replace(" ", "-").replace("/", "-")
-            path_slug = f"{path_slug}-{trim_slug}"
-        city_slug  = _AT_ZIP_CITY.get(zip_code, "")
-        base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
-                f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
+        path_slug = _model_path_slug or m_lower.replace(" ", "-")
+        # Lexus: append trim to model slug (tx-500h)
+        if make_slug == "lexus" and _trim_has and _trim_type != "package":
+            path_slug = f"{path_slug}-{trim.lower().replace(' ', '-').replace('/', '-')}"
+        city_slug = _AT_ZIP_CITY.get(zip_code, "")
+        # Porsche-style: trim is a separate path segment /make/model/trim/city
+        if _trim_type == "path_segment" and _trim_at:
+            base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
+                    f"{price_seg}{color_seg}{make_slug}/{path_slug}/{_trim_at}/")
+        else:
+            base = (f"https://www.autotrader.com/cars-for-sale/{cond_seg}/"
+                    f"{price_seg}{color_seg}{make_slug}/{path_slug}/")
         if city_slug:
             base = base.rstrip("/") + "/" + city_slug
-        # For make-level routing (e.g. Volvo), strip make/model codes — they're in the path.
-        # For model-level routing (e.g. Sierra 2500), keep makeCodeList/modelCodeList so
-        # tests that assert those params still pass; AT ignores them when path is present.
         if make_slug in _AT_PATH_ROUTED_STRIP_CODES:
             path_qp = [p for p in qp if not p.startswith(("makeCodeList=", "modelCodeList=", "trimCodeList="))]
-            # For non-Lexus path-routed makes, encode trim as plain trimCodeList query param
-            if make_slug != "lexus" and _trim_qp:
+            # real trims only — packages are intentionally excluded
+            if make_slug != "lexus" and _trim_type == "real_trim" and _trim_qp:
                 path_qp.append(_trim_qp)
         else:
             path_qp = [p for p in qp if not p.startswith("trimCodeList=")]

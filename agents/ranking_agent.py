@@ -15,13 +15,21 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
     for listing in listings:
         breakdown = {}
 
-        # Model match (50 points) — inferred from listing title
+        # Model + trim match (50 points) — inferred from listing title
         l_title = (listing.title or "").lower().strip()
         p_model = (prefs.model or "").lower().strip()
+        p_trim  = (prefs.trim  or "").lower().strip()
+        _trim_has = p_trim and p_trim not in ("any", "")
+
         if not p_model or p_model == "any":
             model_pts, model_reason = 50.0, "No model preference — full marks"
         elif p_model in l_title:
-            model_pts, model_reason = 50.0, f"Model '{prefs.model}' found in title"
+            if _trim_has and p_trim in l_title:
+                model_pts, model_reason = 50.0, f"Model '{prefs.model}' + trim '{prefs.trim}' found in title"
+            elif _trim_has:
+                model_pts, model_reason = 35.0, f"Model '{prefs.model}' found but trim '{prefs.trim}' not in title"
+            else:
+                model_pts, model_reason = 50.0, f"Model '{prefs.model}' found in title"
         elif any(w in l_title for w in p_model.split() if len(w) > 2):
             model_pts, model_reason = 25.0, f"Model partially matched in title '{listing.title}'"
         else:

@@ -17,12 +17,44 @@ headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
 
 CHECKS = [
     # (make, model, zip, min_expected_results, description)
-    ("Honda",   "CR-V",     "92782", 100, "Honda CR-V near 92782"),
-    ("Toyota",  "RAV4",     "92782", 100, "Toyota RAV4 near 92782"),
-    ("BMW",     "X5",       "92782", 100, "BMW X5 near 92782"),
-    ("Ford",    "F-150",    "92782",  50, "Ford F-150 near 92782"),
-    ("Jeep",    "Wrangler", "92782",  50, "Jeep Wrangler near 92782"),
-    ("Lexus",   "TX",       "92782",   1, "Lexus TX near 92782 (low inventory ok)"),
+    # High-volume — must have plenty of results
+    ("Honda",         "CR-V",            "92782", 100, "Honda CR-V"),
+    ("Toyota",        "RAV4",            "92782", 100, "Toyota RAV4"),
+    ("Ford",          "F-150",           "92782",  50, "Ford F-150"),
+    ("Chevrolet",     "Silverado 1500",  "92782",  50, "Chevrolet Silverado 1500"),
+    ("Jeep",          "Wrangler",        "92782",  50, "Jeep Wrangler"),
+    ("Ram",           "1500",            "92782",  50, "Ram 1500"),
+    ("Hyundai",       "Tucson",          "92782",  50, "Hyundai Tucson"),
+    ("Kia",           "Telluride",       "92782",  20, "Kia Telluride"),
+    ("Nissan",        "Altima",          "92782",  50, "Nissan Altima"),
+    ("Subaru",        "Outback",         "92782",  50, "Subaru Outback"),
+    # Mid-volume
+    ("BMW",           "X5",              "92782",  50, "BMW X5"),
+    ("Mercedes-Benz", "GLE",             "92782",  20, "Mercedes-Benz GLE"),
+    ("Audi",          "Q5",              "92782",  20, "Audi Q5"),
+    ("Volkswagen",    "Atlas",           "92782",  20, "Volkswagen Atlas"),
+    ("Volvo",         "XC90",            "92782",  10, "Volvo XC90"),
+    ("Acura",         "MDX",             "92782",  20, "Acura MDX"),
+    ("Infiniti",      "QX60",            "92782",  10, "Infiniti QX60"),
+    ("Cadillac",      "Escalade",        "92782",  10, "Cadillac Escalade"),
+    ("Lincoln",       "Navigator",       "92782",   5, "Lincoln Navigator"),
+    ("Buick",         "Enclave",         "92782",  10, "Buick Enclave"),
+    ("GMC",           "Yukon",           "92782",  10, "GMC Yukon"),
+    ("Mazda",         "CX-5",            "92782",  20, "Mazda CX-5"),
+    ("Genesis",       "GV80",            "92782",   5, "Genesis GV80"),
+    ("Tesla",         "Model Y",         "92782",  20, "Tesla Model Y"),
+    # Lower volume — at least 1
+    ("Lexus",         "TX",              "92782",   1, "Lexus TX"),
+    ("Porsche",       "Cayenne",         "92782",   5, "Porsche Cayenne"),
+    ("Land Rover",    "Range Rover",     "92782",   5, "Land Rover Range Rover"),
+    ("Jaguar",        "F-PACE",          "92782",   1, "Jaguar F-PACE"),
+    ("Alfa Romeo",    "Stelvio",         "92782",   1, "Alfa Romeo Stelvio"),
+    ("Maserati",      "Levante",         "92782",   1, "Maserati Levante"),
+    ("Bentley",       "Bentayga",        "92782",   1, "Bentley Bentayga"),
+    ("Rolls-Royce",   "Cullinan",        "92782",   1, "Rolls-Royce Cullinan"),
+    ("Lamborghini",   "Urus",            "92782",   1, "Lamborghini Urus"),
+    ("Rivian",        "R1S",             "92782",   1, "Rivian R1S"),
+    ("Lucid",         "Air",             "92782",   1, "Lucid Air"),
 ]
 
 results = []

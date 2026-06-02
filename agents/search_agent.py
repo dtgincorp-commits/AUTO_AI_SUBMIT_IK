@@ -227,8 +227,9 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
         "sort_by": "price",
         "sort_order": "asc",
     }
-    if trim and trim.lower() != "any":
-        params["trim"] = trim
+    # Trim intentionally not passed to Marketcheck — providers use different trim naming
+    # (e.g. Lexus TX "500h" is listed as "350 Luxury AWD" by dealers).
+    # Ranking agent scores trim match from listing title instead.
     if max_mileage and condition != "New":
         params["mileage_max"] = max_mileage
     if exterior_color and exterior_color.lower() != "any":
@@ -689,8 +690,7 @@ def _search_autodev(
     }
     if zip_code:
         base_params["zip"] = zip_code
-    if prefs.trim and prefs.trim.lower() not in ("", "any"):
-        base_params["vehicle.trim"] = prefs.trim
+    # Trim not passed — providers use different naming than user input; ranking agent handles it.
 
     listings = []
     for page in range(1, 6):   # up to 5 pages = 500 results

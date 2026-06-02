@@ -227,8 +227,7 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
         "sort_by": "price",
         "sort_order": "asc",
     }
-    if trim and trim.lower() != "any":
-        params["trim"] = trim
+    # trim not passed — auto.dev returns 400, Marketcheck is unreliable; ranking agent scores by title
     if max_mileage and condition != "New":
         params["mileage_max"] = max_mileage
     if exterior_color and exterior_color.lower() != "any":
@@ -689,8 +688,7 @@ def _search_autodev(
     }
     if zip_code:
         base_params["zip"] = zip_code
-    if prefs.trim and prefs.trim.lower() not in ("", "any"):
-        base_params["vehicle.trim"] = prefs.trim
+    # trim not passed — auto.dev returns 400 on vehicle.trim; ranking agent scores by title
 
     listings = []
     for page in range(1, 6):   # up to 5 pages = 500 results

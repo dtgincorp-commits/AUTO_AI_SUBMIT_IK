@@ -1192,6 +1192,33 @@ def run_search_agent(
             source_errors[src_name] = f"OK ({kept} usable; {raw - kept} filtered)"
 
     if not unique:
+        # Auto-retry with wider radius before giving up (100mi → 200mi)
+        for _wider in [100, 200]:
+            if _wider <= prefs.radius_miles:
+                continue
+            _wider_prefs = prefs.model_copy(update={"radius_miles": _wider})
+            _w_zip, _w_lat, _w_lon = _resolve_location(_wider_prefs.location)
+            _w_coords = (_w_lat, _w_lon) if _w_lat and _w_lon else None
+            _w_listings: list = []
+            if AUTODEV_API_KEY:
+                try:
+                    _w_listings += _search_autodev(_wider_prefs, _w_zip, _w_coords)
+                except Exception:
+                    pass
+            if MARKETCHECK_API_KEY:
+                try:
+                    _w_listings += _search_marketcheck(_wider_prefs, _w_zip)
+                except Exception:
+                    pass
+            _w_unique = list({l.vin or l.url: l for l in _w_listings if l.vin or l.url}.values())
+            if prefs.condition == "New":
+                _w_unique = [l for l in _w_unique if l.source != "Craigslist"]
+                _w_unique = [l for l in _w_unique if l.mileage <= 500]
+            if _w_unique:
+                return _w_unique, (
+                    f"No results within {prefs.radius_miles} mi — widened to {_wider} mi and found {len(_w_unique)} listing(s)."
+                ), source_errors
+
         return [], (
             "No listings matched your filters. "
             "Try widening your price range, increasing the radius, or changing the condition."

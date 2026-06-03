@@ -682,10 +682,13 @@ def _search_autodev(
     base_params: dict = {
         "vehicle.make": make,
         "vehicle.model": model,
-        "retailListing.price": f"{prefs.price_min}-{prefs.price_max}",
         "distance": min(prefs.radius_miles, 200),
         "limit": 100,
     }
+    # Only pass price range if user explicitly set one — listings with "accepting_offers"
+    # price get excluded by auto.dev's price filter even when no budget was specified
+    if prefs.price_max and prefs.price_max < 999000:
+        base_params["retailListing.price"] = f"{prefs.price_min}-{prefs.price_max}"
     if zip_code:
         base_params["zip"] = zip_code
     # trim not passed — auto.dev returns 400 on vehicle.trim; ranking agent scores by title

@@ -220,13 +220,15 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
         "api_key": MARKETCHECK_API_KEY,
         "make": make,
         "model": model,
-        "price_min": price_min,
-        "price_max": price_max,
         "radius": min(radius, 200),
         "rows": 100,
         "sort_by": "price",
         "sort_order": "asc",
     }
+    # Only pass price when user explicitly set a budget — listings with no price get excluded otherwise
+    if price_max and price_max < 999000:
+        params["price_min"] = price_min
+        params["price_max"] = price_max
     # trim not passed — auto.dev returns 400, Marketcheck is unreliable; ranking agent scores by title
     if max_mileage and condition != "New":
         params["mileage_max"] = max_mileage

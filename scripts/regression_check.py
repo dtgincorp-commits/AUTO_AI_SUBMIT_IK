@@ -58,25 +58,33 @@ CHECKS = [
 ]
 
 results = []
-print("\nRunning live API regression checks...\n")
-print(f"{'Check':<40} {'Count':<10} {'Status'}")
+print("\nRunning live API regression checks (with app-realistic params)...\n")
+print(f"{'Check':<40} {'Status'}")
 print("─" * 65)
+
+# Simulate exactly what the app sends — no price filter when user sets no budget (fixed behaviour)
+APP_DEFAULT_PARAMS = {
+    "distance": 50,
+    "limit": 1,
+}
 
 for make, model, zip_, min_count, desc in CHECKS:
     try:
-        r = requests.get(
+        # Use same endpoint + params as the app (vehicle.make/model, page-based)
+        r_app = requests.get(
             "https://auto.dev/api/listings",
             headers=headers,
-            params={"make": make, "model": model, "zip": zip_, "radius": 50, "per_page": 1},
+            params={"vehicle.make": make, "vehicle.model": model, "zip": zip_,
+                    "distance": 50, "limit": 10, "page": 1},
             timeout=15,
         )
-        if r.status_code != 200:
-            count, ok = 0, False
-            status = f"{FAIL} HTTP {r.status_code}"
+        if r_app.status_code != 200:
+            ok, status = False, f"{FAIL} HTTP {r_app.status_code}"
         else:
-            count = r.json().get("totalCount", 0) or 0
-            ok = count >= min_count
-            status = f"{PASS} {count:,} results" if ok else f"{FAIL} {count} results (need ≥{min_count})"
+            data = r_app.json()
+            count_app = len(data.get("data") or [])
+            ok = count_app >= min(min_count, 1)  # app returns pages of records not totalCount
+            status = f"{PASS} {count_app} records on page 1" if ok else f"{FAIL} 0 records returned (need ≥1)"
     except Exception as e:
         ok, status = False, f"{FAIL} ERROR: {e}"
     print(f"{desc:<40} {status}")

@@ -1212,7 +1212,7 @@ def run_search_agent(
                     _w_listings += _search_marketcheck(_wider_prefs, _w_zip)
                 except Exception:
                     pass
-            _w_unique = list({l.vin or l.url: l for l in _w_listings if l.vin or l.url}.values())
+            _w_unique = list({l.vin or l.listing_url: l for l in _w_listings if l.vin or l.listing_url}.values())
             if prefs.condition == "New":
                 _w_unique = [l for l in _w_unique if l.source != "Craigslist"]
                 _w_unique = [l for l in _w_unique if l.mileage <= 500]

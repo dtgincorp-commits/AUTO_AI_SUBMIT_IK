@@ -696,8 +696,20 @@ def _search_autodev(
         base_params["zip"] = zip_code
     # trim not passed — auto.dev returns 400 on vehicle.trim; ranking agent scores by title
 
+    # Smart pagination: always fetch 5 pages (500 listings), then keep going if
+    # fewer than 5 listings match the requested trim in their title.
+    # Caps at 10 pages (1000 listings) to limit cost.
+    _trim_kw   = (prefs.trim or "").lower().strip()
+    _trim_has  = bool(_trim_kw and _trim_kw not in ("any", ""))
+    _TRIM_MIN  = 5    # keep pulling pages until we have at least this many trim matches
+    _MAX_PAGES = 10   # hard cap to control cost
+
     listings = []
-    for page in range(1, 6):   # up to 5 pages = 500 results
+    _trim_match_count = 0
+    for page in range(1, _MAX_PAGES + 1):
+        # After page 5, only continue if trim specified and we have fewer than 5 matches
+        if page > 5 and (not _trim_has or _trim_match_count >= _TRIM_MIN):
+            break
         params = {**base_params, "page": page}
         for _attempt in range(2):   # retry once on timeout
             try:
@@ -765,7 +777,7 @@ def _search_autodev(
                     title_parts.append(trim)
                 title = " ".join(filter(None, title_parts))
 
-                listings.append(CarListing(
+                listing = CarListing(
                     title=title,
                     price=price,
                     asking_price=price,
@@ -780,7 +792,10 @@ def _search_autodev(
                     vin=vin or None,
                     stock_number=stock_no or None,
                     distance_miles=dist_miles,
-                ))
+                )
+                listings.append(listing)
+                if _trim_has and _trim_kw in title.lower():
+                    _trim_match_count += 1
             except Exception:
                 continue
 

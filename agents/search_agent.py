@@ -260,6 +260,7 @@ except Exception:
 
 def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     make, model = _normalize_make_model(prefs.make, prefs.model)
+    model = _normalize_model_for_autodev(make, model)  # same MB normalization: GLE 450 → GLE
     data = _fetch_marketcheck_cached(
         make, model,
         prefs.price_min, prefs.price_max,

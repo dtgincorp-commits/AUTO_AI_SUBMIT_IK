@@ -872,7 +872,7 @@ _AT_MB_TRIM_CODE = {
 # Unlike Volvo, we keep makeCodeList/modelCodeList in query params for Mercedes so that
 # test assertions checking for code substrings still pass.
 _AT_PATH_ROUTED_MAKES = {
-    "volvo", "mercedes-benz", "lexus",
+    "volvo", "lexus",  # mercedes-benz removed — uses MB model codes, path slugs cause AT redirect issues
     "toyota", "honda", "hyundai", "kia", "nissan", "subaru", "mazda", "mitsubishi",
     "ford", "chevrolet", "gmc", "ram", "jeep", "dodge", "buick", "cadillac", "lincoln",
     "bmw", "audi", "volkswagen", "porsche",

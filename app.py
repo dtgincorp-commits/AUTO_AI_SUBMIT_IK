@@ -524,7 +524,12 @@ if st.session_state.get("_search_builder"):
     _sb_pill += f" &nbsp;·&nbsp; {_sb_condition}"
     if _sb_location:  _sb_pill += f" &nbsp;·&nbsp; near {_sb_location}"
     if _sb_radius != 50: _sb_pill += f" &nbsp;·&nbsp; {_sb_radius} mi radius"
-    if _sb_price_max < 999000: _sb_pill += f" &nbsp;·&nbsp; up to ${_sb_price_max:,}"
+    if _sb_price_min and _sb_price_min > 0 and _sb_price_max < 999000:
+        _sb_pill += f" &nbsp;·&nbsp; ${_sb_price_min:,}–${_sb_price_max:,}"
+    elif _sb_price_max < 999000:
+        _sb_pill += f" &nbsp;·&nbsp; up to ${_sb_price_max:,}"
+    elif _sb_price_min and _sb_price_min > 0:
+        _sb_pill += f" &nbsp;·&nbsp; from ${_sb_price_min:,}"
     if _sb_mileage and _sb_mileage < 500000: _sb_pill += f" &nbsp;·&nbsp; max {_sb_mileage:,} mi"
     if _sb_color and _sb_color.lower() not in ("any", "other", ""):
         _sb_pill += f" &nbsp;·&nbsp; {_sb_color} ext"
@@ -1138,7 +1143,13 @@ if _last_result:
         }
         sort_col, _ = st.columns([2, 3])
         with sort_col:
-            st.markdown("**Sort results:**")
+            st.markdown(
+                '<div style="background:linear-gradient(90deg,#1e3a5f,#1a2e4a);'
+                'border:1px solid #3b82f6;border-radius:10px;padding:8px 14px;margin-bottom:4px">'
+                '<span style="color:#93c5fd;font-size:12px;font-weight:700;letter-spacing:0.5px">'
+                '⇅ &nbsp;SORT RESULTS</span></div>',
+                unsafe_allow_html=True,
+            )
             sort_choice = st.selectbox(
                 "Sort results", list(_SORT_OPTIONS.keys()),
                 key="results_sort",

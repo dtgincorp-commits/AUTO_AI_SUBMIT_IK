@@ -52,6 +52,49 @@ def _build_prompt() -> ChatPromptTemplate:
     ])
 
 
+_JUDGE_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are an automotive search expert. A first AI model tried to parse a car search query "
+        "but the extracted make/model could not be validated. "
+        "Correct the make and model based on your automotive knowledge. "
+        "Return ONLY valid JSON with keys: make (str), model (str), trim (str or omit if unclear). "
+        "Examples: "
+        "'BMW M Sport' likely means make='BMW', model='X5' or another BMW — pick the most common model for M Sport. "
+        "'Mercedes AMG' → make='Mercedes-Benz', model='GLE 53'. "
+        "If you truly cannot determine the model, return the original values unchanged. "
+        "No markdown, no explanation — raw JSON only."
+    )),
+    ("human", (
+        "Original query: {query}\n"
+        "First LLM extracted: make={make}, model={model}, trim={trim}\n"
+        "NHTSA could not validate this make+model. Please correct it."
+    )),
+])
+
+
+def _judge_parse(query: str, parsed: dict) -> dict:
+    """LLM #2 — fires only when NHTSA cannot validate the parsed make+model."""
+    try:
+        llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
+        chain = _JUDGE_PROMPT | llm | StrOutputParser()
+        raw = chain.invoke({
+            "query": query,
+            "make":  parsed.get("make", ""),
+            "model": parsed.get("model", ""),
+            "trim":  parsed.get("trim", ""),
+        }).strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        corrected = json.loads(raw.strip())
+        # Merge corrections back — only override make/model/trim
+        for key in ("make", "model", "trim"):
+            if corrected.get(key):
+                parsed[key] = corrected[key]
+    except Exception:
+        pass
+    return parsed
+
+
 def parse_query(query: str) -> tuple[dict, str]:
     """Returns (parsed_dict, error_message). On success error_message is empty."""
     llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
@@ -62,11 +105,18 @@ def parse_query(query: str) -> tuple[dict, str]:
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         parsed = json.loads(raw.strip())
-        # Canonicalize make+model against NHTSA — fixes edge cases like RS Q8, Urus, etc.
+
+        # Canonicalize make+model against NHTSA
         if parsed.get("make") and parsed.get("model"):
             try:
-                from agents.nhtsa import canonicalize_model
-                parsed["model"] = canonicalize_model(parsed["make"], parsed["model"])
+                from agents.nhtsa import canonicalize_model, model_exists
+                canonical = canonicalize_model(parsed["make"], parsed["model"])
+                parsed["model"] = canonical
+                # If NHTSA still can't validate → fire LLM #2 judge
+                if not model_exists(parsed["make"], canonical):
+                    parsed = _judge_parse(query, parsed)
+                    # Re-canonicalize after judge correction
+                    parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
             except Exception:
                 pass
         return parsed, ""

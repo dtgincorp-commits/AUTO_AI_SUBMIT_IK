@@ -51,7 +51,11 @@ def run_ranking_agent(prefs: CarPreferences, listings: list[CarListing]) -> list
         # Scraped sources (Craigslist, CarGurus, eBay) return mileage=0 when unknown,
         # not when the car actually has 0 miles. Treat 0 as unknown → half credit.
         _SCRAPED = {"CarGurus", "Craigslist", "eBay Motors"}
-        mileage_unknown = listing.mileage == 0 and listing.source in _SCRAPED
+        # API sources can also report 0 miles on a Used search when the dealer feed omits
+        # mileage — treat that as unknown too, not as a genuinely 0-mile car
+        mileage_unknown = listing.mileage == 0 and (
+            listing.source in _SCRAPED or prefs.condition == "Used"
+        )
         if mileage_unknown:
             mileage_pts = 7.5
             reason = "Mileage not reported by this source — partial credit"

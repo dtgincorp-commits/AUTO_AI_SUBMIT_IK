@@ -294,8 +294,8 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
 
         effective_price = price if price > 0 else (msrp_raw or int((prefs.price_min + prefs.price_max) / 2))
 
-        if prefs.condition == "Used" and miles == 0:
-            continue
+        # miles == 0 on a Used search means the dealer didn't report mileage, not a 0-mile
+        # car — keep the listing; ranking agent treats it as unknown (half credit)
 
         display_source = "Marketcheck"
         heading = item.get("heading") or ""
@@ -738,8 +738,11 @@ def _search_autodev(
                 trim   = vehicle.get("trim") or ""
 
                 price = int(float(retail.get("price") or 0))
-                if price <= 0 or not (prefs.price_min <= price <= prefs.price_max):
+                if price > 0 and not (prefs.price_min <= price <= prefs.price_max):
                     continue
+                # price 0 = "accepting offers" / unpublished — keep the listing rather than
+                # drop it (same effective-price pattern as Marketcheck; UI shows asking_price 0 as N/A)
+                effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
 
                 mileage = int(float(retail.get("miles") or 0))
                 if prefs.max_mileage and mileage > 0 and mileage > prefs.max_mileage:
@@ -779,7 +782,7 @@ def _search_autodev(
 
                 listing = CarListing(
                     title=title,
-                    price=price,
+                    price=effective_price,
                     asking_price=price,
                     mileage=mileage,
                     year=year,

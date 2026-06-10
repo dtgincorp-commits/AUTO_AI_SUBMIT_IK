@@ -221,7 +221,9 @@ def _fetch_marketcheck_raw(make, model, price_min, price_max, radius, condition,
         "make": make,
         "model": model,
         "radius": min(radius, 200),
-        "rows": 100,
+        # Plan caps rows at 50; values above the cap are silently ignored and the
+        # API reverts to its default of 10 (confirmed live 2026-06-10)
+        "rows": 50,
         "sort_by": "price",
         "sort_order": "asc",
     }

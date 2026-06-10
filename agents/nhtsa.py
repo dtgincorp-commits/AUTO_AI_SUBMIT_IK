@@ -7,6 +7,7 @@ No API key required.
 """
 import json
 import os
+import re
 import time
 import requests
 from typing import Dict, List, Optional
@@ -92,11 +93,22 @@ def canonicalize_model(make: str, model: str) -> str:
     """
     models = get_models_for_make(make)
     model_lower = model.lower().strip()
+    # Collapse internal whitespace so "rs3" matches NHTSA's "RS 3"
+    model_compact = re.sub(r'\s+', '', model_lower)
     for m in models:
         if m.lower() == model_lower:
             return m   # return exact NHTSA casing
-    # Partial match: model string is contained in an NHTSA name or vice versa
-    candidates = [m for m in models if model_lower in m.lower() or m.lower() in model_lower]
+        if re.sub(r'\s+', '', m.lower()) == model_compact:
+            return m   # match after whitespace normalization (e.g. "RS3" → "RS 3")
+    # Partial match: query is contained in an NHTSA name (forward direction only).
+    # Use compacted forms to avoid "s3" matching inside "rs3".
+    # We intentionally skip the reverse direction (NHTSA name ⊆ query) because
+    # short historical NHTSA names (e.g. "600") would falsely match inside longer
+    # user inputs like "gls600".
+    candidates = [
+        m for m in models
+        if model_compact in re.sub(r'\s+', '', m.lower())
+    ]
     if len(candidates) == 1:
         return candidates[0]
     return model   # no match — return as-is

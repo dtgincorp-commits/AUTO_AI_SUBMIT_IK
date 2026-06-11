@@ -471,6 +471,30 @@ def _render_vin_actions(det: dict, av, key_suffix: str) -> None:
                 st.error(f"Send failed: {_e}")
 
 
+# Cached zip → (zip, lat, lon) geocode for the Porsche Finder position param.
+# One Nominatim call per zip per day; reuses the pipeline's resolver.
+@st.cache_data(ttl=86400, show_spinner=False)
+def _pf_geocode(zip_or_loc: str):
+    from agents.search_agent import _resolve_location
+    return _resolve_location(zip_or_loc)
+
+
+def _porsche_finder_url(model: str, condition: str, zip_code: str, radius: int) -> str:
+    from agents.search_agent import _porsche_model_slug
+    qp = []
+    if zip_code:
+        try:
+            _z, _lat, _lon = _pf_geocode(zip_code)
+            if _lat and _lon:
+                qp.append(f"position={_z or zip_code},{_lat},{_lon},{radius or 50}")
+        except Exception:
+            pass
+    slug = _porsche_model_slug(model)
+    if slug: qp.append(f"model={slug}")
+    if condition in ("New", "Used"): qp.append(f"condition={condition.lower()}")
+    return "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(qp)) if qp else "")
+
+
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
 # Always reads live from sidebar session state so any sidebar change
 # immediately reflects in the card without re-clicking Build Search.
@@ -523,12 +547,7 @@ if st.session_state.get("_search_builder"):
     # Porsche Finder button — official dealer inventory, Porsche searches only
     _sb_pf_btn = ""
     if _sb_make.strip().lower() == "porsche":
-        from agents.search_agent import _porsche_model_slug as _pf_slug_fn
-        _pf_qp = []
-        _pf_slug = _pf_slug_fn(_sb_model)
-        if _pf_slug: _pf_qp.append(f"model={_pf_slug}")
-        if _sb_condition in ("New", "Used"): _pf_qp.append(f"condition={_sb_condition.lower()}")
-        _sb_pf_url = "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(_pf_qp)) if _pf_qp else "")
+        _sb_pf_url = _porsche_finder_url(_sb_model, _sb_condition, _sb_zip, _sb_radius)
         _sb_pf_btn = f'''
     <a href="{_hurl_sb(_sb_pf_url)}" target="_blank" title="Official Porsche dealer inventory"
        style="background:#0891b2;color:#fff;padding:5px 10px;border-radius:6px;
@@ -996,12 +1015,8 @@ if _last_result:
         # Porsche Finder button — official dealer inventory, Porsche searches only
         _pf_btn_z = ""
         if _make.strip().lower() == "porsche":
-            from agents.search_agent import _porsche_model_slug as _pf_slug_fn_z
-            _pf_qp_z = []
-            _pf_slug_z = _pf_slug_fn_z(_model)
-            if _pf_slug_z: _pf_qp_z.append(f"model={_pf_slug_z}")
-            if _condition in ("New", "Used"): _pf_qp_z.append(f"condition={_condition.lower()}")
-            _pf_url_z = "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(_pf_qp_z)) if _pf_qp_z else "")
+            _pf_url_z = _porsche_finder_url(_model, _condition, _at_zip,
+                                            _prefs.radius_miles if _prefs else 50)
             _pf_btn_z = f'''
     <a href="{_hurl_z(_pf_url_z)}" target="_blank" title="Official Porsche dealer inventory"
        style="background:#0891b2;color:#fff;padding:9px 20px;border-radius:8px;

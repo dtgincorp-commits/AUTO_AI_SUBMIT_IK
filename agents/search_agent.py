@@ -882,9 +882,11 @@ def _search_autodev(
                 retail  = item.get("retailListing") or {}
 
                 year   = int(vehicle.get("year") or 0)
-                vmake  = vehicle.get("make") or make
-                vmodel = vehicle.get("model") or model
-                trim   = vehicle.get("trim") or ""
+                # str() coercion required: auto.dev returns numeric model names
+                # (Porsche 911, 718) as JSON numbers, which crash " ".join()
+                vmake  = str(vehicle.get("make") or make)
+                vmodel = str(vehicle.get("model") or model)
+                trim   = str(vehicle.get("trim") or "")
 
                 price = int(float(retail.get("price") or 0))
                 if price > 0 and not (prefs.price_min <= price <= prefs.price_max):

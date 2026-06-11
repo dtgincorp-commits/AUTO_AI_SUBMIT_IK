@@ -798,8 +798,13 @@ div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"
     src_ebay        = st.checkbox("eBay Motors (API key required)", value=False, disabled=True)
     src_cargurus    = st.checkbox("CarGurus (experimental)", value=False)
     src_craigslist  = st.checkbox("Craigslist",  value=True)
-    src_porsche     = st.checkbox("Porsche Finder (Porsche searches only)", value=True,
-                                  help="Official dealer inventory from finder.porsche.com — only runs when the search make is Porsche")
+    # Porsche Finder only appears when the current search make is Porsche —
+    # same rule as the platform-links card
+    if (st.session_state.get("p_make") or "").strip().lower() == "porsche":
+        src_porsche = st.checkbox("Porsche Finder", value=True,
+                                  help="Official dealer inventory from finder.porsche.com")
+    else:
+        src_porsche = False
 
     st.subheader("Delivery Preference")
     delivery_email = st.checkbox("Email", value=False)

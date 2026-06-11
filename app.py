@@ -519,6 +519,21 @@ if st.session_state.get("_search_builder"):
     _sb_google_url = f"https://www.google.com/search?q={_sb_quote(f'{_sb_condition} {_sb_make} {_sb_model} for sale near {_sb_location}')}"
 
     def _hurl_sb(u): return u.replace("&", "&amp;")
+
+    # Porsche Finder button — official dealer inventory, Porsche searches only
+    _sb_pf_btn = ""
+    if _sb_make.strip().lower() == "porsche":
+        from agents.search_agent import _porsche_model_slug as _pf_slug_fn
+        _pf_qp = []
+        _pf_slug = _pf_slug_fn(_sb_model)
+        if _pf_slug: _pf_qp.append(f"model={_pf_slug}")
+        if _sb_condition in ("New", "Used"): _pf_qp.append(f"condition={_sb_condition.lower()}")
+        _sb_pf_url = "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(_pf_qp)) if _pf_qp else "")
+        _sb_pf_btn = f'''
+    <a href="{_hurl_sb(_sb_pf_url)}" target="_blank" title="Official Porsche dealer inventory"
+       style="background:#0891b2;color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🏁 Porsche Finder</a>'''
+
     _sb_pill = f"{_sb_make} {_sb_model}".strip() or "Any"
     if _sb_trim: _sb_pill += f" {_sb_trim}"
     _sb_pill += f" &nbsp;·&nbsp; {_sb_condition}"
@@ -567,7 +582,7 @@ if st.session_state.get("_search_builder"):
               font-size:11px;font-weight:700;text-decoration:none;text-align:center">🚗 CarGurus</a>
     <a href="{_hurl_sb(_sb_google_url)}" target="_blank"
        style="background:#d97706;color:#fff;padding:5px 10px;border-radius:6px;
-              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🌐 Google</a>
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🌐 Google</a>{_sb_pf_btn}
   </div>
 </div>""", unsafe_allow_html=True)
         if st.button("✕ Clear", key="clear_search_builder"):
@@ -972,6 +987,23 @@ if _last_result:
 
         import streamlit.components.v1 as _stc_z
         def _hurl_z(u): return u.replace("&", "&amp;")
+
+        # Porsche Finder button — official dealer inventory, Porsche searches only
+        _pf_btn_z = ""
+        if _make.strip().lower() == "porsche":
+            from agents.search_agent import _porsche_model_slug as _pf_slug_fn_z
+            _pf_qp_z = []
+            _pf_slug_z = _pf_slug_fn_z(_model)
+            if _pf_slug_z: _pf_qp_z.append(f"model={_pf_slug_z}")
+            if _condition in ("New", "Used"): _pf_qp_z.append(f"condition={_condition.lower()}")
+            _pf_url_z = "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(_pf_qp_z)) if _pf_qp_z else "")
+            _pf_btn_z = f'''
+    <a href="{_hurl_z(_pf_url_z)}" target="_blank" title="Official Porsche dealer inventory"
+       style="background:#0891b2;color:#fff;padding:9px 20px;border-radius:8px;
+              font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
+      🏁 &nbsp;Porsche Finder
+    </a>'''
+
         _stc_z.html(f"""
 <div style="font-family:sans-serif;background:linear-gradient(135deg,#1e3a5f,#1a2e4a);
             border:1px solid #2563eb;border-radius:12px;padding:20px 24px;margin:4px 0">
@@ -1008,7 +1040,7 @@ if _last_result:
        style="background:#d97706;color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
       🌐 &nbsp;Google
-    </a>
+    </a>{_pf_btn_z}
   </div>
 </div>""", height=185)
 

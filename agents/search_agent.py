@@ -673,6 +673,77 @@ def _search_hyundai(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
 
 
 # ---------------------------------------------------------------------------
+# Genesis — official dealer inventory (genesis.com/bin/api/v2/inventory/search)
+# Public unauthenticated JSON endpoint; new inventory. Genesis searches only.
+# Confirmed live 2026-06-11: model + zip + radius filter correctly, returns
+# all matches in one call (no pagination needed).
+# ---------------------------------------------------------------------------
+
+_GENESIS_API = "https://www.genesis.com/bin/api/v2/inventory/search"
+_GENESIS_HEADERS = {
+    "User-Agent": _MBUSA_HEADERS["User-Agent"],
+    "Referer": "https://www.genesis.com/us/en/inventory",
+}
+
+
+def _fetch_genesis_raw(model, zip_code, radius):
+    params = {"zip": zip_code, "radius": min(radius, 200), "maxdealers": 25}
+    if model and model.lower() != "any":
+        params["model"] = model.replace(" ", "")
+    resp = requests.get(_GENESIS_API, params=params, headers=_GENESIS_HEADERS, timeout=15)
+    if resp.status_code != 200:
+        return []
+    return (resp.json().get("result") or {}).get("vehicles") or []
+
+try:
+    import streamlit as _st_gen
+    _fetch_genesis_cached = _st_gen.cache_data(ttl=7200, show_spinner=False)(_fetch_genesis_raw)
+except Exception:
+    _fetch_genesis_cached = _fetch_genesis_raw
+
+
+def _search_genesis(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    if not zip_code:
+        return []
+    if prefs.condition == "Used":
+        return []   # endpoint serves new dealer inventory only
+    vehicles = _fetch_genesis_cached(prefs.model or "", zip_code, prefs.radius_miles)
+
+    has_budget = prefs.price_max and prefs.price_max < 999000
+    listings = []
+    for v in vehicles:
+        try:
+            year = int(v.get("ModelYear") or 0)
+            price = int(float(v.get("SortablePrice") or 0))
+            dist = float(v.get("Distance") or 0)
+        except (ValueError, TypeError):
+            continue
+        if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+        title = str(v.get("ModelTitle") or f"{year} Genesis {v.get('Model','')}").strip()
+        if "genesis" not in title.lower():
+            title = f"{year} Genesis {title}".strip()
+        listings.append(CarListing(
+            title=title,
+            price=effective_price,
+            asking_price=price,
+            mileage=0,   # new inventory
+            year=year,
+            exterior_color=v.get("ExtColorDesc") or v.get("ExtColor"),
+            interior_color=v.get("MaterialDesc") or v.get("IntColor"),
+            dealer_name=v.get("DlrName"),
+            location=", ".join(filter(None, [str(v.get("City") or "").title(), v.get("State")])) or prefs.location,
+            listing_url=None,
+            source="Genesis",
+            vin=v.get("VIN") or None,
+            stock_number=v.get("StockNumber") or None,
+            distance_miles=round(dist, 1) if dist else None,
+        ))
+    return listings
+
+
+# ---------------------------------------------------------------------------
 # eBay Motors — Finding API (free, requires EBAY_APP_ID)
 # ---------------------------------------------------------------------------
 
@@ -1479,6 +1550,8 @@ def run_search_agent(
         all_candidates.append(("MBUSA", lambda p=prefs, z=_zip: _search_mbusa(p, z)))
     if _mk == "hyundai":
         all_candidates.append(("HyundaiUSA", lambda p=prefs, z=_zip: _search_hyundai(p, z)))
+    if _mk == "genesis":
+        all_candidates.append(("Genesis", lambda p=prefs, z=_zip: _search_genesis(p, z)))
 
     # Filter to only selected sources when the caller specifies a subset
     sources = [(n, fn) for n, fn in all_candidates if n in selected_sources] if selected_sources else all_candidates

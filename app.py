@@ -783,6 +783,8 @@ div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"
     src_ebay        = st.checkbox("eBay Motors (API key required)", value=False, disabled=True)
     src_cargurus    = st.checkbox("CarGurus (experimental)", value=False)
     src_craigslist  = st.checkbox("Craigslist",  value=True)
+    src_porsche     = st.checkbox("Porsche Finder (Porsche searches only)", value=True,
+                                  help="Official dealer inventory from finder.porsche.com — only runs when the search make is Porsche")
 
     st.subheader("Delivery Preference")
     delivery_email = st.checkbox("Email", value=False)
@@ -869,6 +871,7 @@ if find_btn or _nl_auto_run:
         ("eBay Motors", src_ebay),
         ("CarGurus",    src_cargurus),
         ("Craigslist",  src_craigslist),
+        ("Porsche Finder", src_porsche),
     ] if on]
     if not selected_sources:
         st.error("Please enable at least one search source in the sidebar.")

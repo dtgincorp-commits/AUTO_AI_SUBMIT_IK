@@ -2,6 +2,7 @@ import re
 import json
 import math
 import requests
+from urllib.parse import urlencode
 from typing import Optional, Tuple
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -320,6 +321,152 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
             listing_url=item.get("vdp_url"),
             source=display_source,
             stock_number=item.get("stock_no") or None,
+        ))
+    return listings
+
+
+# ---------------------------------------------------------------------------
+# Porsche Finder — official dealer inventory (finder.porsche.com)
+# Porsche searches only. Fetched via ScraperAPI plain proxy (no JS render
+# needed): the Next.js RSC stream embeds full schema.org Car objects even
+# though the visible HTML shell says "0 vehicles" (confirmed 2026-06-10).
+# ---------------------------------------------------------------------------
+
+_PORSCHE_FINDER_BASE = "https://finder.porsche.com/us/en-US/search"
+
+# finder.porsche.com model filter slugs (from the site's own footer links)
+_PORSCHE_MODEL_SLUGS = [
+    ("cayenne",  "cayenne"),
+    ("macan",    "macan"),
+    ("taycan",   "taycan"),
+    ("panamera", "panamera"),
+    ("911",      "911"),
+    ("carrera",  "911"),
+    ("gt3",      "911"),
+    ("718",      "718"),
+    ("boxster",  "718"),
+    ("cayman",   "718"),
+    ("gt4",      "718"),
+]
+
+
+def _porsche_model_slug(model: str) -> Optional[str]:
+    m = (model or "").lower()
+    for token, slug in _PORSCHE_MODEL_SLUGS:
+        if token in m:
+            return slug
+    return None
+
+
+def _parse_porsche_rsc(html: str) -> list[dict]:
+    """Extract schema.org Car objects from the RSC stream (escaped JSON)."""
+    cars = []
+    raw = html.replace('\\"', '"')
+    for m in re.finditer(r'\{"@type":\["Product","Car"\]', raw):
+        s = m.start()
+        depth = 0
+        for i in range(s, min(s + 20000, len(raw))):
+            if raw[i] == "{":
+                depth += 1
+            elif raw[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        cars.append(json.loads(raw[s:i + 1]))
+                    except Exception:
+                        pass
+                    break
+    return cars
+
+
+def _fetch_porsche_finder_raw(model_slug, condition, zip_code, lat, lon, radius):
+    """Fetch up to 2 pages (15 cars each) from finder.porsche.com via ScraperAPI."""
+    base_params = {}
+    if zip_code and lat and lon:
+        base_params["position"] = f"{zip_code},{lat},{lon},{min(radius, 500)}"
+    if model_slug:
+        base_params["model"] = model_slug
+    if condition in ("New", "Used"):
+        base_params["condition"] = condition.lower()
+
+    cars: list[dict] = []
+    for page in (1, 2):
+        params = dict(base_params)
+        if page > 1:
+            params["page"] = page
+        target = f"{_PORSCHE_FINDER_BASE}?{urlencode(params)}"
+        resp = None
+        # ScraperAPI is intermittent — retry once, same pattern as CarGurus
+        for _ in range(2):
+            try:
+                resp = requests.get(
+                    "https://api.scraperapi.com/",
+                    params={"api_key": SCRAPERAPI_KEY, "country_code": "us", "url": target},
+                    timeout=20,
+                )
+            except Exception:
+                continue
+            if resp.status_code == 200 and len(resp.text) > 10000:
+                break
+        if not resp or resp.status_code != 200 or len(resp.text) < 10000:
+            break
+        page_cars = _parse_porsche_rsc(resp.text)
+        cars.extend(page_cars)
+        if len(page_cars) < 15:   # short page = no more results
+            break
+    return cars
+
+# Same 2-hour Streamlit cache pattern as Marketcheck
+try:
+    import streamlit as _st_pf
+    _fetch_porsche_finder_cached = _st_pf.cache_data(ttl=7200, show_spinner=False)(_fetch_porsche_finder_raw)
+except Exception:
+    _fetch_porsche_finder_cached = _fetch_porsche_finder_raw
+
+
+def _search_porsche_finder(prefs: CarPreferences, zip_code: Optional[str] = None,
+                           coords: Optional[Tuple[float, float]] = None) -> list[CarListing]:
+    if not SCRAPERAPI_KEY:
+        return []
+
+    lat, lon = coords if coords else (None, None)
+    cars = _fetch_porsche_finder_cached(
+        _porsche_model_slug(prefs.model),
+        prefs.condition or "Any",
+        zip_code or "",
+        lat, lon,
+        prefs.radius_miles,
+    )
+
+    has_budget = prefs.price_max and prefs.price_max < 999000
+    listings = []
+    for c in cars:
+        offer = c.get("offers") or {}
+        seller = offer.get("seller") or {}
+        addr = seller.get("address") or {}
+        try:
+            price = int(float(offer.get("price") or 0))
+            year = int((c.get("modelDate") or "0")[:4])
+            miles = int(float((c.get("mileageFromOdometer") or {}).get("value") or 0))
+        except (ValueError, TypeError):
+            continue
+        if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+        name = c.get("name") or "Porsche"
+        title = f"{year} Porsche {name}".strip() if "porsche" not in name.lower() else f"{year} {name}".strip()
+        listings.append(CarListing(
+            title=title,
+            price=effective_price,
+            asking_price=price,
+            mileage=miles,
+            year=year,
+            exterior_color=c.get("color"),
+            interior_color=c.get("vehicleInteriorColor"),
+            dealer_name=seller.get("name"),
+            location=", ".join(filter(None, [addr.get("addressLocality"), addr.get("postalCode")])) or prefs.location,
+            listing_url=offer.get("url"),
+            source="Porsche Finder",
         ))
     return listings
 
@@ -1121,6 +1268,9 @@ def run_search_agent(
         all_candidates.append(("eBay Motors", lambda p=prefs, z=_zip: _search_ebay(p, z)))
     all_candidates.append(("CarGurus",    lambda p=prefs, z=_zip: _search_cargurus(p, z)))
     all_candidates.append(("Craigslist",  lambda p=prefs: _search_craigslist(p)))
+    # Official Porsche dealer inventory — only meaningful for Porsche searches
+    if SCRAPERAPI_KEY and (prefs.make or "").strip().lower() == "porsche":
+        all_candidates.append(("Porsche Finder", lambda p=prefs, z=_zip, c=_coords: _search_porsche_finder(p, z, c)))
 
     # Filter to only selected sources when the caller specifies a subset
     sources = [(n, fn) for n, fn in all_candidates if n in selected_sources] if selected_sources else all_candidates
@@ -1128,7 +1278,7 @@ def run_search_agent(
     all_listings: list[CarListing] = []
     source_errors: dict = {}
 
-    executor = ThreadPoolExecutor(max_workers=4)
+    executor = ThreadPoolExecutor(max_workers=5)
     futures = {executor.submit(fn): name for name, fn in sources}
     try:
         # Hard 55s wall-clock limit across all sources

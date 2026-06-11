@@ -530,6 +530,12 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         if zip_code: qp.append(f"zip={zip_code}")
         return ("🛞 HyundaiUSA", "#312e81",
                 "https://www.hyundaiusa.com/us/en/inventory-search/vehicles-list" + (("?" + "&".join(qp)) if qp else ""))
+    if mk == "genesis":
+        qp = []
+        if model: qp.append(f"model={(model or '').replace(' ', '')}")
+        if zip_code: qp.append(f"zip={zip_code}")
+        return ("🅖 Genesis", "#1f2937",
+                "https://www.genesis.com/us/en/inventory" + (("?" + "&".join(qp)) if qp else ""))
     return None
 
 

@@ -531,11 +531,11 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         return ("🛞 HyundaiUSA", "#312e81",
                 "https://www.hyundaiusa.com/us/en/inventory-search/vehicles-list" + (("?" + "&".join(qp)) if qp else ""))
     if mk == "genesis":
-        qp = []
-        if model: qp.append(f"model={(model or '').replace(' ', '')}")
-        if zip_code: qp.append(f"zip={zip_code}")
-        return ("🅖 Genesis", "#1f2937",
-                "https://www.genesis.com/us/en/inventory" + (("?" + "&".join(qp)) if qp else ""))
+        # genesis.com inventory is a hash-state SPA — it ignores ?model=/?zip=
+        # query params (verified 2026-06-11), so deep-linking filters isn't
+        # possible. Land on the inventory page; the Genesis *source* already
+        # pulls the actual model/zip-filtered listings into the results below.
+        return ("🅖 Genesis", "#8c6f4f", "https://www.genesis.com/us/en/inventory")
     return None
 
 

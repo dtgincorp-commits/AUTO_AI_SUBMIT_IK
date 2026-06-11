@@ -472,6 +472,207 @@ def _search_porsche_finder(prefs: CarPreferences, zip_code: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
+# MBUSA — official Mercedes-Benz dealer inventory (nafta-service.mbusa.com)
+# Public unauthenticated JSON API; new + used endpoints. Mercedes searches only.
+# Params confirmed live 2026-06-11: zip + distance + class filter correctly;
+# pagination via start= (12 records/page).
+# ---------------------------------------------------------------------------
+
+_MBUSA_API = "https://nafta-service.mbusa.com/api/inv/v1/en_us/{cond}/vehicles/search"
+_MBUSA_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Origin": "https://www.mbusa.com",
+    "Referer": "https://www.mbusa.com/",
+}
+_MB_CLASS_CODES = {"A", "B", "C", "E", "S", "G", "CLA", "CLE", "CLS", "GLA", "GLB",
+                   "GLC", "GLE", "GLS", "SL", "SLC", "SLK", "EQB", "EQE", "EQS", "GT"}
+
+
+def _mb_class_from_model(model: str) -> Optional[str]:
+    m = re.match(r"[A-Za-z]+", (model or "").replace(" ", ""))
+    if m and m.group(0).upper() in _MB_CLASS_CODES:
+        return m.group(0).upper()
+    return None
+
+
+def _fetch_mbusa_raw(cls, condition, zip_code, radius):
+    """Fetch up to 4 pages per endpoint (12 records each) from MBUSA."""
+    endpoints = {"New": ["new"], "Used": ["used"]}.get(condition, ["new", "used"])
+    records = []
+    for cond in endpoints:
+        for page in range(2 if len(endpoints) == 2 else 4):
+            params = {"zip": zip_code, "distance": min(radius, 200), "start": page * 12}
+            if cls:
+                params["class"] = cls
+            resp = requests.get(_MBUSA_API.format(cond=cond), params=params,
+                                headers=_MBUSA_HEADERS, timeout=15)
+            if resp.status_code != 200:
+                break
+            pv = (resp.json().get("result") or {}).get("pagedVehicles") or {}
+            recs = pv.get("records") or []
+            for r in recs:
+                r["_mb_used"] = (cond == "used")
+            records.extend(recs)
+            if len(recs) < 12:
+                break
+    return records
+
+try:
+    import streamlit as _st_mb
+    _fetch_mbusa_cached = _st_mb.cache_data(ttl=7200, show_spinner=False)(_fetch_mbusa_raw)
+except Exception:
+    _fetch_mbusa_cached = _fetch_mbusa_raw
+
+
+def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    if not zip_code:
+        return []
+    records = _fetch_mbusa_cached(
+        _mb_class_from_model(prefs.model),
+        prefs.condition or "Any",
+        zip_code,
+        prefs.radius_miles,
+    )
+
+    has_budget = prefs.price_max and prefs.price_max < 999000
+    listings = []
+    for r in records:
+        try:
+            year = int(r.get("year") or 0)
+            price = int(float(r.get("inventoryPrice") or 0)) or int(float(r.get("msrp") or 0))
+        except (ValueError, TypeError):
+            continue
+        if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+        dealer = r.get("dealer") or {}
+        addr = (dealer.get("address") or [{}])[0]
+        model_name = str(r.get("modelName") or "").strip()
+        title = f"{year} Mercedes-Benz {model_name}".strip()
+        listings.append(CarListing(
+            title=title,
+            price=effective_price,
+            asking_price=price,
+            mileage=0,   # API omits mileage; ranking treats 0 as unknown on Used
+            year=year,
+            msrp=int(float(r.get("msrp") or 0)) or None,
+            exterior_color=(r.get("paint") or {}).get("name"),
+            interior_color=(r.get("upholstery") or {}).get("name"),
+            dealer_name=dealer.get("name"),
+            location=", ".join(filter(None, [addr.get("city"), addr.get("state")])) or prefs.location,
+            listing_url=None,
+            source="MBUSA",
+            vin=r.get("vin") or None,
+        ))
+    return listings
+
+
+# ---------------------------------------------------------------------------
+# HyundaiUSA — official dealer inventory (papp-bsi-api.hyundaiusa.com)
+# Public unauthenticated JSON API; new inventory only. Hyundai searches only.
+# Model filter takes facet codes (e.g. TUCSON = 8001) resolved from the
+# response's own filters block; results are distance-sorted, totals are
+# national, so radius is enforced client-side via distanceFromOrigin.
+# Confirmed live 2026-06-11; pageSize caps at 30.
+# ---------------------------------------------------------------------------
+
+_HYUNDAI_API = "https://papp-bsi-api.hyundaiusa.com/inventory/item/v2/search"
+_HYUNDAI_HEADERS = {
+    "User-Agent": _MBUSA_HEADERS["User-Agent"],
+    "Origin": "https://www.hyundaiusa.com",
+    "Referer": "https://www.hyundaiusa.com/",
+    "Content-Type": "application/json",
+}
+
+
+def _fetch_hyundai_raw(model, zip_code, radius):
+    """Resolve model → facet code(s), then fetch up to 2 pages (30 each)."""
+    def post(body):
+        resp = requests.post(_HYUNDAI_API, json=body, headers=_HYUNDAI_HEADERS, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+
+    base = {"zipCode": zip_code, "distance": min(radius, 250)}
+    first = post({**base, "page": 1, "pageSize": 1})
+
+    # Model facet: exact displayName match first, then prefix match so
+    # "Tucson" also covers TUCSON Hybrid / Plug-in Hybrid
+    codes = []
+    m_up = (model or "").upper().strip()
+    if m_up and m_up != "ANY":
+        for f in (first.get("filters") or {}).get("filters") or []:
+            if f.get("filterTitle") == "Model":
+                opts = f.get("options") or []
+                exact = [o for o in opts if o.get("displayName", "").upper() == m_up]
+                prefix = [o for o in opts if o.get("displayName", "").upper().startswith(m_up)]
+                codes = [o["code"] for o in (exact or prefix)]
+                break
+
+    body = {**base, "pageSize": 30}
+    if codes:
+        body["modelName"] = [{"code": c} for c in codes]
+    items = []
+    for page in (1, 2):
+        d = post({**body, "page": page})
+        page_items = (d.get("data") or {}).get("items") or []
+        items.extend(page_items)
+        if len(page_items) < 30:
+            break
+    return items
+
+try:
+    import streamlit as _st_hy
+    _fetch_hyundai_cached = _st_hy.cache_data(ttl=7200, show_spinner=False)(_fetch_hyundai_raw)
+except Exception:
+    _fetch_hyundai_cached = _fetch_hyundai_raw
+
+
+def _search_hyundai(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    if not zip_code:
+        return []
+    if prefs.condition == "Used":
+        return []   # API serves new dealer inventory only
+    items = _fetch_hyundai_cached(prefs.model or "", zip_code, prefs.radius_miles)
+
+    has_budget = prefs.price_max and prefs.price_max < 999000
+    listings = []
+    for it in items:
+        try:
+            year = int(it.get("modelYear") or 0)
+            msrp = int(float(it.get("msrp") or 0))
+            price = int(float(it.get("dealerInternetPrice") or 0)) or msrp
+            dist = float(it.get("distanceFromOrigin") or 0)
+        except (ValueError, TypeError):
+            continue
+        # Totals are national — enforce the radius ourselves
+        if dist and dist > prefs.radius_miles:
+            continue
+        if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+        model_disp = str(it.get("modelDisplayName") or "").title()
+        trim_disp = str(it.get("trimDisplayName") or "")
+        title = " ".join(filter(None, [str(year), "Hyundai", model_disp, trim_disp]))
+        listings.append(CarListing(
+            title=title,
+            price=effective_price,
+            asking_price=price,
+            mileage=0,   # new inventory
+            year=year,
+            msrp=msrp or None,
+            exterior_color=str(it.get("exteriorColor") or "").title() or None,
+            interior_color=str(it.get("interiorColor") or "").title() or None,
+            dealer_name=it.get("dealerName"),
+            location=prefs.location,
+            listing_url=it.get("dealerVDPURL") or None,
+            source="HyundaiUSA",
+            vin=it.get("vin") or None,
+            distance_miles=round(dist, 1) if dist else None,
+        ))
+    return listings
+
+
+# ---------------------------------------------------------------------------
 # eBay Motors — Finding API (free, requires EBAY_APP_ID)
 # ---------------------------------------------------------------------------
 
@@ -1270,9 +1471,14 @@ def run_search_agent(
         all_candidates.append(("eBay Motors", lambda p=prefs, z=_zip: _search_ebay(p, z)))
     all_candidates.append(("CarGurus",    lambda p=prefs, z=_zip: _search_cargurus(p, z)))
     all_candidates.append(("Craigslist",  lambda p=prefs: _search_craigslist(p)))
-    # Official Porsche dealer inventory — only meaningful for Porsche searches
-    if SCRAPERAPI_KEY and (prefs.make or "").strip().lower() == "porsche":
+    # Official-manufacturer inventory sources — gated to the matching make
+    _mk = (prefs.make or "").strip().lower()
+    if SCRAPERAPI_KEY and _mk == "porsche":
         all_candidates.append(("Porsche Finder", lambda p=prefs, z=_zip, c=_coords: _search_porsche_finder(p, z, c)))
+    if _mk == "mercedes-benz":
+        all_candidates.append(("MBUSA", lambda p=prefs, z=_zip: _search_mbusa(p, z)))
+    if _mk == "hyundai":
+        all_candidates.append(("HyundaiUSA", lambda p=prefs, z=_zip: _search_hyundai(p, z)))
 
     # Filter to only selected sources when the caller specifies a subset
     sources = [(n, fn) for n, fn in all_candidates if n in selected_sources] if selected_sources else all_candidates
@@ -1280,7 +1486,7 @@ def run_search_agent(
     all_listings: list[CarListing] = []
     source_errors: dict = {}
 
-    executor = ThreadPoolExecutor(max_workers=5)
+    executor = ThreadPoolExecutor(max_workers=6)
     futures = {executor.submit(fn): name for name, fn in sources}
     try:
         # Hard 55s wall-clock limit across all sources

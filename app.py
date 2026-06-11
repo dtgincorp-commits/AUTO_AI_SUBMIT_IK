@@ -856,13 +856,19 @@ div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"
     src_ebay        = st.checkbox("eBay Motors (API key required)", value=False, disabled=True)
     src_cargurus    = st.checkbox("CarGurus (experimental)", value=False)
     src_craigslist  = st.checkbox("Craigslist",  value=True)
-    # Porsche Finder only appears when the current search make is Porsche —
-    # same rule as the platform-links card
-    if (st.session_state.get("p_make") or "").strip().lower() == "porsche":
-        src_porsche = st.checkbox("Porsche Finder", value=True,
-                                  help="Official dealer inventory from finder.porsche.com")
-    else:
-        src_porsche = False
+    # Official-manufacturer source checkbox — appears only when the current
+    # search make has one (same rule as the platform-links card)
+    _OEM_SOURCES = {
+        "porsche":       ("Porsche Finder", "Official dealer inventory from finder.porsche.com"),
+        "mercedes-benz": ("MBUSA",          "Official dealer inventory from mbusa.com (new + used)"),
+        "hyundai":       ("HyundaiUSA",     "Official dealer inventory from hyundaiusa.com (new only)"),
+    }
+    _cur_make = (st.session_state.get("p_make") or "").strip().lower()
+    _oem_src_name = None
+    src_oem = False
+    if _cur_make in _OEM_SOURCES:
+        _oem_src_name, _oem_help = _OEM_SOURCES[_cur_make]
+        src_oem = st.checkbox(_oem_src_name, value=True, help=_oem_help)
 
     st.subheader("Delivery Preference")
     delivery_email = st.checkbox("Email", value=False)
@@ -949,8 +955,8 @@ if find_btn or _nl_auto_run:
         ("eBay Motors", src_ebay),
         ("CarGurus",    src_cargurus),
         ("Craigslist",  src_craigslist),
-        ("Porsche Finder", src_porsche),
-    ] if on]
+        (_oem_src_name, src_oem),
+    ] if on and n]
     if not selected_sources:
         st.error("Please enable at least one search source in the sidebar.")
         st.stop()

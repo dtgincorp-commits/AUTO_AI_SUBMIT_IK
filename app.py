@@ -563,7 +563,7 @@ if st.session_state.get("_search_builder"):
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
-    👤 Human in the loop required.
+    👤 HTIL Required.
   </div>
   <div style="display:inline-block;font-size:11px;color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;

@@ -495,6 +495,44 @@ def _porsche_finder_url(model: str, condition: str, zip_code: str, radius: int) 
     return "https://finder.porsche.com/us/en-US/search" + (("?" + "&".join(qp)) if qp else "")
 
 
+# Valid mbusa.com inventory ?class= codes — letters-prefix of the model maps in
+_MB_CLASSES = {"A", "B", "C", "E", "S", "G", "CLA", "CLE", "CLS", "GLA", "GLB",
+               "GLC", "GLE", "GLS", "SL", "SLC", "EQB", "EQE", "EQS", "GT"}
+
+
+def _oem_inventory_button(make: str, model: str, condition: str,
+                          zip_code: str, radius: int):
+    """Official-manufacturer inventory deep link for the platform-links card.
+    Returns (label, bg_color, url) or None when the make has no OEM search.
+    URL formats verified live 2026-06-11 (filters confirmed applied)."""
+    import re as _re_oem
+    mk = (make or "").strip().lower()
+    if mk == "porsche":
+        return ("🏁 Porsche Finder", "#0891b2",
+                _porsche_finder_url(model, condition, zip_code, radius))
+    if mk == "mercedes-benz":
+        qp = []
+        cls = _re_oem.match(r"[A-Za-z]+", (model or "").replace(" ", ""))
+        if cls and cls.group(0).upper() in _MB_CLASSES:
+            qp.append(f"class={cls.group(0).upper()}")
+        if zip_code: qp.append(f"zip={zip_code}")
+        return ("🌟 MBUSA", "#475569",
+                "https://www.mbusa.com/en/vehicles/inventory" + (("?" + "&".join(qp)) if qp else ""))
+    if mk == "toyota":
+        slug = _re_oem.sub(r"[^a-z0-9]", "", (model or "").lower())
+        url = "https://www.toyota.com/search-inventory/" + (f"model/{slug}/" if slug else "")
+        if zip_code: url += f"?zipcode={zip_code}"
+        return ("🚘 Toyota.com", "#be123c", url)
+    if mk == "hyundai":
+        from urllib.parse import quote as _q_oem
+        qp = []
+        if model: qp.append(f"model={_q_oem(model.title(), safe='')}")
+        if zip_code: qp.append(f"zip={zip_code}")
+        return ("🛞 HyundaiUSA", "#312e81",
+                "https://www.hyundaiusa.com/us/en/inventory-search/vehicles-list" + (("?" + "&".join(qp)) if qp else ""))
+    return None
+
+
 # ── Build Search card (shown when user clicks "Build Search") ───────────────
 # Always reads live from sidebar session state so any sidebar change
 # immediately reflects in the card without re-clicking Build Search.
@@ -544,14 +582,15 @@ if st.session_state.get("_search_builder"):
 
     def _hurl_sb(u): return u.replace("&", "&amp;")
 
-    # Porsche Finder button — official dealer inventory, Porsche searches only
+    # Official-manufacturer inventory button (Porsche/MB/Toyota/Hyundai searches)
     _sb_pf_btn = ""
-    if _sb_make.strip().lower() == "porsche":
-        _sb_pf_url = _porsche_finder_url(_sb_model, _sb_condition, _sb_zip, _sb_radius)
+    _sb_oem = _oem_inventory_button(_sb_make, _sb_model, _sb_condition, _sb_zip, _sb_radius)
+    if _sb_oem:
+        _oem_label, _oem_color, _oem_url = _sb_oem
         _sb_pf_btn = f'''
-    <a href="{_hurl_sb(_sb_pf_url)}" target="_blank" title="Official Porsche dealer inventory"
-       style="background:#0891b2;color:#fff;padding:5px 10px;border-radius:6px;
-              font-size:11px;font-weight:700;text-decoration:none;text-align:center">🏁 Porsche Finder</a>'''
+    <a href="{_hurl_sb(_oem_url)}" target="_blank" title="Official manufacturer inventory"
+       style="background:{_oem_color};color:#fff;padding:5px 10px;border-radius:6px;
+              font-size:11px;font-weight:700;text-decoration:none;text-align:center">{_oem_label}</a>'''
 
     _sb_pill = f"{_sb_make} {_sb_model}".strip() or "Any"
     if _sb_trim: _sb_pill += f" {_sb_trim}"
@@ -1012,16 +1051,17 @@ if _last_result:
         import streamlit.components.v1 as _stc_z
         def _hurl_z(u): return u.replace("&", "&amp;")
 
-        # Porsche Finder button — official dealer inventory, Porsche searches only
+        # Official-manufacturer inventory button (Porsche/MB/Toyota/Hyundai searches)
         _pf_btn_z = ""
-        if _make.strip().lower() == "porsche":
-            _pf_url_z = _porsche_finder_url(_model, _condition, _at_zip,
-                                            _prefs.radius_miles if _prefs else 50)
+        _oem_z = _oem_inventory_button(_make, _model, _condition, _at_zip,
+                                       _prefs.radius_miles if _prefs else 50)
+        if _oem_z:
+            _oem_label_z, _oem_color_z, _oem_url_z = _oem_z
             _pf_btn_z = f'''
-    <a href="{_hurl_z(_pf_url_z)}" target="_blank" title="Official Porsche dealer inventory"
-       style="background:#0891b2;color:#fff;padding:9px 20px;border-radius:8px;
+    <a href="{_hurl_z(_oem_url_z)}" target="_blank" title="Official manufacturer inventory"
+       style="background:{_oem_color_z};color:#fff;padding:9px 20px;border-radius:8px;
               font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px">
-      🏁 &nbsp;Porsche Finder
+      {_oem_label_z}
     </a>'''
 
         _stc_z.html(f"""

@@ -495,6 +495,21 @@ def _mb_class_from_model(model: str) -> Optional[str]:
     return None
 
 
+def _wanted_color(value: str) -> Optional[str]:
+    """Normalize a color preference; None means 'no constraint'."""
+    v = (value or "").strip().lower()
+    return v if v not in ("", "any", "other") else None
+
+
+def _color_matches(listing_color: str, wanted: Optional[str]) -> bool:
+    """Recall-safe color check: pass when there's no preference, when the
+    listing's color is unknown, or when it contains the wanted color."""
+    if not wanted:
+        return True
+    lc = (listing_color or "").lower()
+    return (not lc) or (wanted in lc)
+
+
 def _mb_model_number(model: str) -> Optional[str]:
     """Trailing model number, e.g. 'GLE 450' → '450', 'GLS 600' → '600'.
     Returns None for number-less models (G-Class, EQB) so they stay class-level."""
@@ -551,6 +566,10 @@ def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list
         records = [r for r in records if model_num in str(r.get("modelName") or "")]
 
     has_budget = prefs.price_max and prefs.price_max < 999000
+    # Color filters: recall-safe — only drop a listing whose color is KNOWN and
+    # doesn't match; keep unknowns (ranking gives them partial credit).
+    want_ext = _wanted_color(prefs.exterior_color)
+    want_int = _wanted_color(prefs.interior_color)
     listings = []
     for r in records:
         try:
@@ -559,6 +578,10 @@ def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list
         except (ValueError, TypeError):
             continue
         if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        ext_name = (r.get("paint") or {}).get("name") or ""
+        int_name = (r.get("upholstery") or {}).get("name") or ""
+        if not _color_matches(ext_name, want_ext) or not _color_matches(int_name, want_int):
             continue
         effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
         dealer = r.get("dealer") or {}
@@ -651,6 +674,8 @@ def _search_hyundai(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
     items = _fetch_hyundai_cached(prefs.model or "", zip_code, prefs.radius_miles)
 
     has_budget = prefs.price_max and prefs.price_max < 999000
+    want_ext = _wanted_color(prefs.exterior_color)
+    want_int = _wanted_color(prefs.interior_color)
     listings = []
     for it in items:
         try:
@@ -664,6 +689,9 @@ def _search_hyundai(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
         if dist and dist > prefs.radius_miles:
             continue
         if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        if not _color_matches(it.get("exteriorColor"), want_ext) or \
+           not _color_matches(it.get("interiorColor"), want_int):
             continue
         effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
         model_disp = str(it.get("modelDisplayName") or "").title()
@@ -726,6 +754,8 @@ def _search_genesis(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
     vehicles = _fetch_genesis_cached(prefs.model or "", zip_code, prefs.radius_miles)
 
     has_budget = prefs.price_max and prefs.price_max < 999000
+    want_ext = _wanted_color(prefs.exterior_color)
+    want_int = _wanted_color(prefs.interior_color)
     listings = []
     for v in vehicles:
         try:
@@ -735,6 +765,9 @@ def _search_genesis(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
         except (ValueError, TypeError):
             continue
         if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        if not _color_matches(v.get("ExtColorDesc") or v.get("ExtColor"), want_ext) or \
+           not _color_matches(v.get("MaterialDesc") or v.get("IntColor"), want_int):
             continue
         effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
         title = str(v.get("ModelTitle") or f"{year} Genesis {v.get('Model','')}").strip()

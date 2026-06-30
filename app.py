@@ -547,7 +547,46 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # possible. Land on the inventory page; the Genesis *source* already
         # pulls the actual model/zip-filtered listings into the results below.
         return ("🅖 Genesis", "#8c6f4f", "https://www.genesis.com/us/en/inventory")
+    # Comprehensive manufacturer-inventory handoffs (browser-verified landing
+    # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
+    # widgets) so they can't be in-app sources, but the official inventory page
+    # is a useful handoff. zip appended best-effort (SPAs ignore unknown params).
+    cfg = _OEM_BUTTON_URLS.get(mk)
+    if cfg:
+        label, color, base, zip_aware = cfg
+        url = base
+        if zip_aware and zip_code:
+            url += ("&" if "?" in base else "?") + f"zip={zip_code}"
+        return (label, color, url)
     return None
+
+
+# make → (button label, color, inventory-page URL, accepts ?zip=)
+# URLs verified to load in a browser 2026-06-30. Sources (Porsche, MBUSA,
+# Hyundai, Genesis, Toyota) are handled above with richer params.
+_OEM_BUTTON_URLS = {
+    "lexus":       ("🅛 Lexus",       "#1c1c28", "https://www.lexus.com/search-inventory", False),
+    "honda":       ("🅗 Honda",       "#003a70", "https://automobiles.honda.com/shopping-tool/inventory-search", False),
+    "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/shopping-tools/inventory-search", False),
+    "nissan":      ("🇳 Nissan",      "#c3002f", "https://www.nissanusa.com/shopping-tools/search-inventory", True),
+    "infiniti":    ("🅘 Infiniti",    "#1f2a44", "https://www.infinitiusa.com/shopping-tools/search-inventory", False),
+    "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
+    "volkswagen":  ("🆅 VW",          "#001e50", "https://www.vw.com/en/inventory.html", False),
+    "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
+    "bmw":         ("🅑 BMW",         "#1c69d4", "https://inventory.bmwusa.com/", False),
+    "chevrolet":   ("🅒 Chevrolet",   "#d1a564", "https://www.chevrolet.com/shopping/inventory/search", False),
+    "gmc":         ("🅖 GMC",         "#c8102e", "https://www.gmc.com/shopping/inventory/search", False),
+    "cadillac":    ("🅒 Cadillac",    "#7c1414", "https://www.cadillac.com/shopping/inventory/search", False),
+    "buick":       ("🅑 Buick",       "#1a3a5c", "https://www.buick.com/shopping/inventory/search", False),
+    "ford":        ("🅕 Ford",        "#066fef", "https://shop.ford.com/inventory/", False),
+    "jeep":        ("🅙 Jeep",        "#3a4a2a", "https://www.jeep.com/build-and-price.html", False),
+    "tesla":       ("🆃 Tesla",       "#cc0000", "https://www.tesla.com/inventory/new", False),
+    "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/shop", False),
+    "rivian":      ("🆁 Rivian",      "#1f4a3a", "https://rivian.com/configurations/list", False),
+    "lucid":       ("🅛 Lucid",       "#2a2a3a", "https://www.lucidmotors.com/inventory", False),
+    "polestar":    ("🅟 Polestar",    "#1a1a1a", "https://www.polestar.com/us/", False),
+    "kia":         ("🅚 Kia",         "#05141f", "https://www.kia.com/us/en/inventory", False),
+}
 
 
 # ── Build Search card (shown when user clicks "Build Search") ───────────────

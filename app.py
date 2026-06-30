@@ -501,12 +501,17 @@ _MB_CLASSES = {"A", "B", "C", "E", "S", "G", "CLA", "CLE", "CLS", "GLA", "GLB",
 
 
 def _oem_inventory_button(make: str, model: str, condition: str,
-                          zip_code: str, radius: int):
+                          zip_code: str, radius: int,
+                          price_max: int = 0, ext_color: str = "", int_color: str = ""):
     """Official-manufacturer inventory deep link for the platform-links card.
     Returns (label, bg_color, url) or None when the make has no OEM search.
-    URL formats verified live 2026-06-11 (filters confirmed applied)."""
+    class+zip verified live; model/price/color are best-effort (the SPA ignores
+    params it doesn't recognize, so unrecognized ones are harmless)."""
     import re as _re_oem
     mk = (make or "").strip().lower()
+    _ext = ext_color if ext_color and ext_color.lower() not in ("any", "other", "") else ""
+    _int = int_color if int_color and int_color.lower() not in ("any", "other", "") else ""
+    _pmax = price_max if price_max and price_max < 999000 else 0
     if mk == "porsche":
         return ("🏁 Porsche Finder", "#0891b2",
                 _porsche_finder_url(model, condition, zip_code, radius))
@@ -516,6 +521,12 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         if cls and cls.group(0).upper() in _MB_CLASSES:
             qp.append(f"class={cls.group(0).upper()}")
         if zip_code: qp.append(f"zip={zip_code}")
+        # best-effort filters (verified harmless if ignored by mbusa.com's SPA)
+        _num = _re_oem.search(r"\d{3}", model or "")
+        if cls and _num: qp.append(f"model={cls.group(0).upper()}{_num.group(0)}")
+        if _pmax: qp.append(f"priceMax={_pmax}")
+        if _ext: qp.append(f"exteriorColor={_ext}")
+        if _int: qp.append(f"interiorColor={_int}")
         return ("🌟 MBUSA", "#475569",
                 "https://www.mbusa.com/en/vehicles/inventory" + (("?" + "&".join(qp)) if qp else ""))
     if mk == "toyota":
@@ -590,7 +601,8 @@ if st.session_state.get("_search_builder"):
 
     # Official-manufacturer inventory button (Porsche/MB/Toyota/Hyundai searches)
     _sb_pf_btn = ""
-    _sb_oem = _oem_inventory_button(_sb_make, _sb_model, _sb_condition, _sb_zip, _sb_radius)
+    _sb_oem = _oem_inventory_button(_sb_make, _sb_model, _sb_condition, _sb_zip, _sb_radius,
+                                    price_max=_sb_price_max, ext_color=_sb_color, int_color=_sb_int_color)
     if _sb_oem:
         _oem_label, _oem_color, _oem_url = _sb_oem
         _sb_pf_btn = f'''
@@ -1067,7 +1079,9 @@ if _last_result:
         # Official-manufacturer inventory button (Porsche/MB/Toyota/Hyundai searches)
         _pf_btn_z = ""
         _oem_z = _oem_inventory_button(_make, _model, _condition, _at_zip,
-                                       _prefs.radius_miles if _prefs else 50)
+                                       _prefs.radius_miles if _prefs else 50,
+                                       price_max=_prefs.price_max if _prefs else 0,
+                                       ext_color=_ext_color, int_color=_int_color)
         if _oem_z:
             _oem_label_z, _oem_color_z, _oem_url_z = _oem_z
             _pf_btn_z = f'''

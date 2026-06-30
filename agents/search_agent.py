@@ -495,12 +495,23 @@ def _mb_class_from_model(model: str) -> Optional[str]:
     return None
 
 
-def _fetch_mbusa_raw(cls, condition, zip_code, radius):
-    """Fetch up to 4 pages per endpoint (12 records each) from MBUSA."""
+def _mb_model_number(model: str) -> Optional[str]:
+    """Trailing model number, e.g. 'GLE 450' → '450', 'GLS 600' → '600'.
+    Returns None for number-less models (G-Class, EQB) so they stay class-level."""
+    m = re.search(r"(\d{3})", (model or ""))
+    return m.group(1) if m else None
+
+
+def _fetch_mbusa_raw(cls, condition, zip_code, radius, deep):
+    """Fetch from MBUSA. The API only filters to class level (GLE), not the
+    specific model (GLE 450), and sorts cheapest-first — so when the user
+    specified a model number we pull more pages (deep) and let the caller
+    filter, otherwise the cheaper trims crowd the requested one out."""
     endpoints = {"New": ["new"], "Used": ["used"]}.get(condition, ["new", "used"])
+    pages_per = (8 if deep else 4) if len(endpoints) == 1 else (4 if deep else 2)
     records = []
     for cond in endpoints:
-        for page in range(2 if len(endpoints) == 2 else 4):
+        for page in range(pages_per):
             params = {"zip": zip_code, "distance": min(radius, 200), "start": page * 12}
             if cls:
                 params["class"] = cls
@@ -527,12 +538,17 @@ except Exception:
 def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     if not zip_code:
         return []
+    model_num = _mb_model_number(prefs.model)
     records = _fetch_mbusa_cached(
         _mb_class_from_model(prefs.model),
         prefs.condition or "Any",
         zip_code,
         prefs.radius_miles,
+        bool(model_num),
     )
+    # API filters to class only — narrow to the requested model number client-side
+    if model_num:
+        records = [r for r in records if model_num in str(r.get("modelName") or "")]
 
     has_budget = prefs.price_max and prefs.price_max < 999000
     listings = []

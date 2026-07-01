@@ -547,6 +547,16 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # possible. Land on the inventory page; the Genesis *source* already
         # pulls the actual model/zip-filtered listings into the results below.
         return ("🅖 Genesis", "#8c6f4f", "https://www.genesis.com/us/en/inventory")
+    if mk == "tesla":
+        # Tesla deep-links with the model slug in the path + zip/range params
+        _ts = {"model s": "ms", "model 3": "m3", "model x": "mx",
+               "model y": "my", "cybertruck": "ct"}.get((model or "").lower().strip())
+        cond = "used" if condition == "Used" else "new"
+        url = f"https://www.tesla.com/inventory/{cond}/{_ts}" if _ts else "https://www.tesla.com/inventory/new"
+        qp = []
+        if zip_code: qp.append(f"zip={zip_code}")
+        if radius: qp.append(f"range={min(radius, 200)}")
+        return ("🆃 Tesla", "#cc0000", url + (("?" + "&".join(qp)) if qp else ""))
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -580,7 +590,6 @@ _OEM_BUTTON_URLS = {
     "buick":       ("🅑 Buick",       "#1a3a5c", "https://www.buick.com/shopping/inventory/search", False),
     "ford":        ("🅕 Ford",        "#066fef", "https://shop.ford.com/inventory/", False),
     "jeep":        ("🅙 Jeep",        "#3a4a2a", "https://www.jeep.com/build-and-price.html", False),
-    "tesla":       ("🆃 Tesla",       "#cc0000", "https://www.tesla.com/inventory/new", False),
     "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/shop", False),
     "rivian":      ("🆁 Rivian",      "#1f4a3a", "https://rivian.com/configurations/list", False),
     "lucid":       ("🅛 Lucid",       "#2a2a3a", "https://www.lucidmotors.com/inventory", False),

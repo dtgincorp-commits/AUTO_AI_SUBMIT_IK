@@ -227,7 +227,10 @@ if _build_btn:
             if _parsed.get("max_mileage"):
                 st.session_state["p_max_mileage"] = int(_parsed["max_mileage"])
             if _parsed.get("location"):
-                st.session_state["p_location"]    = _parsed["location"]
+                # p_location is bound to a text_input widget — direct assignment
+                # doesn't update it. Stage into _pending_location, applied before
+                # the widget renders (same pattern GPS auto-detect uses, l.872).
+                st.session_state["_pending_location"] = _parsed["location"]
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"] = _snap_radius(int(_parsed["radius_miles"]))
             st.session_state["_search_builder"] = True
@@ -274,7 +277,8 @@ if _nl_btn:
             if _parsed.get("max_mileage"):
                 st.session_state["p_max_mileage"]   = int(_parsed["max_mileage"])
             if _parsed.get("location"):
-                st.session_state["p_location"]      = _parsed["location"]
+                # widget-bound key — stage for pre-render application (see l.872)
+                st.session_state["_pending_location"] = _parsed["location"]
             if _parsed.get("radius_miles"):
                 st.session_state["p_radius_miles"]  = max(10, min(200, int(_parsed["radius_miles"])))
             st.session_state["_last_parsed_query"] = _nl_query.strip()

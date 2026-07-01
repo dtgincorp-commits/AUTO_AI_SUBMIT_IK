@@ -8,3 +8,5 @@ knowledge_base/chroma_db/
 .DS_Store
 *.docx
 query_log.csv
+.oem_cache.db
+.nhtsa_cache.json

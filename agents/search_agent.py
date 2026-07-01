@@ -793,6 +793,133 @@ def _search_genesis(prefs: CarPreferences, zip_code: Optional[str] = None) -> li
 
 
 # ---------------------------------------------------------------------------
+# Tesla — official inventory (tesla.com/inventory/api/v4). Tesla searches only.
+# Akamai-protected, so it needs a residential/ultra proxy (ScraperAPI
+# ultra_premium). That call is slow + costly, so results are cached in SQLite
+# (oem_cache) and only re-fetched on a miss — the source itself stays fast.
+#
+# ⚠ PENDING LIVE TEST: field mapping below is from Tesla's documented v4 schema
+# but not yet verified against a live response (blocked on the ScraperAPI plan
+# upgrade). Parser is defensive; finalize field names on the first real fetch.
+# ---------------------------------------------------------------------------
+
+_TESLA_API = "https://www.tesla.com/inventory/api/v4/inventory-results"
+_TESLA_MODEL_SLUGS = {
+    "model y": "my", "model 3": "m3", "model s": "ms",
+    "model x": "mx", "cybertruck": "ct",
+}
+_TESLA_TTL = 6 * 3600   # cache 6h — residential fetch is expensive
+# common Tesla paint option codes → human names (extend as needed)
+_TESLA_PAINT = {
+    "PBSB": "Solid Black", "PPSW": "Pearl White", "PMNG": "Midnight Silver",
+    "PN01": "Stealth Grey", "PPSB": "Deep Blue", "PPMR": "Red", "PR01": "Ultra Red",
+    "PW01": "Pearl White", "PBCW": "White",
+}
+
+
+def _tesla_model_slug(model: str) -> Optional[str]:
+    m = (model or "").lower().strip()
+    return _TESLA_MODEL_SLUGS.get(m)
+
+
+def _fetch_tesla_raw(model_slug, condition, zip_code, radius):
+    """Fetch Tesla inventory JSON via ScraperAPI ultra_premium (residential)."""
+    query = {
+        "query": {
+            "model": model_slug,
+            "condition": "used" if condition == "Used" else "new",
+            "options": {}, "arrangeby": "Price", "order": "asc",
+            "market": "US", "language": "en", "super_region": "north america",
+            "zip": zip_code, "range": min(radius, 200),
+        },
+        "offset": 0, "count": 50,
+    }
+    target = f"{_TESLA_API}?{urlencode({'query': json.dumps(query)})}"
+    try:
+        resp = requests.get(
+            "https://api.scraperapi.com/",
+            params={"api_key": SCRAPERAPI_KEY, "ultra_premium": "true",
+                    "country_code": "us", "url": target},
+            timeout=70,
+        )
+    except Exception:
+        return []
+    if resp.status_code != 200:
+        return []
+    try:
+        data = resp.json()
+    except Exception:
+        return []
+    # v4 returns {"results": [...]} — some variants nest exact/approximate
+    results = data.get("results")
+    if isinstance(results, dict):
+        results = (results.get("exact") or []) + (results.get("approximate") or [])
+    return results or []
+
+
+def _search_tesla(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
+    if not SCRAPERAPI_KEY or not zip_code:
+        return []
+    slug = _tesla_model_slug(prefs.model)
+    if not slug:
+        return []   # unrecognized Tesla model — don't fire a broad fetch
+
+    from agents.oem_cache import cache_get, cache_put
+    records = cache_get("tesla", slug, zip_code, prefs.radius_miles, _TESLA_TTL)
+    if records is None:
+        records = _fetch_tesla_raw(slug, prefs.condition or "Any", zip_code, prefs.radius_miles)
+        cache_put("tesla", slug, zip_code, prefs.radius_miles, records)
+
+    has_budget = prefs.price_max and prefs.price_max < 999000
+    want_ext = _wanted_color(prefs.exterior_color)
+    listings = []
+    for r in records:
+        try:
+            year = int(r.get("Year") or 0)
+            # defensive: Tesla has used several price field names across versions
+            price = int(float(
+                r.get("InventoryPrice") or r.get("Price")
+                or r.get("PurchasePrice") or r.get("TotalPrice") or 0
+            ))
+        except (ValueError, TypeError):
+            continue
+        if has_budget and price > 0 and not (prefs.price_min <= price <= prefs.price_max):
+            continue
+        effective_price = price if price > 0 else int((prefs.price_min + prefs.price_max) / 2)
+
+        paint = r.get("PAINT") or []
+        ext_color = _TESLA_PAINT.get(paint[0], paint[0]) if paint else None
+        if not _color_matches(ext_color, want_ext):
+            continue
+
+        trim = str(r.get("TrimName") or "").strip()
+        model_name = {"my": "Model Y", "m3": "Model 3", "ms": "Model S",
+                      "mx": "Model X", "ct": "Cybertruck"}.get(slug, "")
+        title = " ".join(filter(None, [str(year) if year else "", "Tesla", model_name, trim]))
+        miles = 0
+        try:
+            miles = int(float(r.get("Odometer") or 0))
+        except (ValueError, TypeError):
+            pass
+        listings.append(CarListing(
+            title=title,
+            price=effective_price,
+            asking_price=price,
+            mileage=miles,
+            year=year,
+            exterior_color=ext_color,
+            interior_color=None,
+            dealer_name="Tesla",
+            location=", ".join(filter(None, [r.get("City"), r.get("StateProvince")])) or prefs.location,
+            listing_url=(f"https://www.tesla.com/{slug}/order/{r.get('VIN') or r.get('Vin')}"
+                         if (r.get("VIN") or r.get("Vin")) else None),
+            source="Tesla",
+            vin=r.get("VIN") or r.get("Vin") or None,
+        ))
+    return listings
+
+
+# ---------------------------------------------------------------------------
 # eBay Motors — Finding API (free, requires EBAY_APP_ID)
 # ---------------------------------------------------------------------------
 
@@ -1601,6 +1728,8 @@ def run_search_agent(
         all_candidates.append(("HyundaiUSA", lambda p=prefs, z=_zip: _search_hyundai(p, z)))
     if _mk == "genesis":
         all_candidates.append(("Genesis", lambda p=prefs, z=_zip: _search_genesis(p, z)))
+    if SCRAPERAPI_KEY and _mk == "tesla":
+        all_candidates.append(("Tesla", lambda p=prefs, z=_zip: _search_tesla(p, z)))
 
     # Filter to only selected sources when the caller specifies a subset
     sources = [(n, fn) for n, fn in all_candidates if n in selected_sources] if selected_sources else all_candidates

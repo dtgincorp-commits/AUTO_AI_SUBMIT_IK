@@ -920,6 +920,7 @@ div[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[title*="GPS"
         "mercedes-benz": ("MBUSA",          "Official dealer inventory from mbusa.com (new + used)"),
         "hyundai":       ("HyundaiUSA",     "Official dealer inventory from hyundaiusa.com (new only)"),
         "genesis":       ("Genesis",        "Official dealer inventory from genesis.com (new only)"),
+        "tesla":         ("Tesla",          "Official Tesla inventory (cached; needs residential proxy)"),
     }
     _cur_make = (st.session_state.get("p_make") or "").strip().lower()
     _oem_src_name = None

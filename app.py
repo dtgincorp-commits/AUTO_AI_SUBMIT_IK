@@ -70,6 +70,13 @@ for _k, _v in _SS_DEFAULTS.items():
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
+# Apply a staged location BEFORE anything reads p_location (the Build Search
+# card at ~l.610 reads it well before the sidebar widget at ~l.874). p_location
+# is widget-bound, so it can only be set prior to that widget instantiating —
+# doing it here, at the top, satisfies both the card and the widget in one run.
+if st.session_state.get("_pending_location"):
+    st.session_state["p_location"] = st.session_state.pop("_pending_location")
+
 # ── Natural Language Search ─────────────────────────────────────────────────
 st.markdown("""
 <style>

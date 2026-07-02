@@ -626,6 +626,17 @@ _OEM_BUTTON_URLS = {
     "lucid":       ("🅛 Lucid",       "#2a2a3a", "https://www.lucidmotors.com/inventory", False),
     "polestar":    ("🅟 Polestar",    "#1a1a1a", "https://www.polestar.com/us/", False),
     "kia":         ("🅚 Kia",         "#05141f", "https://www.kia.com/us/en/inventory", False),
+    # Mainstream + luxury brands (URLs web-verified 2026-07-02)
+    "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),
+    "subaru":      ("🅢 Subaru",      "#013c74", "https://www.subaru.com/vehicles/local-inventory.html", False),
+    "chrysler":    ("🅒 Chrysler",    "#1c1c2e", "https://www.chrysler.com/vehicle-selector.sni.html", False),
+    "dodge":       ("🅓 Dodge",       "#b31013", "https://www.dodge.com/vehicle-selector.sni.html", False),
+    "ram":         ("🅡 RAM",         "#8a6d3b", "https://www.ramtrucks.com/vehicle-selector.sni.html", False),
+    "lincoln":     ("🅛 Lincoln",     "#0b1a2a", "https://www.lincoln.com/search-inventory/", False),
+    "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://inventory.jaguarusa.com/new/", False),
+    "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://inventory.landroverusa.com/new/search/", False),
+    "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
+    "alfa romeo":  ("🅐 Alfa Romeo",  "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni", False),
 }
 
 

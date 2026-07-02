@@ -637,6 +637,7 @@ _OEM_BUTTON_URLS = {
     "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://inventory.landroverusa.com/new/search/", False),
     "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
     "alfa romeo":  ("🅐 Alfa Romeo",  "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni", False),
+    "fiat":        ("🅕 Fiat",        "#8a1c24", "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni", False),
     # Exotics — new sales are allocation/waitlist only, so these link to each
     # brand's official APPROVED PRE-OWNED locator (the searchable inventory).
     # URLs web-verified 2026-07-02 (all HTTP 200).

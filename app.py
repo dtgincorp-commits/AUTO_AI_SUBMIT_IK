@@ -559,14 +559,27 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # pulls the actual model/zip-filtered listings into the results below.
         return ("🅖 Genesis", "#8c6f4f", "https://www.genesis.com/us/en/inventory")
     if mk == "lexus":
-        # Lexus runs on Toyota's inventory platform — mirror Toyota's verified
-        # /search-inventory/model/{slug}/?zipcode= format. Lexus models are
-        # 2-letter codes (ES, RX, GX…), so the slug is the model's letter prefix.
+        # Format confirmed from a live filtered URL: /search-inventory/model/{CODE}
+        # ?zipcode=. Model code is the UPPERCASE letter prefix (ES, RX, GX, LX).
         _lm = _re_oem.match(r"[A-Za-z]+", (model or "").strip())
-        slug = _lm.group(0).lower() if _lm else ""
+        slug = _lm.group(0).upper() if _lm else ""
         url = f"https://www.lexus.com/search-inventory/model/{slug}" if slug else "https://www.lexus.com/search-inventory"
         if zip_code: url += f"?zipcode={zip_code}"
         return ("🅛 Lexus", "#1c1c28", url)
+    if mk == "bmw":
+        # Format confirmed from a live filtered URL: /inventory/results?Series=<family>.
+        # BMW groups by family: X1-X7→X, Z4→Z, i4/iX→i, else the series digit
+        # (330i→3, 530i→5). BMW geolocates (its URL carries no zip param).
+        mu = (model or "").strip().upper()
+        if mu.startswith("X"):   series = "X"
+        elif mu.startswith("Z"): series = "Z"
+        elif mu.startswith("I"): series = "i"
+        else:
+            _d = _re_oem.search(r"[1-8]", mu)
+            series = _d.group(0) if _d else ""
+        url = (f"https://www.bmwusa.com/inventory/results?Series={series}"
+               if series else "https://www.bmwusa.com/inventory.html")
+        return ("🅑 BMW", "#1c69d4", url)
     if mk == "tesla":
         # Tesla deep-links with the model slug in the path + zip/range params
         _ts = {"model s": "ms", "model 3": "m3", "model x": "mx",
@@ -602,7 +615,6 @@ _OEM_BUTTON_URLS = {
     "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
     "volkswagen":  ("🆅 VW",          "#001e50", "https://www.vw.com/en/inventory.html", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
-    "bmw":         ("🅑 BMW",         "#1c69d4", "https://www.bmwusa.com/inventory.html", False),
     "chevrolet":   ("🅒 Chevrolet",   "#d1a564", "https://www.chevrolet.com/shopping/inventory/search", False),
     "gmc":         ("🅖 GMC",         "#c8102e", "https://www.gmc.com/shopping/inventory/search", False),
     "cadillac":    ("🅒 Cadillac",    "#7c1414", "https://www.cadillac.com/shopping/inventory/search", False),

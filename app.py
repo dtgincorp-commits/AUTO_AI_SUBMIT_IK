@@ -558,6 +558,15 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # possible. Land on the inventory page; the Genesis *source* already
         # pulls the actual model/zip-filtered listings into the results below.
         return ("🅖 Genesis", "#8c6f4f", "https://www.genesis.com/us/en/inventory")
+    if mk == "lexus":
+        # Lexus runs on Toyota's inventory platform — mirror Toyota's verified
+        # /search-inventory/model/{slug}/?zipcode= format. Lexus models are
+        # 2-letter codes (ES, RX, GX…), so the slug is the model's letter prefix.
+        _lm = _re_oem.match(r"[A-Za-z]+", (model or "").strip())
+        slug = _lm.group(0).lower() if _lm else ""
+        url = f"https://www.lexus.com/search-inventory/model/{slug}" if slug else "https://www.lexus.com/search-inventory"
+        if zip_code: url += f"?zipcode={zip_code}"
+        return ("🅛 Lexus", "#1c1c28", url)
     if mk == "tesla":
         # Tesla deep-links with the model slug in the path + zip/range params
         _ts = {"model s": "ms", "model 3": "m3", "model x": "mx",
@@ -586,7 +595,6 @@ def _oem_inventory_button(make: str, model: str, condition: str,
 # URLs verified to load in a browser 2026-06-30. Sources (Porsche, MBUSA,
 # Hyundai, Genesis, Toyota) are handled above with richer params.
 _OEM_BUTTON_URLS = {
-    "lexus":       ("🅛 Lexus",       "#1c1c28", "https://www.lexus.com/search-inventory", False),
     "honda":       ("🅗 Honda",       "#003a70", "https://automobiles.honda.com/tools/search-inventory", False),
     "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/dealer-locator-inventory", False),
     "nissan":      ("🇳 Nissan",      "#c3002f", "https://www.nissanusa.com/shopping-tools/search-inventory", True),

@@ -648,7 +648,9 @@ _OEM_BUTTON_URLS = {
     # brand's official APPROVED PRE-OWNED locator (the searchable inventory).
     # URLs web-verified 2026-07-02 (all HTTP 200).
     "ferrari":     ("🅕 Ferrari",      "#d40000", "https://preowned.ferrari.com/en-US", False),
-    "lamborghini": ("🅛 Lamborghini",  "#b8860b", "https://preowned.lamborghini.com/en_us/search", False),
+    # preowned.lamborghini.com geo-redirects US visitors to a broken en_gb 404;
+    # use the main site's pre-owned page (stable 200).
+    "lamborghini": ("🅛 Lamborghini",  "#b8860b", "https://www.lamborghini.com/en-en/models/pre-owned", False),
     "bentley":     ("🅑 Bentley",      "#14332a", "https://preowned.bentleymotors.com/en_us/search", False),
     "rolls-royce": ("🅡 Rolls-Royce",  "#2a2a3a", "https://pre-owned.rolls-roycemotorcars.com/en_us/search", False),
     "aston martin":("🅐 Aston Martin", "#0a5c4a", "https://preowned.astonmartin.com/en_us/search", False),

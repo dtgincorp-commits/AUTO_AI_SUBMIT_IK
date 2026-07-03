@@ -590,6 +590,13 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         if zip_code: qp.append(f"zip={zip_code}")
         if radius: qp.append(f"range={min(radius, 200)}")
         return ("🆃 Tesla", "#cc0000", url + (("?" + "&".join(qp)) if qp else ""))
+    if mk == "polestar":
+        # Direct-sales like Tesla — model-specific stock pages, no zip param.
+        # Models are Polestar 2/3/4; deep-link /us/stock-cars/polestar-{N}/.
+        _pd = _re_oem.search(r"[2-9]", model or "")
+        url = (f"https://www.polestar.com/us/stock-cars/polestar-{_pd.group(0)}/"
+               if _pd else "https://www.polestar.com/us/how-to-buy-a-polestar/available-cars/")
+        return ("🅟 Polestar", "#1a1a1a", url)
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -624,7 +631,6 @@ _OEM_BUTTON_URLS = {
     "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/inventory/", False),
     "rivian":      ("🆁 Rivian",      "#1f4a3a", "https://rivian.com/configurations/list", False),
     "lucid":       ("🅛 Lucid",       "#2a2a3a", "https://www.lucidmotors.com/inventory", False),
-    "polestar":    ("🅟 Polestar",    "#1a1a1a", "https://www.polestar.com/us/", False),
     "kia":         ("🅚 Kia",         "#05141f", "https://www.kia.com/us/en/inventory", False),
     # Mainstream + luxury brands (URLs web-verified 2026-07-02)
     "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),

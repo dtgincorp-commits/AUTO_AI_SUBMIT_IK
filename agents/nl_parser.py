@@ -119,6 +119,17 @@ def parse_query(query: str) -> tuple[dict, str]:
                     parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
             except Exception:
                 pass
+
+        # Final pass: strip a duplicated make prefix from the model. Brands whose
+        # models are named after the brand (Polestar 2/3/4) end up as model
+        # "Polestar 2" — via the LLM or the judge — but listing APIs store just
+        # "2", so leaving it duplicated returns 0 results. Done last so it also
+        # catches judge output.
+        _mk = (parsed.get("make") or "").strip()
+        _md = (parsed.get("model") or "").strip()
+        if _mk and _md and _md.lower().startswith(_mk.lower() + " "):
+            parsed["model"] = _md[len(_mk):].strip()
+
         return parsed, ""
     except Exception as e:
         return {}, str(e)

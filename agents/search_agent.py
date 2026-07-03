@@ -56,6 +56,10 @@ def _normalize_make_model(make: str, model: str) -> tuple:
         norm_model = canonicalize_model(norm_make, norm_model)
     except Exception:
         pass
+    # Strip a duplicated make prefix (Polestar "Polestar 2" → "2"). The LLM here
+    # re-expands brand-named models, but listing APIs store just "2".
+    if norm_make and norm_model and norm_model.lower().startswith(norm_make.lower() + " "):
+        norm_model = norm_model[len(norm_make):].strip()
     return norm_make, norm_model
 
 

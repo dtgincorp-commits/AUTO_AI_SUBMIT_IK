@@ -610,6 +610,18 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         url = f"https://www.{mk}.com/shopping/inventory/search" + (f"/{slug}" if slug else "")
         if zip_code: url += f"?zipcode={zip_code}"
         return (label, color, url)
+    if mk in _STELLANTIS_BRANDS:
+        # Stellantis shared platform (verified): new-inventory.{slug}.html — slug
+        # is compacted model with a brand prefix for RAM/Fiat (ram_1500, fiat_500e)
+        # but bare for Dodge/Chrysler (charger, pacifica). zipcode best-effort.
+        label, color, tmpl, prefix, fallback = _STELLANTIS_BRANDS[mk]
+        mtok = _re_oem.sub(r"[^a-z0-9]+", "", (model or "").lower())
+        if mtok:
+            s = mtok if (prefix and mtok.startswith(prefix.rstrip("_"))) else prefix + mtok
+            url = tmpl.format(s=s) + (f"?zipcode={zip_code}" if zip_code else "")
+        else:
+            url = fallback
+        return (label, color, url)
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -630,6 +642,20 @@ _GM_BRANDS = {
     "gmc":      ("🅖 GMC",      "#c8102e"),
     "buick":    ("🅑 Buick",    "#1a3a5c"),
     "cadillac": ("🅒 Cadillac", "#7c1414"),
+}
+
+# Stellantis shared platform — model deep-link verified 2026-07-02:
+# {site}/new-inventory.{slug}.html (RAM/Fiat prefix the brand in the slug).
+# make → (label, color, url_template, model_prefix, no-model_fallback).
+_STELLANTIS_BRANDS = {
+    "ram":      ("🅡 RAM",      "#8a6d3b", "https://www.ramtrucks.com/new-inventory.{s}.html", "ram_",
+                 "https://www.ramtrucks.com/vehicle-selector.sni.html"),
+    "dodge":    ("🅓 Dodge",    "#b31013", "https://www.dodge.com/new-inventory.{s}.html", "",
+                 "https://www.dodge.com/vehicle-selector.sni.html"),
+    "chrysler": ("🅒 Chrysler", "#1c1c2e", "https://www.chrysler.com/new-inventory.{s}.html", "",
+                 "https://www.chrysler.com/vehicle-selector.sni.html"),
+    "fiat":     ("🅕 Fiat",     "#8a1c24", "https://www.fiatusa.com/shopping-tools/new-inventory.{s}", "fiat_",
+                 "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni"),
 }
 
 
@@ -654,15 +680,11 @@ _OEM_BUTTON_URLS = {
     # Mainstream + luxury brands (URLs web-verified 2026-07-02)
     "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),
     "subaru":      ("🅢 Subaru",      "#013c74", "https://www.subaru.com/vehicles/local-inventory.html", False),
-    "chrysler":    ("🅒 Chrysler",    "#1c1c2e", "https://www.chrysler.com/vehicle-selector.sni.html", False),
-    "dodge":       ("🅓 Dodge",       "#b31013", "https://www.dodge.com/vehicle-selector.sni.html", False),
-    "ram":         ("🅡 RAM",         "#8a6d3b", "https://www.ramtrucks.com/vehicle-selector.sni.html", False),
     "lincoln":     ("🅛 Lincoln",     "#0b1a2a", "https://www.lincoln.com/search-inventory/", False),
     "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://inventory.jaguarusa.com/new/", False),
     "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://inventory.landroverusa.com/new/search/", False),
     "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
     "alfa romeo":  ("🅐 Alfa Romeo",  "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni", False),
-    "fiat":        ("🅕 Fiat",        "#8a1c24", "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni", False),
 }
 
 # Exotics sell new by allocation (no searchable new stock), so the button is

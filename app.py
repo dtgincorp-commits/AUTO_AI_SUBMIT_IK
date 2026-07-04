@@ -695,8 +695,10 @@ _OEM_BUTTON_URLS = {
     # Mainstream + luxury brands (URLs web-verified 2026-07-02)
     "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),
     "subaru":      ("🅢 Subaru",      "#013c74", "https://www.subaru.com/vehicles/local-inventory.html", False),
-    "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://inventory.jaguarusa.com/new/", False),
-    "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://inventory.landroverusa.com/new/search/", False),
+    # JLR inventory.* pages bounce US visitors to the homepage — use the working
+    # dealer/retailer locators instead (zip best-effort to find nearby dealers).
+    "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://www.jaguar.com/en-us/jdx/retailer-locator/index.html", True),
+    "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://www.rangerover.com/en-us/national-dealer-locator.html", True),
     "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
 }
 

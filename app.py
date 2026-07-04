@@ -642,6 +642,12 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         url = f"https://www.{_fz[2]}/inventory/{slug}/results" if slug else _fz[3]
         if slug and zip_code: url += f"?zipcode={zip_code}"
         return (_fz[0], _fz[1], url)
+    if mk == "honda":
+        # Verified from a live filtered URL: ?modelseries={model-slug} (lowercase-
+        # hyphenated: CR-V → cr-v). Honda stores zip in session, not the URL.
+        slug = _re_oem.sub(r"[^a-z0-9]+", "-", (model or "").lower()).strip("-")
+        base = "https://automobiles.honda.com/tools/search-inventory"
+        return ("🅗 Honda", "#003a70", f"{base}?modelseries={slug}" if slug else base)
     if mk == "kia":
         # Verified: /inventory/result?zipCode={zip}&seriesId={model-slug}.
         qp = []
@@ -712,7 +718,6 @@ _BESTEFFORT_BRANDS = {
 # URLs verified to load in a browser 2026-06-30. Sources (Porsche, MBUSA,
 # Hyundai, Genesis, Toyota) are handled above with richer params.
 _OEM_BUTTON_URLS = {
-    "honda":       ("🅗 Honda",       "#003a70", "https://automobiles.honda.com/tools/search-inventory", False),
     "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/dealer-locator-inventory", False),
     "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),

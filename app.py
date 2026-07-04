@@ -622,6 +622,20 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         else:
             url = fallback
         return (label, color, url)
+    if mk == "infiniti":
+        # Verified: site normalizes ?model= to ?models= and keeps zip=.
+        qp = []
+        if model: qp.append(f"models={_re_oem.sub(r'[^A-Za-z0-9]', '', model)}")
+        if zip_code: qp.append(f"zip={zip_code}")
+        base = "https://www.infinitiusa.com/shopping-tools/search-inventory"
+        return ("🅘 Infiniti", "#1f2a44", base + (("?" + "&".join(qp)) if qp else ""))
+    if mk == "lincoln":
+        # Lincoln runs on Ford's platform: /inventory/{model-slug}/results?zipcode=
+        # (blocks curl like Ford — browser-verified pattern).
+        slug = _re_oem.sub(r"[^a-z0-9]", "", (model or "").lower())
+        url = f"https://www.lincoln.com/inventory/{slug}/results" if slug else "https://www.lincoln.com/search-inventory/"
+        if slug and zip_code: url += f"?zipcode={zip_code}"
+        return ("🅛 Lincoln", "#0b1a2a", url)
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -656,6 +670,8 @@ _STELLANTIS_BRANDS = {
                  "https://www.chrysler.com/vehicle-selector.sni.html"),
     "fiat":     ("🅕 Fiat",     "#8a1c24", "https://www.fiatusa.com/shopping-tools/new-inventory.{s}", "fiat_",
                  "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni"),
+    "alfa romeo": ("🅐 Alfa Romeo", "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/new-inventory.{s}", "",
+                 "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni"),
 }
 
 
@@ -666,7 +682,6 @@ _OEM_BUTTON_URLS = {
     "honda":       ("🅗 Honda",       "#003a70", "https://automobiles.honda.com/tools/search-inventory", False),
     "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/dealer-locator-inventory", False),
     "nissan":      ("🇳 Nissan",      "#c3002f", "https://www.nissanusa.com/shopping-tools/search-inventory", True),
-    "infiniti":    ("🅘 Infiniti",    "#1f2a44", "https://www.infinitiusa.com/shopping-tools/search-inventory", False),
     "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
     "volkswagen":  ("🆅 VW",          "#001e50", "https://www.vw.com/en/inventory.html", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
@@ -680,11 +695,9 @@ _OEM_BUTTON_URLS = {
     # Mainstream + luxury brands (URLs web-verified 2026-07-02)
     "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),
     "subaru":      ("🅢 Subaru",      "#013c74", "https://www.subaru.com/vehicles/local-inventory.html", False),
-    "lincoln":     ("🅛 Lincoln",     "#0b1a2a", "https://www.lincoln.com/search-inventory/", False),
     "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://inventory.jaguarusa.com/new/", False),
     "land rover":  ("🅛 Land Rover",  "#1a3c34", "https://inventory.landroverusa.com/new/search/", False),
     "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
-    "alfa romeo":  ("🅐 Alfa Romeo",  "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni", False),
 }
 
 # Exotics sell new by allocation (no searchable new stock), so the button is

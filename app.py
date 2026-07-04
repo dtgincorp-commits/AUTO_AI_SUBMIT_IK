@@ -615,27 +615,48 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # is compacted model with a brand prefix for RAM/Fiat (ram_1500, fiat_500e)
         # but bare for Dodge/Chrysler (charger, pacifica). zipcode best-effort.
         label, color, tmpl, prefix, fallback = _STELLANTIS_BRANDS[mk]
-        mtok = _re_oem.sub(r"[^a-z0-9]+", "", (model or "").lower())
+        # spaces → underscore so multi-word models work (Grand Cherokee →
+        # grand_cherokee); single-word unchanged (charger, 1500, giulia)
+        mtok = _re_oem.sub(r"[^a-z0-9]+", "_", (model or "").lower()).strip("_")
         if mtok:
             s = mtok if (prefix and mtok.startswith(prefix.rstrip("_"))) else prefix + mtok
             url = tmpl.format(s=s) + (f"?zipcode={zip_code}" if zip_code else "")
         else:
             url = fallback
         return (label, color, url)
-    if mk == "infiniti":
-        # Verified: site normalizes ?model= to ?models= and keeps zip=.
+    if mk in ("infiniti", "nissan"):
+        # Nissan-group platform (verified): ?models={model}&zip= (site normalizes
+        # a singular ?model= to ?models=).
+        _nz = {"infiniti": ("🅘 Infiniti", "#1f2a44", "https://www.infinitiusa.com/shopping-tools/search-inventory"),
+               "nissan":   ("🇳 Nissan",   "#c3002f", "https://www.nissanusa.com/shopping-tools/search-inventory")}[mk]
         qp = []
         if model: qp.append(f"models={_re_oem.sub(r'[^A-Za-z0-9]', '', model)}")
         if zip_code: qp.append(f"zip={zip_code}")
-        base = "https://www.infinitiusa.com/shopping-tools/search-inventory"
-        return ("🅘 Infiniti", "#1f2a44", base + (("?" + "&".join(qp)) if qp else ""))
-    if mk == "lincoln":
-        # Lincoln runs on Ford's platform: /inventory/{model-slug}/results?zipcode=
-        # (blocks curl like Ford — browser-verified pattern).
+        return (_nz[0], _nz[1], _nz[2] + (("?" + "&".join(qp)) if qp else ""))
+    if mk in ("lincoln", "ford"):
+        # Ford platform (documented): /inventory/{model-slug}/results?zipcode=
+        # (blocks curl — browser-verified pattern). slug is compact lowercase.
+        _fz = {"lincoln": ("🅛 Lincoln", "#0b1a2a", "lincoln.com", "https://www.lincoln.com/search-inventory/"),
+               "ford":    ("🅕 Ford",    "#066fef", "ford.com",    "https://www.ford.com/inventory/")}[mk]
         slug = _re_oem.sub(r"[^a-z0-9]", "", (model or "").lower())
-        url = f"https://www.lincoln.com/inventory/{slug}/results" if slug else "https://www.lincoln.com/search-inventory/"
+        url = f"https://www.{_fz[2]}/inventory/{slug}/results" if slug else _fz[3]
         if slug and zip_code: url += f"?zipcode={zip_code}"
-        return ("🅛 Lincoln", "#0b1a2a", url)
+        return (_fz[0], _fz[1], url)
+    if mk == "kia":
+        # Verified: /inventory/result?zipCode={zip}&seriesId={model-slug}.
+        qp = []
+        if zip_code: qp.append(f"zipCode={zip_code}")
+        if model: qp.append(f"seriesId={_re_oem.sub(r'[^a-z0-9]+', '-', model.lower()).strip('-')}")
+        base = "https://www.kia.com/us/en/inventory/result"
+        return ("🅚 Kia", "#05141f", base + (("?" + "&".join(qp)) if qp else ""))
+    if mk in _BESTEFFORT_BRANDS:
+        # ?model= stays in the URL (harmless if the SPA ignores it — strictly not
+        # worse than a bare landing page). Filtering unverified.
+        label, color, base = _BESTEFFORT_BRANDS[mk]
+        qp = []
+        if model: qp.append(f"model={_re_oem.sub(r'[^a-z0-9]+', '-', model.lower()).strip('-')}")
+        if zip_code: qp.append(f"zip={zip_code}")
+        return (label, color, base + (("?" + "&".join(qp)) if qp else ""))
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -672,6 +693,18 @@ _STELLANTIS_BRANDS = {
                  "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni"),
     "alfa romeo": ("🅐 Alfa Romeo", "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/new-inventory.{s}", "",
                  "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni"),
+    "jeep":     ("🅙 Jeep",     "#3a4a2a", "https://www.jeep.com/new-inventory.{s}.html", "",
+                 "https://www.jeep.com/build-and-price.html"),
+}
+
+# Best-effort model/zip (param stays in URL, harmless if the SPA ignores it —
+# not worse than a bare page, but filtering is UNVERIFIED). make → (label, color, base).
+_BESTEFFORT_BRANDS = {
+    "mazda":      ("🅜 Mazda",  "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results"),
+    "subaru":     ("🅢 Subaru", "#013c74", "https://www.subaru.com/vehicles/local-inventory.html"),
+    "volkswagen": ("🆅 VW",     "#001e50", "https://www.vw.com/en/inventory.html"),
+    "rivian":     ("🆁 Rivian", "#1f4a3a", "https://rivian.com/configurations/list"),
+    "lucid":      ("🅛 Lucid",  "#2a2a3a", "https://www.lucidmotors.com/available-vehicles"),
 }
 
 
@@ -681,20 +714,10 @@ _STELLANTIS_BRANDS = {
 _OEM_BUTTON_URLS = {
     "honda":       ("🅗 Honda",       "#003a70", "https://automobiles.honda.com/tools/search-inventory", False),
     "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/dealer-locator-inventory", False),
-    "nissan":      ("🇳 Nissan",      "#c3002f", "https://www.nissanusa.com/shopping-tools/search-inventory", True),
     "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
-    "volkswagen":  ("🆅 VW",          "#001e50", "https://www.vw.com/en/inventory.html", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
     "chevrolet":   ("🅒 Chevrolet",   "#d1a564", "https://www.chevrolet.com/shopping/inventory/search", False),
-    "ford":        ("🅕 Ford",        "#066fef", "https://www.ford.com/inventory/", False),
-    "jeep":        ("🅙 Jeep",        "#3a4a2a", "https://www.jeep.com/build-and-price.html", False),
     "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/inventory/", False),
-    "rivian":      ("🆁 Rivian",      "#1f4a3a", "https://rivian.com/configurations/list", False),
-    "lucid":       ("🅛 Lucid",       "#2a2a3a", "https://www.lucidmotors.com/inventory", False),
-    "kia":         ("🅚 Kia",         "#05141f", "https://www.kia.com/us/en/inventory", False),
-    # Mainstream + luxury brands (URLs web-verified 2026-07-02)
-    "mazda":       ("🅜 Mazda",       "#910a2d", "https://www.mazdausa.com/shopping-tools/inventory/results", False),
-    "subaru":      ("🅢 Subaru",      "#013c74", "https://www.subaru.com/vehicles/local-inventory.html", False),
     # JLR inventory.* pages bounce US visitors to the homepage — use the working
     # dealer/retailer locators instead (zip best-effort to find nearby dealers).
     "jaguar":      ("🅙 Jaguar",      "#0a3f2c", "https://www.jaguar.com/en-us/jdx/retailer-locator/index.html", True),

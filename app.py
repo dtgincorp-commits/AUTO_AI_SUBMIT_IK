@@ -602,6 +602,14 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         # the brand's Models/Build page, and Used to the pre-owned locator.
         label, color, new_url, used_url = _EXOTIC_URLS[mk]
         return (label, color, used_url if condition == "Used" else new_url)
+    if mk in _GM_BRANDS:
+        # GM shared platform (verified): /shopping/inventory/search/{model-slug}
+        # ?zipcode= — model slug is lowercase-hyphenated, year optional.
+        label, color = _GM_BRANDS[mk]
+        slug = _re_oem.sub(r"[^a-z0-9]+", "-", (model or "").lower()).strip("-")
+        url = f"https://www.{mk}.com/shopping/inventory/search" + (f"/{slug}" if slug else "")
+        if zip_code: url += f"?zipcode={zip_code}"
+        return (label, color, url)
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -616,6 +624,15 @@ def _oem_inventory_button(make: str, model: str, condition: str,
     return None
 
 
+# GM shared inventory platform — model/zip deep-link verified 2026-07-02:
+# {brand}.com/shopping/inventory/search/{model-slug}?zipcode=. make → (label, color).
+_GM_BRANDS = {
+    "gmc":      ("🅖 GMC",      "#c8102e"),
+    "buick":    ("🅑 Buick",    "#1a3a5c"),
+    "cadillac": ("🅒 Cadillac", "#7c1414"),
+}
+
+
 # make → (button label, color, inventory-page URL, accepts ?zip=)
 # URLs verified to load in a browser 2026-06-30. Sources (Porsche, MBUSA,
 # Hyundai, Genesis, Toyota) are handled above with richer params.
@@ -628,9 +645,6 @@ _OEM_BUTTON_URLS = {
     "volkswagen":  ("🆅 VW",          "#001e50", "https://www.vw.com/en/inventory.html", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
     "chevrolet":   ("🅒 Chevrolet",   "#d1a564", "https://www.chevrolet.com/shopping/inventory/search", False),
-    "gmc":         ("🅖 GMC",         "#c8102e", "https://www.gmc.com/shopping/inventory/search", False),
-    "cadillac":    ("🅒 Cadillac",    "#7c1414", "https://www.cadillac.com/shopping/inventory/search", False),
-    "buick":       ("🅑 Buick",       "#1a3a5c", "https://www.buick.com/shopping/inventory/search", False),
     "ford":        ("🅕 Ford",        "#066fef", "https://www.ford.com/inventory/", False),
     "jeep":        ("🅙 Jeep",        "#3a4a2a", "https://www.jeep.com/build-and-price.html", False),
     "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/inventory/", False),

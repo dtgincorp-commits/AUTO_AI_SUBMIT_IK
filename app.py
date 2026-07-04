@@ -597,6 +597,11 @@ def _oem_inventory_button(make: str, model: str, condition: str,
         url = (f"https://www.polestar.com/us/stock-cars/polestar-{_pd.group(0)}/"
                if _pd else "https://www.polestar.com/us/how-to-buy-a-polestar/available-cars/")
         return ("🅟 Polestar", "#1a1a1a", url)
+    if mk in _EXOTIC_URLS:
+        # Exotics sell NEW by allocation (no searchable stock) — route New/Any to
+        # the brand's Models/Build page, and Used to the pre-owned locator.
+        label, color, new_url, used_url = _EXOTIC_URLS[mk]
+        return (label, color, used_url if condition == "Used" else new_url)
     # Comprehensive manufacturer-inventory handoffs (browser-verified landing
     # pages). These brands protect their inventory APIs (Akamai/WAF/3rd-party
     # widgets) so they can't be in-app sources, but the official inventory page
@@ -644,16 +649,27 @@ _OEM_BUTTON_URLS = {
     "maserati":    ("🅜 Maserati",    "#003a6a", "https://www.maserati.com/us/en/shopping-tools/new-inventory", False),
     "alfa romeo":  ("🅐 Alfa Romeo",  "#8b1a2b", "https://www.alfaromeousa.com/shopping-tools/vehicle-selector.sni", False),
     "fiat":        ("🅕 Fiat",        "#8a1c24", "https://www.fiatusa.com/shopping-tools/vehicle-selector.sni", False),
-    # Exotics — new sales are allocation/waitlist only, so these link to each
-    # brand's official APPROVED PRE-OWNED locator (the searchable inventory).
-    # URLs web-verified 2026-07-02 (all HTTP 200).
-    "ferrari":     ("🅕 Ferrari",      "#d40000", "https://preowned.ferrari.com/en-US", False),
-    # preowned.lamborghini.com geo-redirects US visitors to a broken en_gb 404;
-    # use the main site's pre-owned page (stable 200).
-    "lamborghini": ("🅛 Lamborghini",  "#b8860b", "https://www.lamborghini.com/en-en/models/pre-owned", False),
-    "bentley":     ("🅑 Bentley",      "#14332a", "https://preowned.bentleymotors.com/en_us/search", False),
-    "rolls-royce": ("🅡 Rolls-Royce",  "#2a2a3a", "https://pre-owned.rolls-roycemotorcars.com/en_us/search", False),
-    "aston martin":("🅐 Aston Martin", "#0a5c4a", "https://preowned.astonmartin.com/en_us/search", False),
+}
+
+# Exotics sell new by allocation (no searchable new stock), so the button is
+# condition-aware: New/Any → Models/Build page, Used → pre-owned locator.
+# make → (label, color, new_url, used_url). URLs web-verified 2026-07-02.
+_EXOTIC_URLS = {
+    "ferrari":     ("🅕 Ferrari",      "#d40000",
+                    "https://www.ferrari.com/en-US/auto",
+                    "https://preowned.ferrari.com/en-US"),
+    "lamborghini": ("🅛 Lamborghini",  "#b8860b",
+                    "https://www.lamborghini.com/en-en/models",
+                    "https://www.lamborghini.com/en-en/models/pre-owned"),
+    "bentley":     ("🅑 Bentley",      "#14332a",
+                    "https://www.bentleymotors.com/en/models.html",
+                    "https://preowned.bentleymotors.com/en_us/search"),
+    "rolls-royce": ("🅡 Rolls-Royce",  "#2a2a3a",
+                    "https://www.rolls-roycemotorcars.com/en_US/showroom.html",
+                    "https://pre-owned.rolls-roycemotorcars.com/en_us/search"),
+    "aston martin":("🅐 Aston Martin", "#0a5c4a",
+                    "https://www.astonmartin.com/en-us/models",
+                    "https://preowned.astonmartin.com/en_us/search"),
 }
 
 

@@ -680,9 +680,10 @@ def _oem_inventory_button(make: str, model: str, condition: str,
 # GM shared inventory platform — model/zip deep-link verified 2026-07-02:
 # {brand}.com/shopping/inventory/search/{model-slug}?zipcode=. make → (label, color).
 _GM_BRANDS = {
-    "gmc":      ("🅖 GMC",      "#c8102e"),
-    "buick":    ("🅑 Buick",    "#1a3a5c"),
-    "cadillac": ("🅒 Cadillac", "#7c1414"),
+    "chevrolet": ("🅒 Chevrolet", "#d1a564"),
+    "gmc":       ("🅖 GMC",       "#c8102e"),
+    "buick":     ("🅑 Buick",     "#1a3a5c"),
+    "cadillac":  ("🅒 Cadillac",  "#7c1414"),
 }
 
 # Stellantis shared platform — model deep-link verified 2026-07-02:
@@ -721,7 +722,6 @@ _OEM_BUTTON_URLS = {
     "acura":       ("🅐 Acura",       "#1b2a4a", "https://www.acura.com/dealer-locator-inventory", False),
     "mitsubishi":  ("🅜 Mitsubishi",  "#e60012", "https://www.mitsubishicars.com/inventory", False),
     "audi":        ("🅐 Audi",        "#bb0a30", "https://www.audiusa.com/en/inventory/", False),
-    "chevrolet":   ("🅒 Chevrolet",   "#d1a564", "https://www.chevrolet.com/shopping/inventory/search", False),
     "volvo":       ("🆅 Volvo",       "#1c3e5c", "https://www.volvocars.com/us/inventory/", False),
     # JLR inventory.* pages bounce US visitors to the homepage — use the working
     # dealer/retailer locators instead (zip best-effort to find nearby dealers).

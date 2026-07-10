@@ -106,7 +106,11 @@ def parse_query(query: str) -> tuple[dict, str]:
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         parsed = json.loads(raw.strip())
 
-        # Canonicalize make+model against NHTSA
+        # Canonicalize make+model against NHTSA (keep the user's granularity —
+        # do NOT peel a trailing number here: "GX 550" is a real Lexus model,
+        # while "AMG GT 63" is model+trim. They're structurally identical, so the
+        # split can't be decided at parse time — the sources handle it via a
+        # fallback-on-zero query instead).
         if parsed.get("make") and parsed.get("model"):
             try:
                 from agents.nhtsa import canonicalize_model, model_exists
@@ -115,7 +119,6 @@ def parse_query(query: str) -> tuple[dict, str]:
                 # If NHTSA still can't validate → fire LLM #2 judge
                 if not model_exists(parsed["make"], canonical):
                     parsed = _judge_parse(query, parsed)
-                    # Re-canonicalize after judge correction
                     parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
             except Exception:
                 pass

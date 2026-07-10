@@ -493,7 +493,11 @@ _MB_CLASS_CODES = {"A", "B", "C", "E", "S", "G", "CLA", "CLE", "CLS", "GLA", "GL
 
 
 def _mb_class_from_model(model: str) -> Optional[str]:
-    m = re.match(r"[A-Za-z]+", (model or "").replace(" ", ""))
+    # "AMG" is a sub-brand prefix, not a class — strip it so "AMG GT" → class
+    # "GT" (otherwise the letters run is "AMGGT", which matches nothing and makes
+    # MBUSA fetch ALL Mercedes).
+    s = re.sub(r'^amg\s+', '', (model or "").strip(), flags=re.I)
+    m = re.match(r"[A-Za-z]+", s.replace(" ", ""))
     if m and m.group(0).upper() in _MB_CLASS_CODES:
         return m.group(0).upper()
     return None
@@ -1283,6 +1287,27 @@ def _search_autodev(
     model = _normalize_model_for_autodev(make, model)
     headers = {"Authorization": f"Bearer {AUTODEV_API_KEY}"}
 
+    # Fallback-on-zero: some cars are stored as model+trim (Mercedes "AMG GT" +
+    # "63") not as the bundled string the user typed ("AMG GT 63") → the bundled
+    # query returns 0. A cheap 1-result probe decides: if the full model finds
+    # nothing but the NHTSA base model exists, switch to the base model and treat
+    # the remainder as trim. Lexus "GX 550" probes >0, so it's left untouched —
+    # the database's real response is the arbiter, not a fragile parse-time rule.
+    _eff_trim = prefs.trim or ""
+    try:
+        from agents.nhtsa import split_model_trim
+        _base_model, _peeled = split_model_trim(make, model)
+        if _peeled and _base_model.lower() != model.lower():
+            _probe = requests.get(f"{AUTODEV_BASE}/listings",
+                                  params={"vehicle.make": make, "vehicle.model": model, "limit": 1},
+                                  headers=headers, timeout=10)
+            if _probe.status_code == 200 and not (_probe.json().get("data")):
+                model = _base_model
+                if not _eff_trim.strip():
+                    _eff_trim = _peeled
+    except Exception:
+        pass
+
     base_params: dict = {
         "vehicle.make": make,
         "vehicle.model": model,
@@ -1300,7 +1325,7 @@ def _search_autodev(
     # Smart pagination: always fetch 5 pages (500 listings), then keep going if
     # fewer than 5 listings match the requested trim in their title.
     # Caps at 10 pages (1000 listings) to limit cost.
-    _trim_kw   = (prefs.trim or "").lower().strip()
+    _trim_kw   = (_eff_trim or "").lower().strip()
     _trim_has  = bool(_trim_kw and _trim_kw not in ("any", ""))
     _TRIM_MIN  = 5    # keep pulling pages until we have at least this many trim matches
     _MAX_PAGES = 10   # hard cap to control cost

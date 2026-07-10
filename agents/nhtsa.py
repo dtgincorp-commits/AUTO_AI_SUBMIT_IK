@@ -86,32 +86,66 @@ def get_models_for_make(make: str) -> List[str]:
     return _fetch_make(make)
 
 
-def canonicalize_model(make: str, model: str) -> str:
+def split_model_trim(make: str, model: str) -> tuple:
     """
-    Return the NHTSA-canonical model name for a given make+model string.
-    Matches case-insensitively. Returns original string if no match found.
+    Split a bundled "model + variant" string into (canonical_model, trim) using
+    the make's real NHTSA model list.
+
+    e.g. ("Mercedes-Benz", "AMG GT 63") -> ("AMG GT", "63")
+         ("Cadillac", "CT5 V")          -> ("CT5", "V")
+         ("BMW", "M340i")               -> ("M340i", "")   # NOT "M3"+"40i"
+
+    The listing databases (auto.dev, Marketcheck, MBUSA) store the model
+    (AMG GT) and the variant (63) in SEPARATE fields, so searching for the
+    bundled string returns 0. Peeling the variant into `trim` lets sources
+    query the real model (recall) and the ranking agent match the trim
+    (precision). Returns (model, "") unchanged if nothing to split.
     """
     models = get_models_for_make(make)
     model_lower = model.lower().strip()
     # Collapse internal whitespace so "rs3" matches NHTSA's "RS 3"
     model_compact = re.sub(r'\s+', '', model_lower)
+    # 1) exact / whitespace-normalized exact — the whole string is a real model
     for m in models:
-        if m.lower() == model_lower:
-            return m   # return exact NHTSA casing
-        if re.sub(r'\s+', '', m.lower()) == model_compact:
-            return m   # match after whitespace normalization (e.g. "RS3" → "RS 3")
-    # Partial match: query is contained in an NHTSA name (forward direction only).
-    # Use compacted forms to avoid "s3" matching inside "rs3".
-    # We intentionally skip the reverse direction (NHTSA name ⊆ query) because
-    # short historical NHTSA names (e.g. "600") would falsely match inside longer
-    # user inputs like "gls600".
-    candidates = [
-        m for m in models
-        if model_compact in re.sub(r'\s+', '', m.lower())
-    ]
+        if m.lower() == model_lower or re.sub(r'\s+', '', m.lower()) == model_compact:
+            return m, ""
+    # 2) forward substring: query sits inside a NHTSA name (single match only).
+    #    Compacted to avoid "s3" matching inside "rs3".
+    fwd = [m for m in models if model_compact in re.sub(r'\s+', '', m.lower())]
+    if len(fwd) == 1:
+        return fwd[0], ""
+    # 3) reverse match, but ONLY at a WORD BOUNDARY: the query must start with
+    #    "<nhtsa model> " (model followed by a space). This peels "AMG GT 63" →
+    #    "AMG GT" + "63" while refusing "M340i" → "M3" (no space after M3) and
+    #    "GLS 600" → "600" (600 is at the end, not the start). Longest wins.
+    prefixed = [m for m in models if model_lower.startswith(m.lower() + " ")]
+    if prefixed:
+        best = max(prefixed, key=len)
+        return best, model[len(best):].strip()
+    return model, ""   # nothing matched — leave as-is
+
+
+def canonicalize_model(make: str, model: str) -> str:
+    """
+    Return the NHTSA-canonical model name for a make+model string, keeping the
+    user's granularity (does NOT peel a trailing number — "GX 550" stays "GX
+    550"). Matches case-insensitively; returns the original if no match.
+
+    Deliberately forward-only: reverse/prefix matching would wrongly turn Lexus
+    "GX 550" into "GX". The model+trim split for cases like "AMG GT 63" is done
+    at query time via split_model_trim + fallback-on-zero, using the database's
+    real response as the arbiter (see search_agent).
+    """
+    models = get_models_for_make(make)
+    model_lower = model.lower().strip()
+    model_compact = re.sub(r'\s+', '', model_lower)
+    for m in models:
+        if m.lower() == model_lower or re.sub(r'\s+', '', m.lower()) == model_compact:
+            return m
+    candidates = [m for m in models if model_compact in re.sub(r'\s+', '', m.lower())]
     if len(candidates) == 1:
         return candidates[0]
-    return model   # no match — return as-is
+    return model
 
 
 def model_exists(make: str, model: str) -> bool:

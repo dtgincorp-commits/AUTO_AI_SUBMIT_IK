@@ -68,20 +68,33 @@ _TRIM_NOISE = {
 
 
 def _derive_trim(title: str, make: str, model: str) -> str:
-    """Best-effort trim label from a listing title — strip year, make, model, and
-    condition words, then take the first 1-2 tokens before any body/drivetrain
-    word. e.g. "2024 Mercedes-Benz AMG GT 63 S 4MATIC" -> "63 S". Used to build
-    the results trim facet from the actual listings (like AutoTrader)."""
+    """Best-effort trim label from a listing title. Strip the year, make, and
+    condition/AMG words as whole strings, then drop each MODEL token individually
+    (so "GLE-Class" removes every "GLE"/"Class" from a messy "GLE AMG GLE 53"
+    title), and take the first 1-2 remaining tokens before any body/drivetrain
+    word. e.g. "2026 Mercedes-Benz GLE AMG GLE 53" -> "53"; "AMG GT 63 S" -> "63 S".
+    Pass the BASE model (AMG GT, not AMG GT 63) so the variant becomes the trim."""
     import re as _re
     s = f" {title or ''} "
     s = _re.sub(r"\b(19|20)\d{2}\b", " ", s)                       # year
-    for tok in filter(None, [make, model]):                        # make + model
-        s = _re.sub(_re.escape(tok), " ", s, flags=_re.I)
-    s = _re.sub(r"\b(new|used|pre[- ]?owned|certified|cpo)\b", " ", s, flags=_re.I)
+    if make:
+        s = _re.sub(_re.escape(make), " ", s, flags=_re.I)         # make (whole)
+    s = _re.sub(r"\b(amg|new|used|pre[- ]?owned|certified|cpo)\b", " ", s, flags=_re.I)
     s = _re.sub(r"[®*]", " ", s)
+    # model tokens to drop individually. Split on space/hyphen AND add the whole
+    # compacted form, so "GLE-Class" removes the "GLE-Class" title token (compacts
+    # to "gleclass") plus every redundant "GLE"/"Class" in a trim like "GLE 350".
+    model_toks = {_re.sub(r"[^a-z0-9]", "", w)
+                  for w in _re.split(r"[\s\-]+", (model or "").lower()) if w}
+    model_toks.add(_re.sub(r"[^a-z0-9]", "", (model or "").lower()))
+    model_toks.add("class")
+    model_toks.discard("")
     out = []
     for w in s.split():
-        if _re.sub(r"[^a-z0-9]", "", w.lower()) in _TRIM_NOISE:
+        wl = _re.sub(r"[^a-z0-9]", "", w.lower())
+        if not wl or wl in model_toks:
+            continue
+        if wl in _TRIM_NOISE:
             break
         out.append(w)
         if len(out) >= 2:

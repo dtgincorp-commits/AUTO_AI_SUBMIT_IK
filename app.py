@@ -117,6 +117,63 @@ def _facet_base(model: str) -> str:
     mm = _re.match(r"^([A-Za-z][A-Za-z ]*?)\s+\d", m)   # alpha prefix before a number
     return mm.group(1).strip() if mm else m
 
+
+def _debug_results_html(listings, make, model, condition, base_model) -> str:
+    """Standalone HTML page listing every current result in a debug table — raw
+    title, derived trim, full score breakdown, source, distance, VIN, URL. Opened
+    in a new tab (via a blob URL) so you can eyeball exactly what the pipeline
+    returned and how the ranking agent scored it."""
+    import html as _h, datetime as _dt
+    cols = ["#", "Score", "Score breakdown", "Raw title", "Derived trim", "Price",
+            "MSRP", "Year", "Mileage", "Ext", "Int", "Dealer", "Location",
+            "Dist (mi)", "Source", "VIN", "Stock", "URL"]
+
+    def _c(v):
+        return f"<td>{_h.escape('' if v is None else str(v))}</td>"
+
+    rows = []
+    for i, l in enumerate(listings, 1):
+        trim = _derive_trim(l.title, make, base_model)
+        bd = getattr(l, "score_breakdown", None)
+        if isinstance(bd, dict):
+            bd_str = " · ".join(f"{k}={v}" for k, v in bd.items())
+        else:
+            bd_str = str(bd or "")
+        url = getattr(l, "listing_url", "") or getattr(l, "dealer_url", "") or ""
+        url_cell = (f'<td><a href="{_h.escape(url)}" target="_blank" rel="noopener">open ↗</a></td>'
+                    if url else "<td></td>")
+        rows.append("<tr>" + "".join([
+            _c(i), _c(l.match_score), _c(bd_str), _c(l.title), _c(trim),
+            _c(f"${l.asking_price:,}" if l.asking_price else ""),
+            _c(f"${l.msrp:,}" if getattr(l, "msrp", None) else ""),
+            _c(l.year), _c(f"{l.mileage:,}" if l.mileage else ""),
+            _c(l.exterior_color), _c(l.interior_color), _c(l.dealer_name),
+            _c(l.location), _c(getattr(l, "distance_miles", None)), _c(l.source),
+            _c(l.vin), _c(getattr(l, "stock_number", None)),
+        ]) + url_cell + "</tr>")
+
+    ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    head = "".join(f"<th>{_h.escape(c)}</th>" for c in cols)
+    title = _h.escape(f"{make} {model}" + (f" — {condition}" if condition and condition != "Any" else ""))
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>Debug results — {title}</title>
+<style>
+  body{{background:#0b0f19;color:#e5e7eb;font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:16px}}
+  h1{{font-size:17px;margin:0 0 2px}} .meta{{color:#9ca3af;font-size:12px;margin-bottom:12px}}
+  .wrap{{overflow-x:auto;border:1px solid #1f2937;border-radius:8px}}
+  table{{border-collapse:collapse;white-space:nowrap;min-width:100%}}
+  th,td{{padding:6px 10px;border-bottom:1px solid #1f2937;text-align:left;vertical-align:top;max-width:340px;overflow:hidden;text-overflow:ellipsis}}
+  thead th{{position:sticky;top:0;background:#111827;color:#93c5fd;font-weight:700;z-index:1}}
+  tbody tr:nth-child(even){{background:#0f1523}}
+  tbody tr:hover{{background:#172033}}
+  a{{color:#60a5fa}} td:first-child,th:first-child{{color:#6b7280}}
+</style></head><body>
+<h1>Debug results — {title}</h1>
+<div class="meta">{len(listings)} rows · generated {ts} · derived-trim &amp; score-breakdown columns are computed live for debugging</div>
+<div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
+</body></html>"""
+
+
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
     "p_make": "", "p_model": "", "p_trim": "",
@@ -1590,6 +1647,34 @@ if _last_result:
             f"Found **{total}** matches for your {_make} {_model}{cond_label} "
             f"— showing **{start + 1}–{end}**"
         )
+
+        # ── Debug: open ALL current results as a table in a new browser tab ────
+        # Builds a standalone HTML page (raw title, derived trim, score breakdown,
+        # VIN, source, URL) and hands it to the browser as a blob URL, so the link
+        # opens the full result set in its own tab. Wrapped so it can never break
+        # the results page. (Same new-tab mechanism as the AutoTrader links.)
+        try:
+            import json as _json_dbg
+            import streamlit.components.v1 as _stc_dbg
+            _dbg_html = _debug_results_html(sorted_listings, _make, _model, _condition, _base_model)
+            _stc_dbg.html(
+                """<div style="font-family:sans-serif;padding:2px 0">
+  <a id="dbglink" target="_blank" rel="noopener"
+     style="display:inline-block;background:#374151;color:#e5e7eb;padding:6px 14px;
+            border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;
+            border:1px solid #4b5563">🔍 Open all """ + str(total) + """ results as table (debug) ↗</a>
+</div>
+<script>
+(function(){
+  var html = """ + _json_dbg.dumps(_dbg_html) + """;
+  var blob = new Blob([html], {type:'text/html'});
+  document.getElementById('dbglink').href = URL.createObjectURL(blob);
+})();
+</script>""",
+                height=42,
+            )
+        except Exception:
+            pass
 
         def _pagination_controls(key_suffix: str):
             if total_pages <= 1:

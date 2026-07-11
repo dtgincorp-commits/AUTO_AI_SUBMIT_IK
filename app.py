@@ -90,7 +90,7 @@ def _derive_trim(title: str, make: str, model: str) -> str:
     model_toks.add("class")
     model_toks.discard("")
     out = []
-    for w in s.split():
+    for w in _re.split(r"[\s\-]+", s.strip()):                      # split on space AND hyphen
         wl = _re.sub(r"[^a-z0-9]", "", w.lower())
         if not wl or wl in model_toks:
             continue
@@ -100,6 +100,22 @@ def _derive_trim(title: str, make: str, model: str) -> str:
         if len(out) >= 2:
             break
     return " ".join(out).strip() or "Standard"
+
+
+def _facet_base(model: str) -> str:
+    """Reduce a parsed model to the FAMILY name used to strip trims in the facet,
+    so the facet is stable no matter how the LLM bundled the query. The parse is
+    non-deterministic — "gle 53 coupe" comes back as "GLE-Class" one run and
+    "GLE 53" the next — but both must strip down to "GLE" so the 53/63/350/450
+    variants surface as trims (not get eaten into "Standard").
+      GLE-Class -> GLE   GLE 53 -> GLE   GLE 350 -> GLE   AMG GT 63 -> AMG GT
+      GX 550 -> GX       3 Series -> 3 Series   M340i -> M340i
+    Strips a "-Class"/" Class" suffix, then peels a trailing " <number…>" when an
+    alphabetic class prefix precedes it (keeps multi-word families like AMG GT)."""
+    import re as _re
+    m = _re.sub(r"[\s\-]+class$", "", (model or "").strip(), flags=_re.I).strip()
+    mm = _re.match(r"^([A-Za-z][A-Za-z ]*?)\s+\d", m)   # alpha prefix before a number
+    return mm.group(1).strip() if mm else m
 
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
@@ -1528,11 +1544,9 @@ if _last_result:
         # the trim: the fallback searches the family, so listings are "AMG GT 53/
         # 63/…" — stripping the bundled "AMG GT 63" would miss them.
         from collections import Counter as _Counter
-        try:
-            from agents.nhtsa import split_model_trim as _split
-            _base_model = _split(_make, _model)[0] if _model else _model
-        except Exception:
-            _base_model = _model
+        # Family name to strip from titles — robust to the parse bundling the trim
+        # ("GLE-Class" one run, "GLE 53" the next both reduce to "GLE").
+        _base_model = _facet_base(_model) if _model else _model
         _trim_counts = _Counter(_derive_trim(l.title, _make, _base_model) for l in listings)
         _sel_trims: set = set()
         if len(_trim_counts) > 1:

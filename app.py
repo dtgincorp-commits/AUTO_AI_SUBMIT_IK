@@ -58,6 +58,36 @@ st.caption("Powered by LangChain · Find your perfect car via AI agents · build
 
 RESULTS_PER_PAGE = 18   # 3 columns × 6 rows per page
 
+# Body/drivetrain/condition words that are NOT the trim — stop the trim label here.
+_TRIM_NOISE = {
+    "4matic", "awd", "rwd", "fwd", "xdrive", "quattro", "4motion", "sh-awd",
+    "coupe", "sedan", "suv", "cabriolet", "convertible", "roadster", "wagon",
+    "hatchback", "crew", "cab", "4dr", "2dr", "base", "hybrid", "phev", "4x4",
+    "2wd", "4wd", "e-hybrid",
+}
+
+
+def _derive_trim(title: str, make: str, model: str) -> str:
+    """Best-effort trim label from a listing title — strip year, make, model, and
+    condition words, then take the first 1-2 tokens before any body/drivetrain
+    word. e.g. "2024 Mercedes-Benz AMG GT 63 S 4MATIC" -> "63 S". Used to build
+    the results trim facet from the actual listings (like AutoTrader)."""
+    import re as _re
+    s = f" {title or ''} "
+    s = _re.sub(r"\b(19|20)\d{2}\b", " ", s)                       # year
+    for tok in filter(None, [make, model]):                        # make + model
+        s = _re.sub(_re.escape(tok), " ", s, flags=_re.I)
+    s = _re.sub(r"\b(new|used|pre[- ]?owned|certified|cpo)\b", " ", s, flags=_re.I)
+    s = _re.sub(r"[®*]", " ", s)
+    out = []
+    for w in s.split():
+        if _re.sub(r"[^a-z0-9]", "", w.lower()) in _TRIM_NOISE:
+            break
+        out.append(w)
+        if len(out) >= 2:
+            break
+    return " ".join(out).strip() or "Standard"
+
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
     "p_make": "", "p_model": "", "p_trim": "",
@@ -1466,7 +1496,7 @@ if _last_result:
             "Trim (A→Z)":                (lambda l: " ".join((l.title or "").lower().split()[3:]),                False),
             "Trim (Z→A)":                (lambda l: " ".join((l.title or "").lower().split()[3:]),                True),
         }
-        sort_col, _ = st.columns([2, 3])
+        sort_col, facet_col = st.columns([2, 3])
         with sort_col:
             st.markdown(
                 '<div style="background:linear-gradient(90deg,#1e3a5f,#1a2e4a);'
@@ -1480,10 +1510,35 @@ if _last_result:
                 key="results_sort",
                 label_visibility="collapsed",
             )
+        # ── Trim facet — built from the actual results (like AutoTrader) ─────
+        from collections import Counter as _Counter
+        _trim_counts = _Counter(_derive_trim(l.title, _make, _model) for l in listings)
+        _sel_trims: set = set()
+        if len(_trim_counts) > 1:
+            with facet_col:
+                _flabel = (f"{_model} Trims" if _model else "Trims").strip()
+                st.markdown(
+                    '<div style="background:linear-gradient(90deg,#1e3a5f,#1a2e4a);'
+                    'border:1px solid #3b82f6;border-radius:10px;padding:8px 14px;margin-bottom:4px">'
+                    f'<span style="color:#93c5fd;font-size:12px;font-weight:700;letter-spacing:0.5px">'
+                    f'▾ &nbsp;FILTER: {_flabel.upper()}</span></div>',
+                    unsafe_allow_html=True,
+                )
+                _trim_opts = [f"{t}  ({c})" for t, c in
+                              sorted(_trim_counts.items(), key=lambda x: (-x[1], x[0]))]
+                _picked = st.multiselect(
+                    _flabel, _trim_opts, key="results_trim_facet",
+                    label_visibility="collapsed", placeholder="Any trim",
+                )
+                _sel_trims = {p.rsplit("  (", 1)[0] for p in _picked}
+
         # Prepend any VIN-added listings (pinned at top, not sorted/paginated)
         _vin_added = st.session_state.get("vin_added_listings", [])
         _sort_key, _sort_rev = _SORT_OPTIONS[sort_choice]
         sorted_listings = sorted(listings, key=_sort_key, reverse=_sort_rev)
+        if _sel_trims:   # user narrowed by trim → filter to the picked trims
+            sorted_listings = [l for l in sorted_listings
+                               if _derive_trim(l.title, _make, _model) in _sel_trims]
 
         # ── Pagination setup ─────────────────────────────────────────────────
         total       = len(sorted_listings)

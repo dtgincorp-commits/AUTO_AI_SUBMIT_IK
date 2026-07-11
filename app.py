@@ -1510,13 +1510,21 @@ if _last_result:
                 key="results_sort",
                 label_visibility="collapsed",
             )
-        # ── Trim facet — built from the actual results (like AutoTrader) ─────
+        # ── Trim facet — built from the actual results (AutoTrader-style) ────
+        # Strip the BASE model (AMG GT 63 → AMG GT) so the variant (63) becomes
+        # the trim: the fallback searches the family, so listings are "AMG GT 53/
+        # 63/…" — stripping the bundled "AMG GT 63" would miss them.
         from collections import Counter as _Counter
-        _trim_counts = _Counter(_derive_trim(l.title, _make, _model) for l in listings)
+        try:
+            from agents.nhtsa import split_model_trim as _split
+            _base_model = _split(_make, _model)[0] if _model else _model
+        except Exception:
+            _base_model = _model
+        _trim_counts = _Counter(_derive_trim(l.title, _make, _base_model) for l in listings)
         _sel_trims: set = set()
         if len(_trim_counts) > 1:
             with facet_col:
-                _flabel = (f"{_model} Trims" if _model else "Trims").strip()
+                _flabel = (f"{_base_model} Trims" if _base_model else "Trims").strip()
                 st.markdown(
                     '<div style="background:linear-gradient(90deg,#1e3a5f,#1a2e4a);'
                     'border:1px solid #3b82f6;border-radius:10px;padding:8px 14px;margin-bottom:4px">'
@@ -1524,21 +1532,20 @@ if _last_result:
                     f'▾ &nbsp;FILTER: {_flabel.upper()}</span></div>',
                     unsafe_allow_html=True,
                 )
-                _trim_opts = [f"{t}  ({c})" for t, c in
-                              sorted(_trim_counts.items(), key=lambda x: (-x[1], x[0]))]
-                _picked = st.multiselect(
-                    _flabel, _trim_opts, key="results_trim_facet",
-                    label_visibility="collapsed", placeholder="Any trim",
-                )
-                _sel_trims = {p.rsplit("  (", 1)[0] for p in _picked}
+                # Vertical checkbox list (scrollable) like AutoTrader's trim panel.
+                with st.container(height=190, border=False):
+                    for _t, _c in sorted(_trim_counts.items(), key=lambda x: (-x[1], x[0])):
+                        if st.checkbox(f"{_t}  ({_c})",
+                                       key=f"trimfacet::{_base_model}::{_t}"):
+                            _sel_trims.add(_t)
 
         # Prepend any VIN-added listings (pinned at top, not sorted/paginated)
         _vin_added = st.session_state.get("vin_added_listings", [])
         _sort_key, _sort_rev = _SORT_OPTIONS[sort_choice]
         sorted_listings = sorted(listings, key=_sort_key, reverse=_sort_rev)
-        if _sel_trims:   # user narrowed by trim → filter to the picked trims
+        if _sel_trims:   # user checked trims → filter to just those
             sorted_listings = [l for l in sorted_listings
-                               if _derive_trim(l.title, _make, _model) in _sel_trims]
+                               if _derive_trim(l.title, _make, _base_model) in _sel_trims]
 
         # ── Pagination setup ─────────────────────────────────────────────────
         total       = len(sorted_listings)

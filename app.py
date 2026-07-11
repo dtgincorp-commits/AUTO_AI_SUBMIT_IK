@@ -900,7 +900,7 @@ if st.session_state.get("_search_builder"):
     🗺️ &nbsp;Your search — ready to go on any platform
   </div>
   <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
-    👤 HTIL Required.
+    👤 HITL Required.
   </div>
   <div style="display:inline-block;font-size:11px;color:#e0f0ff;font-weight:600;
               border:1px solid #3b82f6;border-radius:6px;
@@ -1562,7 +1562,10 @@ if _last_result:
                 # Vertical checkbox list (scrollable) like AutoTrader's trim panel.
                 with st.container(height=190, border=False):
                     for _t, _c in sorted(_trim_counts.items(), key=lambda x: (-x[1], x[0])):
-                        if st.checkbox(f"{_t}  ({_c})",
+                        # Show the family in the label ("53" -> "GLE 53") but keep
+                        # the raw trim as the selection key/value used for filtering.
+                        _lbl = f"{_base_model} {_t}" if (_base_model and _t != "Standard") else _t
+                        if st.checkbox(f"{_lbl}  ({_c})",
                                        key=f"trimfacet::{_base_model}::{_t}"):
                             _sel_trims.add(_t)
 

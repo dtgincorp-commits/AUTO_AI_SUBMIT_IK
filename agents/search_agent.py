@@ -325,6 +325,14 @@ def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -
             listing_url=item.get("vdp_url"),
             source=display_source,
             stock_number=item.get("stock_no") or None,
+            raw={
+                "trim": build.get("trim") or None,
+                "engine": build.get("engine") or None,
+                "drivetrain": build.get("drivetrain") or None,
+                "fuel": build.get("fuel_type") or None,
+                "transmission": build.get("transmission") or None,
+                "body": build.get("body_type") or None,
+            },
         ))
     return listings
 
@@ -610,6 +618,15 @@ def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list
             listing_url=None,
             source="MBUSA",
             vin=r.get("vin") or None,
+            raw={
+                "trim": model_name or None,   # MBUSA "modelName" is the specific trim, e.g. "GLE 350 SUV"
+                "engine": r.get("engine") or None,
+                "drivetrain": (r.get("driveTrain") or {}).get("name") or None,
+                "fuel": (r.get("fuelType") or {}).get("name") or None,
+                "body": r.get("bodyStyleName") or None,
+                "options": [f.get("name") for f in (r.get("includedFeatures") or []) if f.get("name")]
+                           or (r.get("features") or None),
+            },
         ))
     return listings
 
@@ -1423,6 +1440,15 @@ def _search_autodev(
                     vin=vin or None,
                     stock_number=stock_no or None,
                     distance_miles=dist_miles,
+                    raw={
+                        "trim": trim or None,
+                        "series": vehicle.get("series") or None,
+                        "engine": vehicle.get("engine") or None,
+                        "drivetrain": vehicle.get("drivetrain") or None,
+                        "fuel": vehicle.get("fuel") or None,
+                        "transmission": vehicle.get("transmission") or None,
+                        "body": vehicle.get("bodyStyle") or None,
+                    },
                 )
                 listings.append(listing)
                 if _trim_has and _trim_kw in title.lower():

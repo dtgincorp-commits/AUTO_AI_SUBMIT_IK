@@ -118,39 +118,81 @@ def _facet_base(model: str) -> str:
     return mm.group(1).strip() if mm else m
 
 
-def _debug_results_html(listings, make, model, condition, base_model) -> str:
-    """Standalone HTML page listing every current result in a debug table — raw
-    title, derived trim, full score breakdown, source, distance, VIN, URL. Opened
-    in a new tab (via a blob URL) so you can eyeball exactly what the pipeline
-    returned and how the ranking agent scored it."""
+def _debug_results_html(listings, make, model, condition, base_model, prefs=None) -> str:
+    """Standalone HTML page listing every current result in a debug table. Columns
+    are grouped so you can see what's RAW-from-source vs COMPUTED-by-the-app:
+      • Source           — which API each row came from (mbusa/auto.dev/marketcheck…)
+      • Raw title        — a string the app CONSTRUCTS (year+make+model+trim); the
+                           only "listing text" the ranked view uses
+      • Derived trim     — COMPUTED live from the title by the facet logic
+      • Src trim/engine/drivetrain/fuel/body/options — the STRUCTURED fields the
+        source actually returned (from CarListing.raw); "" means that source
+        didn't provide it (e.g. scraped sources have little structured data)
+    The header echoes the exact search parameters that produced these rows."""
     import html as _h, datetime as _dt
-    cols = ["#", "Score", "Score breakdown", "Raw title", "Derived trim", "Price",
-            "MSRP", "Year", "Mileage", "Ext", "Int", "Dealer", "Location",
-            "Dist (mi)", "Source", "VIN", "Stock", "URL"]
 
     def _c(v):
-        return f"<td>{_h.escape('' if v is None else str(v))}</td>"
+        if isinstance(v, (list, tuple)):
+            v = ", ".join(str(x) for x in v if x)
+        return f"<td>{_h.escape('' if v in (None, '') else str(v))}</td>"
+
+    def _rawget(l, k):
+        r = getattr(l, "raw", None)
+        return (r or {}).get(k) if isinstance(r, dict) else None
+
+    cols = ["#", "Source", "Score", "Score breakdown", "Raw title (constructed)",
+            "Derived trim", "Src trim", "Engine / powertrain", "Drivetrain", "Fuel",
+            "Body", "Options (from source)", "Price", "MSRP", "Year", "Mileage",
+            "Ext", "Int", "Dealer", "Location", "Dist (mi)", "VIN", "Stock", "URL"]
 
     rows = []
     for i, l in enumerate(listings, 1):
         trim = _derive_trim(l.title, make, base_model)
         bd = getattr(l, "score_breakdown", None)
-        if isinstance(bd, dict):
-            bd_str = " · ".join(f"{k}={v}" for k, v in bd.items())
-        else:
-            bd_str = str(bd or "")
+        bd_str = " · ".join(f"{k}={v}" for k, v in bd.items()) if isinstance(bd, dict) else str(bd or "")
         url = getattr(l, "listing_url", "") or getattr(l, "dealer_url", "") or ""
         url_cell = (f'<td><a href="{_h.escape(url)}" target="_blank" rel="noopener">open ↗</a></td>'
                     if url else "<td></td>")
         rows.append("<tr>" + "".join([
-            _c(i), _c(l.match_score), _c(bd_str), _c(l.title), _c(trim),
+            _c(i), _c(l.source), _c(l.match_score), _c(bd_str), _c(l.title), _c(trim),
+            _c(_rawget(l, "trim")), _c(_rawget(l, "engine")), _c(_rawget(l, "drivetrain")),
+            _c(_rawget(l, "fuel")), _c(_rawget(l, "body")), _c(_rawget(l, "options")),
             _c(f"${l.asking_price:,}" if l.asking_price else ""),
             _c(f"${l.msrp:,}" if getattr(l, "msrp", None) else ""),
             _c(l.year), _c(f"{l.mileage:,}" if l.mileage else ""),
             _c(l.exterior_color), _c(l.interior_color), _c(l.dealer_name),
-            _c(l.location), _c(getattr(l, "distance_miles", None)), _c(l.source),
+            _c(l.location), _c(getattr(l, "distance_miles", None)),
             _c(l.vin), _c(getattr(l, "stock_number", None)),
         ]) + url_cell + "</tr>")
+
+    # ── Search-parameters echo (what the user actually searched) ──────────────
+    def _pv(label, val):
+        if val in (None, "", "Any", 0):
+            return ""
+        return f'<span class="pill"><b>{_h.escape(label)}:</b> {_h.escape(str(val))}</span>'
+    params_html = ""
+    if prefs is not None:
+        price = ""
+        pmin = getattr(prefs, "price_min", 0) or 0
+        pmax = getattr(prefs, "price_max", 0) or 0
+        if pmax and pmax < 999000:
+            price = f"${pmin:,}–${pmax:,}"
+        parts = [
+            _pv("Make", getattr(prefs, "make", "")),
+            _pv("Model", getattr(prefs, "model", "")),
+            _pv("Trim", getattr(prefs, "trim", "")),
+            _pv("Condition", getattr(prefs, "condition", "")),
+            _pv("Price", price),
+            _pv("Max mileage", getattr(prefs, "max_mileage", 0)),
+            _pv("Ext color", getattr(prefs, "exterior_color", "")),
+            _pv("Int color", getattr(prefs, "interior_color", "")),
+            _pv("Location", getattr(prefs, "location", "")),
+            _pv("Radius", f'{getattr(prefs, "radius_miles", "")} mi' if getattr(prefs, "radius_miles", "") else ""),
+            _pv("Certified only", "yes" if getattr(prefs, "certified_only", False) else ""),
+        ]
+        params_html = "".join(p for p in parts if p)
+    params_block = (f'<div class="params"><div class="plabel">SEARCH PARAMETERS</div>{params_html}</div>'
+                    if params_html else "")
 
     ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     head = "".join(f"<th>{_h.escape(c)}</th>" for c in cols)
@@ -159,7 +201,11 @@ def _debug_results_html(listings, make, model, condition, base_model) -> str:
 <title>Debug results — {title}</title>
 <style>
   body{{background:#0b0f19;color:#e5e7eb;font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:16px}}
-  h1{{font-size:17px;margin:0 0 2px}} .meta{{color:#9ca3af;font-size:12px;margin-bottom:12px}}
+  h1{{font-size:17px;margin:0 0 6px}} .meta{{color:#9ca3af;font-size:12px;margin:2px 0 12px}}
+  .params{{background:#111827;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;margin-bottom:14px}}
+  .plabel{{color:#93c5fd;font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:6px}}
+  .pill{{display:inline-block;background:#1e293b;border:1px solid #334155;border-radius:6px;
+         padding:3px 9px;margin:3px 6px 3px 0;font-size:12px}} .pill b{{color:#93c5fd;font-weight:600}}
   .wrap{{overflow-x:auto;border:1px solid #1f2937;border-radius:8px}}
   table{{border-collapse:collapse;white-space:nowrap;min-width:100%}}
   th,td{{padding:6px 10px;border-bottom:1px solid #1f2937;text-align:left;vertical-align:top;max-width:340px;overflow:hidden;text-overflow:ellipsis}}
@@ -169,7 +215,8 @@ def _debug_results_html(listings, make, model, condition, base_model) -> str:
   a{{color:#60a5fa}} td:first-child,th:first-child{{color:#6b7280}}
 </style></head><body>
 <h1>Debug results — {title}</h1>
-<div class="meta">{len(listings)} rows · generated {ts} · derived-trim &amp; score-breakdown columns are computed live for debugging</div>
+<div class="meta">{len(listings)} rows · generated {ts} · "Raw title" is app-constructed and "Derived trim" is computed live; "Src …" columns are the structured fields the source actually returned (blank = not provided).</div>
+{params_block}
 <div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 </body></html>"""
 
@@ -1656,7 +1703,7 @@ if _last_result:
         try:
             import json as _json_dbg
             import streamlit.components.v1 as _stc_dbg
-            _dbg_html = _debug_results_html(sorted_listings, _make, _model, _condition, _base_model)
+            _dbg_html = _debug_results_html(sorted_listings, _make, _model, _condition, _base_model, _prefs)
             _stc_dbg.html(
                 """<div style="font-family:sans-serif;padding:2px 0">
   <a id="dbglink" target="_blank" rel="noopener"

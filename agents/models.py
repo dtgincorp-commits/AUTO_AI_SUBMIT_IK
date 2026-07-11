@@ -46,6 +46,10 @@ class CarListing(BaseModel):
     stock_number: Optional[str] = None
     distance_miles: Optional[float] = None
     dealer_url: Optional[str] = None
+    # Structured fields the source returned but the ranked view doesn't use —
+    # kept for the debug table (powertrain, drivetrain, fuel, body, specific
+    # trim, options). Keys: trim, engine, drivetrain, fuel, body, options.
+    raw: Optional[Dict] = None
 
 
 class DimensionResult(BaseModel):

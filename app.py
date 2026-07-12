@@ -194,6 +194,55 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
     params_block = (f'<div class="params"><div class="plabel">SEARCH PARAMETERS</div>{params_html}</div>'
                     if params_html else "")
 
+    # ── NHTSA model resolution (what the model catalog actually did) ──────────
+    # This is DETERMINISTIC string-matching over .nhtsa_cache.json (the weekly
+    # NHTSA vPIC dump) — NOT ChromaDB / embeddings. The ChromaDB RAG agent is a
+    # separate specs/market knowledge base and is not part of model resolution.
+    nhtsa_block = ""
+    try:
+        import re as _re2
+        from agents.nhtsa import (get_models_for_make, canonicalize_model,
+                                  split_model_trim, model_exists)
+    except Exception:
+        get_models_for_make = None
+    try:
+        if get_models_for_make and make and model:
+            catalog = get_models_for_make(make)
+            ml = model.lower().strip()
+            mc = _re2.sub(r"\s+", "", ml)
+            def _cmp(s): return _re2.sub(r"\s+", "", s.lower())
+            exact  = [m for m in catalog if m.lower() == ml or _cmp(m) == mc]
+            substr = [m for m in catalog if mc in _cmp(m) and m not in exact]
+            prefix = [m for m in catalog if ml.startswith(m.lower() + " ")]
+            canon  = canonicalize_model(make, model)
+            base, ptrim = split_model_trim(make, canon)
+            valid  = model_exists(make, canon)
+            def _lst(x): return _h.escape(", ".join(x)) if x else "<i>none</i>"
+            try:
+                from agents.rag_agent import is_rag_available as _ira
+                rag_status = "available" if _ira() else "inactive (chromadb not installed / no index)"
+            except Exception:
+                rag_status = "inactive"
+            rows_nh = [
+                ("Searched model", _h.escape(model)),
+                ("NHTSA-canonical", f"{_h.escape(canon)} &nbsp;·&nbsp; validated: <b>{'yes' if valid else 'no'}</b>"),
+                ("Split → base / trim", f'base="{_h.escape(base)}", trim="{_h.escape(ptrim)}"'),
+                (f"Catalog ({make})", f"{len(catalog)} models"),
+                ("Exact match", _lst(exact)),
+                ("Substring candidates", _lst(substr)),
+                ("Prefix (word-boundary) candidates", _lst(prefix)),
+                ("ChromaDB RAG (separate subsystem)", _h.escape(rag_status)),
+            ]
+            body_nh = "".join(f'<tr><td class="nk">{k}</td><td>{v}</td></tr>' for k, v in rows_nh)
+            nhtsa_block = (
+                '<div class="params"><div class="plabel">NHTSA MODEL RESOLUTION '
+                '<span style="color:#6b7280;font-weight:400;text-transform:none;letter-spacing:0">'
+                '— deterministic match over .nhtsa_cache.json, not ChromaDB</span></div>'
+                f'<table class="nh"><tbody>{body_nh}</tbody></table></div>'
+            )
+    except Exception:
+        nhtsa_block = ""
+
     ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     head = "".join(f"<th>{_h.escape(c)}</th>" for c in cols)
     title = _h.escape(f"{make} {model}" + (f" — {condition}" if condition and condition != "Any" else ""))
@@ -213,10 +262,13 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
   tbody tr:nth-child(even){{background:#0f1523}}
   tbody tr:hover{{background:#172033}}
   a{{color:#60a5fa}} td:first-child,th:first-child{{color:#6b7280}}
+  table.nh{{white-space:normal;min-width:0}} table.nh td{{border:none;padding:3px 10px 3px 0;max-width:none}}
+  table.nh td.nk{{color:#93c5fd;width:230px;white-space:nowrap}}
 </style></head><body>
 <h1>Debug results — {title}</h1>
 <div class="meta">{len(listings)} rows · generated {ts} · "Raw title" is app-constructed and "Derived trim" is computed live; "Src …" columns are the structured fields the source actually returned (blank = not provided).</div>
 {params_block}
+{nhtsa_block}
 <div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 </body></html>"""
 

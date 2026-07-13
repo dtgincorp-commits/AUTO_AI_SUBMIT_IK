@@ -118,7 +118,8 @@ def _facet_base(model: str) -> str:
     return mm.group(1).strip() if mm else m
 
 
-def _debug_results_html(listings, make, model, condition, base_model, prefs=None) -> str:
+def _debug_results_html(listings, make, model, condition, base_model, prefs=None,
+                        parse_trace=None, search_trace=None) -> str:
     """Standalone HTML page listing every current result in a debug table. Columns
     are grouped so you can see what's RAW-from-source vs COMPUTED-by-the-app:
       • Source           — which API each row came from (mbusa/auto.dev/marketcheck…)
@@ -243,6 +244,55 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
     except Exception:
         nhtsa_block = ""
 
+    # ── Pipeline trace: user query → LLM parse → grounding (what actually ran) ─
+    parse_block = ""
+    if parse_trace:
+        rq = parse_trace.get("raw_query")
+        llm_raw = parse_trace.get("llm_raw")
+        steps = parse_trace.get("steps") or []
+        final = parse_trace.get("final")
+        rows_p = []
+        if rq is not None:
+            rows_p.append(("① User query (raw text)", f'<b style="color:#e5e7eb">{_h.escape(str(rq))}</b>'))
+        if isinstance(llm_raw, dict):
+            chopped = " &nbsp;·&nbsp; ".join(f"{_h.escape(k)}=<b>{_h.escape(str(v))}</b>"
+                                             for k, v in llm_raw.items() if v not in (None, "", "Any"))
+            rows_p.append(("② LLM extracted (what it chopped out)", chopped or "<i>nothing</i>"))
+        if steps:
+            rows_p.append(("③ NHTSA grounding (step by step)",
+                           "<br>".join("→ " + _h.escape(s) for s in steps)))
+        if isinstance(final, dict):
+            fin = " &nbsp;·&nbsp; ".join(f"{_h.escape(k)}=<b>{_h.escape(str(v))}</b>"
+                                        for k, v in final.items() if v not in (None, "", "Any"))
+            rows_p.append(("④ Parser final output", fin))
+            if (str(final.get("model", "")).lower() != str(model).lower()
+                    or str(final.get("make", "")).lower() != str(make).lower()):
+                rows_p.append(("⚠ note", f'this parse resolved {_h.escape(str(final.get("make","")))} '
+                               f'{_h.escape(str(final.get("model","")))}, but the search that produced '
+                               f'the rows below ran {_h.escape(make)} {_h.escape(model)} — the form was '
+                               f'edited, or this parse was for a different query'))
+        body_p = "".join(f'<tr><td class="nk">{k}</td><td>{v}</td></tr>' for k, v in rows_p)
+        parse_block = ('<div class="params"><div class="plabel">PIPELINE TRACE — USER QUERY → LLM PARSE → GROUNDING</div>'
+                       f'<table class="nh"><tbody>{body_p}</tbody></table></div>')
+
+    # ── Pipeline trace: how each data API was actually queried ────────────────
+    api_block = ""
+    if search_trace:
+        trows = []
+        for t in search_trace:
+            params = t.get("params") or {}
+            pstr = "<br>".join(f'<b style="color:#93c5fd">{_h.escape(k)}</b> = {_h.escape(str(v))}'
+                               for k, v in params.items())
+            trows.append(
+                f'<tr><td class="nk">{_h.escape(str(t.get("source","")))}</td>'
+                f'<td><div style="color:#9ca3af;font-size:11px">{_h.escape(str(t.get("endpoint","")))}</div>'
+                f'<div style="margin:4px 0">{pstr}</div>'
+                f'<div style="color:#7dd3fc;font-size:11px">{_h.escape(str(t.get("note","")))}</div></td></tr>')
+        api_block = ('<div class="params"><div class="plabel">PIPELINE TRACE — HOW EACH DATA API WAS QUERIED '
+                     '<span style="color:#6b7280;font-weight:400;text-transform:none;letter-spacing:0">'
+                     '(the actual request each source sent)</span></div>'
+                     f'<table class="nh"><tbody>{"".join(trows)}</tbody></table></div>')
+
     ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     head = "".join(f"<th>{_h.escape(c)}</th>" for c in cols)
     title = _h.escape(f"{make} {model}" + (f" — {condition}" if condition and condition != "Any" else ""))
@@ -268,7 +318,9 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
 <h1>Debug results — {title}</h1>
 <div class="meta">{len(listings)} rows · generated {ts} · "Raw title" is app-constructed and "Derived trim" is computed live; "Src …" columns are the structured fields the source actually returned (blank = not provided).</div>
 {params_block}
+{parse_block}
 {nhtsa_block}
+{api_block}
 <div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 </body></html>"""
 
@@ -420,6 +472,11 @@ if _build_btn:
         with st.spinner("Understanding your request..."):
             from agents.nl_parser import parse_query as _parse_query
             _parsed, _parse_err = _parse_query(_nl_query.strip())
+        try:
+            from agents.nl_parser import get_last_parse_trace as _glpt
+            st.session_state["_dbg_parse"] = _glpt()
+        except Exception:
+            pass
         if _parse_err:
             st.error(f"Could not parse your request: {_parse_err}")
         else:
@@ -469,6 +526,11 @@ if _nl_btn:
             with st.spinner("Understanding your request..."):
                 from agents.nl_parser import parse_query as _parse_query
                 _parsed, _parse_err = _parse_query(_nl_query.strip())
+            try:
+                from agents.nl_parser import get_last_parse_trace as _glpt
+                st.session_state["_dbg_parse"] = _glpt()
+            except Exception:
+                pass
             if _parse_err:
                 st.error(f"Could not parse your request: {_parse_err}")
                 st.stop()
@@ -1414,6 +1476,7 @@ if find_btn or _nl_auto_run:
         "make": make, "model": model, "condition": condition, "location": location,
         "prefs": prefs, "delivery_email": delivery_email, "delivery_sms": delivery_sms,
         "user_email": user_email, "user_phone": user_phone,
+        "parse_trace": st.session_state.get("_dbg_parse"),
     }
     st.session_state["results_page"] = 0
     st.rerun()
@@ -1755,7 +1818,9 @@ if _last_result:
         try:
             import json as _json_dbg
             import streamlit.components.v1 as _stc_dbg
-            _dbg_html = _debug_results_html(sorted_listings, _make, _model, _condition, _base_model, _prefs)
+            _dbg_html = _debug_results_html(sorted_listings, _make, _model, _condition, _base_model, _prefs,
+                                            parse_trace=_last_meta.get("parse_trace"),
+                                            search_trace=_last_result.get("search_trace"))
             _stc_dbg.html(
                 """<div style="font-family:sans-serif;padding:2px 0">
   <a id="dbglink" target="_blank" rel="noopener"

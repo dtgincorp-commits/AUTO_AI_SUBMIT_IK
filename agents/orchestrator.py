@@ -1,5 +1,5 @@
 from agents.models import CarPreferences, CarListing
-from agents.search_agent import run_search_agent
+from agents.search_agent import run_search_agent, get_search_trace
 from agents.ranking_agent import run_ranking_agent
 from agents.outreach_agent import run_outreach_agent, run_dealer_outreach
 from agents.critic_agent import run_critic_agent
@@ -25,6 +25,7 @@ def run_pipeline(
     ranked = []
     pre_outreach_critic = None
     source_errors: dict = {}
+    search_trace: list = []
 
     # Phase 1: Search + Rank + Critic revision loop (max MAX_REVISION_CYCLES)
     for cycle in range(MAX_REVISION_CYCLES + 1):
@@ -32,6 +33,7 @@ def run_pipeline(
         listings, search_warning, src_errs = run_search_agent(working_prefs, selected_sources)
         if cycle == 0:
             source_errors = src_errs
+            search_trace = get_search_trace()   # API requests from the first (unrevised) search
 
         on_status("ranking")
         ranked = run_ranking_agent(working_prefs, listings)
@@ -114,4 +116,5 @@ def run_pipeline(
         "critic_scores_per_revision": critic_scores_per_revision,
         "outreach_retried": outreach_retry,
         "source_errors": source_errors,
+        "search_trace": search_trace,
     }

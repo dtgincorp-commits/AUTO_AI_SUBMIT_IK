@@ -95,8 +95,21 @@ def _judge_parse(query: str, parsed: dict) -> dict:
     return parsed
 
 
+# Trace of the most recent parse_query call — raw LLM output, the NHTSA
+# grounding steps, and the final parsed dict. Read by the app's debug view via
+# get_last_parse_trace() to show "what the LLM chopped → how it was grounded".
+_LAST_PARSE_TRACE: dict = {}
+
+
+def get_last_parse_trace() -> dict:
+    """Return a copy of the trace recorded by the most recent parse_query call."""
+    return dict(_LAST_PARSE_TRACE)
+
+
 def parse_query(query: str) -> tuple[dict, str]:
     """Returns (parsed_dict, error_message). On success error_message is empty."""
+    global _LAST_PARSE_TRACE
+    _trace: dict = {"raw_query": query, "llm_raw": None, "steps": [], "final": None}
     llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
     chain = _build_prompt() | llm | StrOutputParser()
     try:
@@ -105,6 +118,7 @@ def parse_query(query: str) -> tuple[dict, str]:
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         parsed = json.loads(raw.strip())
+        _trace["llm_raw"] = dict(parsed)   # exactly what the LLM extracted, pre-grounding
 
         # Canonicalize make+model against NHTSA (keep the user's granularity —
         # do NOT peel a trailing number here: "GX 550" is a real Lexus model,
@@ -114,14 +128,25 @@ def parse_query(query: str) -> tuple[dict, str]:
         if parsed.get("make") and parsed.get("model"):
             try:
                 from agents.nhtsa import canonicalize_model, model_exists
+                _pre = parsed["model"]
                 canonical = canonicalize_model(parsed["make"], parsed["model"])
                 parsed["model"] = canonical
+                _trace["steps"].append(
+                    f"NHTSA canonicalize: {parsed['make']} {_pre!r} → {canonical!r}"
+                    + ("" if _pre == canonical else " (rewritten to catalog name)"))
                 # If NHTSA still can't validate → fire LLM #2 judge
                 if not model_exists(parsed["make"], canonical):
+                    _trace["steps"].append(
+                        f"NHTSA could NOT validate {parsed['make']} {canonical!r} → firing LLM judge (#2)")
                     parsed = _judge_parse(query, parsed)
+                    _pre2 = parsed.get("model", "")
                     parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
-            except Exception:
-                pass
+                    _trace["steps"].append(
+                        f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
+                else:
+                    _trace["steps"].append(f"NHTSA validated {parsed['make']} {canonical!r} — no judge needed")
+            except Exception as _e:
+                _trace["steps"].append(f"grounding error: {_e}")
 
         # Final pass: strip a duplicated make prefix from the model. Brands whose
         # models are named after the brand (Polestar 2/3/4) end up as model
@@ -132,7 +157,12 @@ def parse_query(query: str) -> tuple[dict, str]:
         _md = (parsed.get("model") or "").strip()
         if _mk and _md and _md.lower().startswith(_mk.lower() + " "):
             parsed["model"] = _md[len(_mk):].strip()
+            _trace["steps"].append(f"stripped duplicated make prefix: {_md!r} → {parsed['model']!r}")
 
+        _trace["final"] = dict(parsed)
+        _LAST_PARSE_TRACE = _trace
         return parsed, ""
     except Exception as e:
+        _trace["steps"].append(f"parse error: {e}")
+        _LAST_PARSE_TRACE = _trace
         return {}, str(e)

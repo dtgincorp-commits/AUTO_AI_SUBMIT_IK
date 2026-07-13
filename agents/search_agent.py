@@ -18,6 +18,35 @@ EBAY_FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1"
 CARGURUS_BASE = "https://www.cargurus.com"
 AUTODEV_BASE = "https://auto.dev/api"
 
+# ── Per-search API-request trace (for the debug view) ───────────────────────
+# Each source records the actual endpoint + params it sent, so the debug table
+# can show exactly how the search was built for each data API. Thread-safe:
+# sources run in a ThreadPoolExecutor. Reset at the start of run_search_agent.
+import threading as _threading
+_SEARCH_TRACE: list = []
+_SEARCH_TRACE_LOCK = _threading.Lock()
+
+
+def _trace_reset():
+    global _SEARCH_TRACE
+    with _SEARCH_TRACE_LOCK:
+        _SEARCH_TRACE = []
+
+
+def _trace_api(source: str, endpoint: str, params: dict, note: str = ""):
+    with _SEARCH_TRACE_LOCK:
+        _SEARCH_TRACE.append({
+            "source": source, "endpoint": endpoint,
+            "params": {k: str(v) for k, v in (params or {}).items()},
+            "note": note,
+        })
+
+
+def get_search_trace() -> list:
+    """Return the API requests recorded during the most recent run_search_agent."""
+    with _SEARCH_TRACE_LOCK:
+        return list(_SEARCH_TRACE)
+
 _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "Return ONLY a JSON object with keys 'make' and 'model', corrected to their exact "
@@ -267,7 +296,15 @@ except Exception:
 
 def _search_marketcheck(prefs: CarPreferences, zip_code: Optional[str] = None) -> list[CarListing]:
     make, model = _normalize_make_model(prefs.make, prefs.model)
-    model = _normalize_model_for_autodev(make, model)  # same MB normalization: GLE 450 → GLE
+    _mc_model = _normalize_model_for_autodev(make, model)  # same MB normalization: GLE 450 → GLE
+    _trace_api("Marketcheck", f"{MARKETCHECK_BASE}/search/car/active",
+               {"make": make, "model": _mc_model, "radius": prefs.radius_miles,
+                "condition": prefs.condition or "Any", "certified": prefs.certified_only,
+                "price": f"{prefs.price_min}-{prefs.price_max}",
+                "max_mileage": prefs.max_mileage or 0, "zip": zip_code or prefs.location},
+               note=(f"user model {prefs.model!r} → {_mc_model!r}; trim NOT sent to API (key unreliable) "
+                     "— ranking agent scores trim by title"))
+    model = _mc_model
     data = _fetch_marketcheck_cached(
         make, model,
         prefs.price_min, prefs.price_max,
@@ -570,8 +607,16 @@ def _search_mbusa(prefs: CarPreferences, zip_code: Optional[str] = None) -> list
     if not zip_code:
         return []
     model_num = _mb_model_number(prefs.model)
+    _cls = _mb_class_from_model(prefs.model)
+    _trace_api("MBUSA", _MBUSA_API.format(cond=(prefs.condition or "Any").lower()),
+               {"class": _cls, "condition": prefs.condition or "Any", "zip": zip_code,
+                "distance": min(prefs.radius_miles, 200), "start": "0,12,24…"},
+               note=(f"user model {prefs.model!r} → MBUSA class {_cls!r}"
+                     + (f"; then client-side filter to modelName containing {model_num!r}" if model_num
+                        else "; no model-number filter (whole class)")
+                     + " — MBUSA only filters to class level, sorted cheapest-first"))
     records = _fetch_mbusa_cached(
-        _mb_class_from_model(prefs.model),
+        _cls,
         prefs.condition or "Any",
         zip_code,
         prefs.radius_miles,
@@ -1339,6 +1384,10 @@ def _search_autodev(
         base_params["zip"] = zip_code
     # trim not passed — auto.dev returns 400 on vehicle.trim; ranking agent scores by title
 
+    _trace_api("auto.dev", f"{AUTODEV_BASE}/listings", base_params,
+               note=(f"model resolved to {model!r}" + (f"; trim '{_eff_trim}' matched in title/ranking" if _eff_trim else "")
+                     + "; paginated up to 10×100, trim not sent (auto.dev 400s on vehicle.trim)"))
+
     # Smart pagination: always fetch 5 pages (500 listings), then keep going if
     # fewer than 5 listings match the requested trim in their title.
     # Caps at 10 pages (1000 listings) to limit cost.
@@ -1757,6 +1806,7 @@ def run_search_agent(
 
     selected_sources: if non-empty, only run the named sources.
     """
+    _trace_reset()   # fresh API-request trace for this search (see get_search_trace)
     # Single Nominatim call → zip + coordinates for the whole pipeline.
     # Passing coordinates into _search_autodev avoids a second Nominatim hit
     # and ensures the client-side distance filter always has data to work with.

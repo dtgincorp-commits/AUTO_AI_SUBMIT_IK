@@ -28,12 +28,22 @@ def run_pipeline(
     search_trace: list = []
 
     # Phase 1: Search + Rank + Critic revision loop (max MAX_REVISION_CYCLES)
+    _cycle_reason = "initial search"   # why THIS cycle ran (revisions set it below)
     for cycle in range(MAX_REVISION_CYCLES + 1):
         on_status("search")
         listings, search_warning, src_errs = run_search_agent(working_prefs, selected_sources)
         if cycle == 0:
             source_errors = src_errs
-            search_trace = get_search_trace()   # API requests from the first (unrevised) search
+        # Record the API requests for EVERY cycle (initial + each revision), so the
+        # debug view can show all searches, not just the first.
+        search_trace.append({
+            "cycle": cycle + 1,
+            "reason": _cycle_reason,
+            "radius_miles": working_prefs.radius_miles,
+            "price": f"{working_prefs.price_min}-{working_prefs.price_max}",
+            "requests": get_search_trace(),
+            "listings_returned": len(listings),
+        })
 
         on_status("ranking")
         ranked = run_ranking_agent(working_prefs, listings)
@@ -53,11 +63,15 @@ def run_pipeline(
             sum(l.match_score or 0 for l in ranked) / len(ranked) if ranked else 0
         )
 
+        _reasons = []
         if len(ranked) < 3 and working_prefs.radius_miles < 100:
-            adjustment["radius_miles"] = min(working_prefs.radius_miles + 25, 100)
+            _new_r = min(working_prefs.radius_miles + 25, 100)
+            adjustment["radius_miles"] = _new_r
+            _reasons.append(f"only {len(ranked)} result(s) → radius {working_prefs.radius_miles}→{_new_r} mi")
         if avg_score < 50:
             adjustment["price_max"] = int(working_prefs.price_max * 1.10)
             adjustment["price_min"] = int(working_prefs.price_min * 0.90)
+            _reasons.append(f"avg match score {avg_score:.0f} < 50 → price band widened ±10%")
 
         if not adjustment:
             pre_outreach_critic = critic
@@ -65,6 +79,7 @@ def run_pipeline(
 
         revision_count += 1
         on_status("revision")
+        _cycle_reason = "revision: " + "; ".join(_reasons)
         working_prefs = working_prefs.model_copy(update=adjustment)
 
     # Phase 2: Outreach (always use original prefs — personalize around buyer intent)

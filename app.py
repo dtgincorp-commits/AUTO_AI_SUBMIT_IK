@@ -275,11 +275,12 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
         parse_block = ('<div class="params"><div class="plabel">PIPELINE TRACE — USER QUERY → LLM PARSE → GROUNDING</div>'
                        f'<table class="nh"><tbody>{body_p}</tbody></table></div>')
 
-    # ── Pipeline trace: how each data API was actually queried ────────────────
-    api_block = ""
-    if search_trace:
+    # ── Pipeline trace: how each data API was queried, per search cycle ───────
+    # search_trace is a list of cycles (initial + any critic-driven revisions);
+    # each cycle has its own reason, params (radius/price), and API requests.
+    def _requests_table(requests):
         trows = []
-        for t in search_trace:
+        for t in (requests or []):
             params = t.get("params") or {}
             pstr = "<br>".join(f'<b style="color:#93c5fd">{_h.escape(k)}</b> = {_h.escape(str(v))}'
                                for k, v in params.items())
@@ -288,10 +289,33 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
                 f'<td><div style="color:#9ca3af;font-size:11px">{_h.escape(str(t.get("endpoint","")))}</div>'
                 f'<div style="margin:4px 0">{pstr}</div>'
                 f'<div style="color:#7dd3fc;font-size:11px">{_h.escape(str(t.get("note","")))}</div></td></tr>')
-        api_block = ('<div class="params"><div class="plabel">PIPELINE TRACE — HOW EACH DATA API WAS QUERIED '
+        return f'<table class="nh"><tbody>{"".join(trows)}</tbody></table>'
+
+    api_block = ""
+    if search_trace:
+        cycles = search_trace if isinstance(search_trace[0], dict) and "requests" in search_trace[0] \
+                 else [{"cycle": 1, "reason": "initial search", "requests": search_trace}]
+        n = len(cycles)
+        parts = []
+        for cyc in cycles:
+            tag = f'CYCLE {cyc.get("cycle","?")} OF {n}'
+            reason = cyc.get("reason", "")
+            meta = []
+            if cyc.get("radius_miles") is not None: meta.append(f'radius={cyc["radius_miles"]}mi')
+            if cyc.get("price"): meta.append(f'price={cyc["price"]}')
+            if cyc.get("listings_returned") is not None: meta.append(f'→ {cyc["listings_returned"]} raw listings')
+            metastr = " &nbsp;·&nbsp; ".join(_h.escape(m) for m in meta)
+            parts.append(
+                f'<div style="margin:10px 0 4px"><span style="color:#93c5fd;font-weight:700">{_h.escape(tag)}</span> '
+                f'<span style="color:#9ca3af">— {_h.escape(reason)}</span>'
+                f'<div style="color:#9ca3af;font-size:12px;margin-top:2px">{metastr}</div></div>'
+                + _requests_table(cyc.get("requests")))
+        _plural = "ES" if n > 1 else ""
+        api_block = (f'<div class="params"><div class="plabel">PIPELINE TRACE — HOW EACH DATA API WAS QUERIED '
+                     f'· {n} SEARCH{_plural} '
                      '<span style="color:#6b7280;font-weight:400;text-transform:none;letter-spacing:0">'
-                     '(the actual request each source sent)</span></div>'
-                     f'<table class="nh"><tbody>{"".join(trows)}</tbody></table></div>')
+                     '(initial + any critic-driven revisions; the actual request each source sent)</span></div>'
+                     + "".join(parts) + '</div>')
 
     ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     head = "".join(f"<th>{_h.escape(c)}</th>" for c in cols)

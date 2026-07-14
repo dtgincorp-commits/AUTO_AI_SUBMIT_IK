@@ -411,6 +411,71 @@ def _log_search(raw_query, prefs, result, parse_trace) -> dict:
     return {"retrieved": retrieved, "recalled": recalled, "by_source": by_source}
 
 
+# ── Search history + bookmarks (browser localStorage) ───────────────────────
+# Per-browser, no login, survives refresh. The panel is a self-contained JS
+# iframe that (a) records the current search into localStorage history, (b)
+# renders clickable history + bookmark chips, (c) navigates back to the app with
+# ?run=<base64 fields> when a chip is clicked. Python decodes ?run= at the top
+# of the script, prefills the form, and auto-runs (see the re-run handler).
+_SEARCH_MEMORY_HTML = r"""
+<style>
+ body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;overflow:auto}
+ .lbl{font-size:11px;font-weight:700;letter-spacing:.05em;color:#93c5fd;margin:6px 0 3px}
+ .chip{display:inline-block;background:#1e293b;border:1px solid #334155;border-radius:14px;
+       padding:3px 10px;margin:3px 5px 3px 0;font-size:12px;color:#e5e7eb;cursor:pointer}
+ .chip:hover{background:#334155}
+ .chip .rm{color:#f87171;cursor:pointer;margin-left:7px;font-weight:700}
+ #bmbtn{background:#374151;border:1px solid #4b5563;color:#e5e7eb;border-radius:6px;
+        padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;margin:2px 0 4px}
+ i{color:#6b7280;font-size:12px}
+</style>
+<button id="bmbtn" style="display:none">🔖 Bookmark this search</button>
+<div class="lbl">🕘 RECENT SEARCHES</div><div id="hist"></div>
+<div class="lbl">🔖 BOOKMARKED</div><div id="bm"></div>
+<script>
+const CUR = __CUR__;
+const HKEY='autoai_history', BKEY='autoai_bookmarks';
+function load(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function sig(s){return [s.make,s.model,s.trim,s.condition,s.location,s.radius_miles].join('|').toLowerCase()}
+function esc(s){const d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML}
+function b64(s){return btoa(unescape(encodeURIComponent(JSON.stringify(s))))}
+function baseUrl(){try{return window.top.location.origin+window.top.location.pathname}catch(e){return ''}}
+function label(s){
+  if(s.q && s.q.length) return s.q;
+  let p=[(s.condition&&s.condition!=='Any')?s.condition:'', s.make, s.model].filter(Boolean).join(' ');
+  return p + (s.location?(' · '+s.location):'');
+}
+if(CUR){let h=load(HKEY); h=h.filter(x=>sig(x)!==sig(CUR)); h.unshift(CUR); save(HKEY,h.slice(0,15));}
+function chipHTML(s,rm){return '<span class="chip" data-run="'+b64(s)+'">'+esc(label(s))+
+  (rm?' <span class="rm" data-sig="'+esc(sig(s))+'">×</span>':'')+'</span>';}
+function render(){
+  const h=load(HKEY), b=load(BKEY);
+  document.getElementById('hist').innerHTML = h.length? h.map(s=>chipHTML(s,false)).join('') : '<i>none yet</i>';
+  document.getElementById('bm').innerHTML = b.length? b.map(s=>chipHTML(s,true)).join('') : '<i>none yet — run a search, then click “Bookmark this search”</i>';
+}
+render();
+const bmBtn=document.getElementById('bmbtn');
+if(CUR){bmBtn.style.display='inline-block';
+  bmBtn.onclick=function(){let b=load(BKEY); if(!b.some(x=>sig(x)===sig(CUR))){b.unshift(CUR);save(BKEY,b);} render();
+    bmBtn.textContent='🔖 Bookmarked ✓'; setTimeout(function(){bmBtn.textContent='🔖 Bookmark this search';},1500);};}
+document.addEventListener('click',function(e){
+  const rm=e.target.closest('.rm');
+  if(rm){e.stopPropagation(); const sg=rm.dataset.sig; let b=load(BKEY); b=b.filter(x=>sig(x)!==sg); save(BKEY,b); render(); return;}
+  const chip=e.target.closest('.chip');
+  if(chip && chip.dataset.run){const u=baseUrl(); try{window.top.location.href=(u||'')+'?run='+encodeURIComponent(chip.dataset.run);}catch(err){}}
+});
+</script>
+"""
+
+
+def _render_search_memory(current: dict = None):
+    """Render the history/bookmarks panel (browser localStorage)."""
+    import json as _json, streamlit.components.v1 as _stc_mem
+    html = _SEARCH_MEMORY_HTML.replace("__CUR__", _json.dumps(current) if current else "null")
+    _stc_mem.html(html, height=180, scrolling=True)
+
+
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
     "p_make": "", "p_model": "", "p_trim": "",
@@ -423,12 +488,43 @@ for _k, _v in _SS_DEFAULTS.items():
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
+# Re-run a saved search: the history/bookmarks panel navigates here with
+# ?run=<base64 JSON of the search fields>. Decode it, prefill the form, and
+# auto-run — reusing the same _search_builder + _nl_auto_run path as NL search.
+# Done before p_location is applied (below) so the location prefill takes effect.
+_run_param = st.query_params.get("run")
+if _run_param:
+    try:
+        import base64 as _b64r, json as _jsonr
+        _d = _jsonr.loads(_b64r.b64decode(_run_param).decode("utf-8"))
+        _RUN_MAP = {
+            "make": "p_make", "model": "p_model", "trim": "p_trim",
+            "condition": "p_condition", "exterior_color": "p_exterior_color",
+            "interior_color": "p_interior_color", "price_min": "p_price_min",
+            "price_max": "p_price_max", "max_mileage": "p_max_mileage",
+            "radius_miles": "p_radius_miles",
+        }
+        for _dk, _sk in _RUN_MAP.items():
+            if _d.get(_dk) is not None:
+                st.session_state[_sk] = _d[_dk]
+        if _d.get("location"):
+            st.session_state["_pending_location"] = _d["location"]
+        st.session_state["_search_builder"] = True
+        st.session_state["_nl_auto_run"] = True
+    except Exception:
+        pass
+    st.query_params.clear()
+
 # Apply a staged location BEFORE anything reads p_location (the Build Search
 # card at ~l.610 reads it well before the sidebar widget at ~l.874). p_location
 # is widget-bound, so it can only be set prior to that widget instantiating —
 # doing it here, at the top, satisfies both the card and the widget in one run.
 if st.session_state.get("_pending_location"):
     st.session_state["p_location"] = st.session_state.pop("_pending_location")
+
+# ── Recent searches & bookmarks (browser localStorage) ──────────────────────
+with st.expander("🕘 Recent searches & 🔖 Bookmarks", expanded=False):
+    _render_search_memory(st.session_state.get("_last_meta", {}).get("search_fields"))
 
 # ── Natural Language Search ─────────────────────────────────────────────────
 st.markdown("""
@@ -1574,6 +1670,22 @@ if find_btn or _nl_auto_run:
         "prefs": prefs, "delivery_email": delivery_email, "delivery_sms": delivery_sms,
         "user_email": user_email, "user_phone": user_phone,
         "parse_trace": st.session_state.get("_dbg_parse"),
+        # Round-trip-valid snapshot for the history/bookmarks panel (these are the
+        # exact widget values that produced this search — safe to replay via ?run=).
+        "search_fields": {
+            "make": st.session_state.get("p_make", ""),
+            "model": st.session_state.get("p_model", ""),
+            "trim": st.session_state.get("p_trim", ""),
+            "condition": st.session_state.get("p_condition", "Any"),
+            "exterior_color": st.session_state.get("p_exterior_color", "Any"),
+            "interior_color": st.session_state.get("p_interior_color", "Any"),
+            "price_min": st.session_state.get("p_price_min", 0),
+            "price_max": st.session_state.get("p_price_max", 999000),
+            "max_mileage": st.session_state.get("p_max_mileage", 500000),
+            "radius_miles": st.session_state.get("p_radius_miles", 50),
+            "location": st.session_state.get("p_location", ""),
+            "q": _raw_q or "",
+        },
     }
     st.session_state["results_page"] = 0
     st.rerun()

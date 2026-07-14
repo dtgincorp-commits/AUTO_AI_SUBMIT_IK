@@ -349,6 +349,68 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
 </body></html>"""
 
 
+# ── Lightweight search log ──────────────────────────────────────────────────
+import os as _os
+_SEARCH_LOG_PATH = _os.path.join(_os.path.dirname(__file__), "searches.jsonl")
+
+
+def _parse_source_counts(status: str) -> tuple:
+    """Parse a source_errors status string into (retrieved_raw, usable).
+      'OK (41 listings)'                        -> (41, 41)
+      'OK (30 usable; 11 filtered)'             -> (41, 30)
+      'OK (0 usable — 41 returned but filtered)'-> (41, 0)
+      'Error: …' / anything else                -> (0, 0)"""
+    import re as _re
+    if not status or not status.startswith("OK"):
+        return (0, 0)
+    nums = [int(n) for n in _re.findall(r"\d+", status)]
+    if "usable;" in status and "filtered" in status and len(nums) >= 2:
+        return (nums[0] + nums[1], nums[0])
+    if "returned but filtered" in status and len(nums) >= 2:
+        return (nums[1], nums[0])
+    return (nums[0] if nums else 0, nums[0] if nums else 0)
+
+
+def _log_search(raw_query, prefs, result, parse_trace) -> dict:
+    """Append one line to searches.jsonl capturing what was searched and the
+    retrieved-vs-recalled counts. Returns the computed retrieval summary so the
+    caller can also show it on screen. Never raises (best-effort logging)."""
+    import json as _json, datetime as _dt
+    src_errors = (result or {}).get("source_errors", {}) or {}
+    by_source, retrieved = {}, 0
+    for src, status in src_errors.items():
+        raw, usable = _parse_source_counts(status)
+        by_source[src] = {"retrieved": raw, "usable": usable, "status": status}
+        retrieved += raw
+    recalled = len(((result or {}).get("listings")) or [])   # final, shown to user
+    final = (parse_trace or {}).get("final") or {}
+    entry = {
+        "ts": _dt.datetime.now().isoformat(timespec="seconds"),
+        "query": raw_query or "(structured form — no NL query)",
+        "make": getattr(prefs, "make", ""),
+        "model": getattr(prefs, "model", ""),
+        "trim": getattr(prefs, "trim", "") or "",
+        "condition": getattr(prefs, "condition", "") or "Any",
+        "location": getattr(prefs, "location", ""),
+        "radius_miles": getattr(prefs, "radius_miles", None),
+        "resolved_model": final.get("model") or getattr(prefs, "model", ""),
+        "retrieved": retrieved,          # raw listings pulled from all sources
+        "recalled": recalled,            # kept after dedup + filter + ranking (shown)
+        "by_source": by_source,
+        "cycles": [
+            {"cycle": c.get("cycle"), "reason": c.get("reason"),
+             "radius_miles": c.get("radius_miles"), "listings_returned": c.get("listings_returned")}
+            for c in ((result or {}).get("search_trace") or [])
+        ],
+    }
+    try:
+        with open(_SEARCH_LOG_PATH, "a") as f:
+            f.write(_json.dumps(entry) + "\n")
+    except Exception:
+        pass
+    return {"retrieved": retrieved, "recalled": recalled, "by_source": by_source}
+
+
 # ── Session state defaults ──────────────────────────────────────────────────
 _SS_DEFAULTS = {
     "p_make": "", "p_model": "", "p_trim": "",
@@ -1493,8 +1555,19 @@ if find_btn or _nl_auto_run:
     status_box.empty()
     progress_bar.empty()
 
+    # Lightweight search log — record what was searched + retrieved-vs-recalled.
+    _parse_tr = st.session_state.get("_dbg_parse")
+    _raw_q = (_parse_tr or {}).get("raw_query")
+    # Only attribute the NL query if this parse matches what actually ran (else it
+    # was a form search or an edited query — see the ⚠ note in the debug view).
+    _fin = (_parse_tr or {}).get("final") or {}
+    if str(_fin.get("model", "")).lower() != str(model).lower():
+        _raw_q = None
+    _retrieval = _log_search(_raw_q, prefs, result, _parse_tr)
+
     # Store results in session state and reset to page 1
     st.session_state["_last_result"] = result
+    st.session_state["_last_retrieval"] = _retrieval
     st.session_state["vin_added_listings"] = []   # clear on new search
     st.session_state["_last_meta"] = {
         "make": make, "model": model, "condition": condition, "location": location,
@@ -1833,6 +1906,18 @@ if _last_result:
             f"Found **{total}** matches for your {_make} {_model}{cond_label} "
             f"— showing **{start + 1}–{end}**"
         )
+
+        # Retrieved-vs-recalled: raw listings pulled from sources vs kept after
+        # dedup + filtering + ranking. (Logged to searches.jsonl too.)
+        _rtv = st.session_state.get("_last_retrieval") or {}
+        if _rtv.get("retrieved"):
+            _by = _rtv.get("by_source") or {}
+            _breakdown = ", ".join(f"{s} {v.get('retrieved',0)}" for s, v in _by.items() if v.get("retrieved"))
+            st.caption(
+                f"📥 Retrieved **{_rtv['retrieved']}** raw listings from sources → "
+                f"**{_rtv.get('recalled', total)}** recalled after dedup, filtering & ranking"
+                + (f"  ·  by source: {_breakdown}" if _breakdown else "")
+            )
 
         # ── Debug: open ALL current results as a table in a new browser tab ────
         # Builds a standalone HTML page (raw title, derived trim, score breakdown,

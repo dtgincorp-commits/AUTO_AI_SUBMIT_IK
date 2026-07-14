@@ -10,3 +10,4 @@ knowledge_base/chroma_db/
 query_log.csv
 .oem_cache.db
 .nhtsa_cache.json
+searches.jsonl

@@ -13,7 +13,7 @@ Two layers:
 
 Runs offline against .nhtsa_cache.json (refreshes weekly via the agent).
 """
-from agents.nhtsa import SUPPORTED_MAKES, get_models_for_make, canonicalize_model, split_model_trim
+from agents.nhtsa import SUPPORTED_MAKES, get_models_for_make, canonicalize_model, split_model_trim, model_exists
 
 # split_model_trim(make, model) -> (canonical_model, trim). Locks the model↔trim
 # boundary that caused the "gt63" incident (searched "AMG GT 63" → 0 results
@@ -82,6 +82,29 @@ def run() -> bool:
         if (gm, gt) != (exp_model, exp_trim):
             ok = False
         print(f"  {mark} {make} '{typed}' → model={gm!r} trim={gt!r} (want {exp_model!r},{exp_trim!r})")
+
+    # Deterministic "-Class" recovery invariant (the GLA→GLC incident): a bundled
+    # "<letters> <number>" that NHTSA can't validate is recovered to "<letters>-Class"
+    # + trim ONLY when that class exists — so the LLM judge never sees it and can't
+    # hallucinate a different family. Lexus "GX 550" must NOT recover (no "GX-Class").
+    print("\n\"-Class\" recovery invariant (the GLA→GLC incident):")
+    CLASS_RECOVERY = [
+        # (make, letters, should_recover_to_class)
+        ("Mercedes-Benz", "GLA", "GLA-Class"),
+        ("Mercedes-Benz", "GLE", "GLE-Class"),
+        ("Mercedes-Benz", "GLC", "GLC-Class"),
+        ("Mercedes-Benz", "C",   "C-Class"),
+        ("Mercedes-Benz", "E",   "E-Class"),
+        ("Lexus",         "GX",  None),   # "GX-Class" must NOT exist → no recovery
+        ("BMW",           "X",   None),
+    ]
+    for make, letters, expect in CLASS_RECOVERY:
+        cc = canonicalize_model(make, letters + "-Class")
+        recovered = cc if model_exists(make, cc) else None
+        mark = "✅" if recovered == expect else "❌"
+        if recovered != expect:
+            ok = False
+        print(f"  {mark} {make} {letters!r}+'-Class' → {recovered!r} (expected {expect!r})")
 
     print("\nFull sweep (every NHTSA model, user-style variants):")
     total, fails = 0, []

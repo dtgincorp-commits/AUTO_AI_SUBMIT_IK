@@ -1,4 +1,5 @@
 import json
+import re
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -134,15 +135,35 @@ def parse_query(query: str) -> tuple[dict, str]:
                 _trace["steps"].append(
                     f"NHTSA canonicalize: {parsed['make']} {_pre!r} → {canonical!r}"
                     + ("" if _pre == canonical else " (rewritten to catalog name)"))
-                # If NHTSA still can't validate → fire LLM #2 judge
+                # If NHTSA still can't validate → try DETERMINISTIC recovery first,
+                # then fall back to the LLM judge.
                 if not model_exists(parsed["make"], canonical):
-                    _trace["steps"].append(
-                        f"NHTSA could NOT validate {parsed['make']} {canonical!r} → firing LLM judge (#2)")
-                    parsed = _judge_parse(query, parsed)
-                    _pre2 = parsed.get("model", "")
-                    parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
-                    _trace["steps"].append(
-                        f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
+                    # Deterministic "-Class" recovery (Mercedes): "GLA 450" is really
+                    # class "GLA-Class" + variant "450". NHTSA stores "GLA-Class", so
+                    # the bundled string never validates and — left to the LLM judge —
+                    # it can hallucinate a DIFFERENT family (observed live: GLA 450 →
+                    # GLC). Only fires when "<letters>-Class" is a real NHTSA model, so
+                    # it can't touch Lexus "GX 550" ("GX-Class" doesn't exist).
+                    _recovered = False
+                    _mm = re.match(r'^([A-Za-z]{1,4})\s+(\S.*)$', canonical)
+                    if _mm:
+                        _cls_canon = canonicalize_model(parsed["make"], _mm.group(1) + "-Class")
+                        if model_exists(parsed["make"], _cls_canon):
+                            parsed["model"] = _cls_canon
+                            if not (parsed.get("trim") or "").strip():
+                                parsed["trim"] = _mm.group(2).strip()
+                            _trace["steps"].append(
+                                f"deterministic -Class recovery: {canonical!r} → model {_cls_canon!r} "
+                                f"+ trim {parsed.get('trim')!r} (skipped judge — avoids GLA→GLC-type errors)")
+                            _recovered = True
+                    if not _recovered:
+                        _trace["steps"].append(
+                            f"NHTSA could NOT validate {parsed['make']} {canonical!r} → firing LLM judge (#2)")
+                        parsed = _judge_parse(query, parsed)
+                        _pre2 = parsed.get("model", "")
+                        parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
+                        _trace["steps"].append(
+                            f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
                 else:
                     _trace["steps"].append(f"NHTSA validated {parsed['make']} {canonical!r} — no judge needed")
             except Exception as _e:

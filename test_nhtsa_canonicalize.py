@@ -106,6 +106,26 @@ def run() -> bool:
             ok = False
         print(f"  {mark} {make} {letters!r}+'-Class' → {recovered!r} (expected {expect!r})")
 
+    # Judge guardrail (#1): a family swap by the LLM judge must be rejected. This
+    # tests the deterministic decision (family_is_real + same_family) that decides
+    # whether a judge output like GLA→GLC is blocked.
+    print("\nJudge family-swap guardrail (#1):")
+    from agents.nl_parser import _same_family, _family_is_real
+    # (make, user_model, judge_model, should_block?)
+    GUARDRAIL = [
+        ("Mercedes-Benz", "GLA 450",  "GLC-Class", True),   # the reported bug → block
+        ("Mercedes-Benz", "GLE 450",  "GLS-Class", True),   # any GL* swap → block
+        ("Chevrolet",     "Corvet",   "Corvette",  False),  # typo fix, same family → allow
+        ("BMW",           "330",      "3 Series",  False),  # variant → its family → allow
+        ("BMW",           "M Sport",  "X5",        False),  # 'M Sport' not a real family → allow judge
+    ]
+    for make, um, jm, should_block in GUARDRAIL:
+        blocked = _family_is_real(make, um) and not _same_family(um, jm)
+        mark = "✅" if blocked == should_block else "❌"
+        if blocked != should_block:
+            ok = False
+        print(f"  {mark} {make} {um!r}→{jm!r}: blocked={blocked} (expected {should_block})")
+
     print("\nFull sweep (every NHTSA model, user-style variants):")
     total, fails = 0, []
     for make in SUPPORTED_MAKES:

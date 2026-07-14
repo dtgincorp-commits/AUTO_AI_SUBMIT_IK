@@ -55,22 +55,58 @@ def _build_prompt() -> ChatPromptTemplate:
 
 _JUDGE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
-        "You are an automotive search expert. A first AI model tried to parse a car search query "
-        "but the extracted make/model could not be validated. "
-        "Correct the make and model based on your automotive knowledge. "
-        "Return ONLY valid JSON with keys: make (str), model (str), trim (str or omit if unclear). "
+        "You are an automotive search expert. A first parser extracted a make/model that NHTSA "
+        "could not validate. Make the MINIMAL correction — do NOT guess a different vehicle. "
+        "Rules: "
+        "1) If the user's make/model is a real vehicle that is merely formatted oddly (a variant "
+        "number NHTSA doesn't list, a misspelling, a spacing issue, or a brand nickname), fix ONLY "
+        "the spelling/format and keep the SAME make and model family. "
+        "2) NEVER change the make or model to a DIFFERENT family than the user indicated — e.g. do "
+        "NOT turn 'GLA' into 'GLC', or a Honda into a Toyota. A trailing number (450, 300, 53) is "
+        "just a variant of the family, NOT a reason to switch families. "
+        "3) Only supply a model when the user gave NO model at all (e.g. only a trim/badge), and "
+        "only if ONE model is the unambiguous standard meaning; otherwise leave it. "
+        "4) If you are not confident, return the values UNCHANGED. "
+        "Return ONLY valid JSON with keys: make (str), model (str), trim (str, omit if unclear). "
+        "No markdown, no explanation — raw JSON only. "
         "Examples: "
-        "'BMW M Sport' likely means make='BMW', model='X5' or another BMW — pick the most common model for M Sport. "
-        "'Mercedes AMG' → make='Mercedes-Benz', model='GLE 53'. "
-        "If you truly cannot determine the model, return the original values unchanged. "
-        "No markdown, no explanation — raw JSON only."
+        "make='Chevrolet', model='Corvet' → model='Corvette' (spelling fix, same family). "
+        "make='Mercedes-Benz', model='GLA 450' → keep model='GLA 450' (450 is a variant; do NOT change to GLC). "
+        "make='BMW', model='330' → model='3 Series' (variant → its own family). "
+        "make='BMW', model='M Sport' → unchanged if ambiguous (do NOT invent an X5)."
     )),
     ("human", (
         "Original query: {query}\n"
         "First LLM extracted: make={make}, model={model}, trim={trim}\n"
-        "NHTSA could not validate this make+model. Please correct it."
+        "NHTSA could not validate this make+model. Apply the MINIMAL correction per the rules."
     )),
 ])
+
+
+def _leading_token(model: str) -> str:
+    """Family key = the first token of the model, alphanumerics only, lowercased.
+    'GLA 450' -> 'gla', 'GLC-Class' -> 'glc', 'Corvette' -> 'corvette'."""
+    parts = re.split(r"[\s\-]+", (model or "").strip())
+    return re.sub(r"[^a-z0-9]", "", (parts[0] if parts else "").lower())
+
+
+def _same_family(a: str, b: str) -> bool:
+    """Do two models share a family? Same leading token, or one is a prefix of the
+    other (so a typo fix 'corvet'→'corvette' counts as same, but 'gla'→'glc' does not)."""
+    fa, fb = _leading_token(a), _leading_token(b)
+    if not fa or not fb:
+        return True   # can't tell → don't block
+    return fa == fb or fa.startswith(fb) or fb.startswith(fa)
+
+
+def _family_is_real(make: str, model: str) -> bool:
+    """True if the model's leading token maps to a real NHTSA model for the make —
+    i.e. the user gave a recognizable family, so the judge must not swap it out."""
+    try:
+        from agents.nhtsa import model_exists
+        return model_exists(make, _leading_token(model))
+    except Exception:
+        return False
 
 
 def _judge_parse(query: str, parsed: dict) -> dict:
@@ -157,13 +193,27 @@ def parse_query(query: str) -> tuple[dict, str]:
                                 f"+ trim {parsed.get('trim')!r} (skipped judge — avoids GLA→GLC-type errors)")
                             _recovered = True
                     if not _recovered:
+                        _pre_make, _pre_model = parsed["make"], canonical
                         _trace["steps"].append(
                             f"NHTSA could NOT validate {parsed['make']} {canonical!r} → firing LLM judge (#2)")
                         parsed = _judge_parse(query, parsed)
                         _pre2 = parsed.get("model", "")
                         parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
-                        _trace["steps"].append(
-                            f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
+                        # Guardrail (#1): the judge must not swap a REAL make/model family.
+                        # If the user's original model was a recognizable family and the
+                        # judge changed it to a different one (the GLA→GLC failure mode),
+                        # reject the judge's model and keep the user's. Deterministic — it
+                        # can't be talked out of it by an uncooperative LLM.
+                        if (_family_is_real(_pre_make, _pre_model)
+                                and not _same_family(_pre_model, parsed["model"])):
+                            _trace["steps"].append(
+                                f"⛔ guardrail: judge swapped family {_pre_model!r} → "
+                                f"{parsed['model']!r} — REJECTED, kept {_pre_model!r}")
+                            parsed["model"] = _pre_model
+                            parsed["make"] = _pre_make
+                        else:
+                            _trace["steps"].append(
+                                f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
                 else:
                     _trace["steps"].append(f"NHTSA validated {parsed['make']} {canonical!r} — no judge needed")
             except Exception as _e:

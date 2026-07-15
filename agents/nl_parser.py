@@ -109,27 +109,38 @@ def _family_is_real(make: str, model: str) -> bool:
         return False
 
 
-def _judge_parse(query: str, parsed: dict) -> dict:
-    """LLM #2 — fires only when NHTSA cannot validate the parsed make+model."""
+def _rendered_prompt(template, **vars) -> str:
+    """Render a ChatPromptTemplate to a readable SYSTEM + HUMAN string, so the
+    debug view can show the EXACT prompt sent to the LLM. Best-effort."""
+    try:
+        msgs = template.format_messages(**vars)
+        return "\n\n".join(f"[{m.type.upper()}]\n{m.content}" for m in msgs)
+    except Exception:
+        return ""
+
+
+def _judge_parse(query: str, parsed: dict) -> tuple[dict, dict]:
+    """LLM #2 — fires only when NHTSA cannot validate the parsed make+model.
+    Returns (merged_parsed, detail) where detail records the exact prompt, input,
+    and raw output for the debug view / log (no quiet failures)."""
+    _in = {"make": parsed.get("make", ""), "model": parsed.get("model", ""), "trim": parsed.get("trim", "")}
+    detail = {"prompt": _rendered_prompt(_JUDGE_PROMPT, query=query, **_in),
+              "input": dict(_in), "raw_output": None, "error": None}
     try:
         llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
         chain = _JUDGE_PROMPT | llm | StrOutputParser()
-        raw = chain.invoke({
-            "query": query,
-            "make":  parsed.get("make", ""),
-            "model": parsed.get("model", ""),
-            "trim":  parsed.get("trim", ""),
-        }).strip()
+        raw = chain.invoke({"query": query, **_in}).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         corrected = json.loads(raw.strip())
+        detail["raw_output"] = dict(corrected)
         # Merge corrections back — only override make/model/trim
         for key in ("make", "model", "trim"):
             if corrected.get(key):
                 parsed[key] = corrected[key]
-    except Exception:
-        pass
-    return parsed
+    except Exception as e:
+        detail["error"] = str(e)
+    return parsed, detail
 
 
 # Trace of the most recent parse_query call — raw LLM output, the NHTSA
@@ -146,9 +157,13 @@ def get_last_parse_trace() -> dict:
 def parse_query(query: str) -> tuple[dict, str]:
     """Returns (parsed_dict, error_message). On success error_message is empty."""
     global _LAST_PARSE_TRACE
-    _trace: dict = {"raw_query": query, "llm_raw": None, "steps": [], "final": None}
+    _trace: dict = {"raw_query": query, "model_name": LLM_MODEL, "nlp_prompt": None,
+                    "llm_raw": None, "steps": [], "judge": None,
+                    "judge_status": "not_needed", "final": None}
     llm = ChatOpenAI(model=LLM_MODEL, openai_api_key=OPENAI_API_KEY, temperature=0)
-    chain = _build_prompt() | llm | StrOutputParser()
+    _nlp_tmpl = _build_prompt()
+    _trace["nlp_prompt"] = _rendered_prompt(_nlp_tmpl, query=query)   # exact prompt sent to LLM #1
+    chain = _nlp_tmpl | llm | StrOutputParser()
     try:
         _cb = get_langfuse_callbacks()
         raw = chain.invoke({"query": query}, config={"callbacks": _cb} if _cb else {}).strip()
@@ -191,12 +206,14 @@ def parse_query(query: str) -> tuple[dict, str]:
                             _trace["steps"].append(
                                 f"deterministic -Class recovery: {canonical!r} → model {_cls_canon!r} "
                                 f"+ trim {parsed.get('trim')!r} (skipped judge — avoids GLA→GLC-type errors)")
+                            _trace["judge_status"] = "resolved_deterministically"
                             _recovered = True
                     if not _recovered:
                         _pre_make, _pre_model = parsed["make"], canonical
                         _trace["steps"].append(
                             f"NHTSA could NOT validate {parsed['make']} {canonical!r} → firing LLM judge (#2)")
-                        parsed = _judge_parse(query, parsed)
+                        parsed, _jd = _judge_parse(query, parsed)
+                        _trace["judge"] = _jd
                         _pre2 = parsed.get("model", "")
                         parsed["model"] = canonicalize_model(parsed["make"], parsed.get("model", ""))
                         # Guardrail (#1): the judge must not swap a REAL make/model family.
@@ -211,11 +228,14 @@ def parse_query(query: str) -> tuple[dict, str]:
                                 f"{parsed['model']!r} — REJECTED, kept {_pre_model!r}")
                             parsed["model"] = _pre_model
                             parsed["make"] = _pre_make
+                            _trace["judge_status"] = "fired_rejected"
                         else:
                             _trace["steps"].append(
                                 f"LLM judge returned: {parsed.get('make')} {_pre2!r} → canonical {parsed['model']!r}")
+                            _trace["judge_status"] = "fired_accepted"
                 else:
                     _trace["steps"].append(f"NHTSA validated {parsed['make']} {canonical!r} — no judge needed")
+                    _trace["judge_status"] = "not_needed"
             except Exception as _e:
                 _trace["steps"].append(f"grounding error: {_e}")
 

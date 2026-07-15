@@ -261,6 +261,16 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
         if steps:
             rows_p.append(("③ NHTSA grounding (step by step)",
                            "<br>".join("→ " + _h.escape(s) for s in steps)))
+        # JUDGE STATUS — at-a-glance, color-coded (the hallucination watch line)
+        _js = parse_trace.get("judge_status") or "not_needed"
+        _js_map = {
+            "not_needed":                ("#22c55e", "🟢 not needed — NHTSA validated the model"),
+            "resolved_deterministically":("#22c55e", "🟢 not needed — resolved deterministically (-Class recovery, no LLM judge)"),
+            "fired_accepted":            ("#f59e0b", "🟡 judge fired → accepted (review this result)"),
+            "fired_rejected":            ("#ef4444", "🔴 judge fired → REJECTED by guardrail (kept the user's model — a hallucination was blocked)"),
+        }
+        _jc, _jt = _js_map.get(_js, ("#9ca3af", _js))
+        rows_p.append(("JUDGE STATUS", f'<b style="color:{_jc}">{_h.escape(_jt)}</b>'))
         if isinstance(final, dict):
             fin = " &nbsp;·&nbsp; ".join(f"{_h.escape(k)}=<b>{_h.escape(str(v))}</b>"
                                         for k, v in final.items() if v not in (None, "", "Any"))
@@ -274,6 +284,40 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
         body_p = "".join(f'<tr><td class="nk">{k}</td><td>{v}</td></tr>' for k, v in rows_p)
         parse_block = ('<div class="params"><div class="plabel">PIPELINE TRACE — USER QUERY → LLM PARSE → GROUNDING</div>'
                        f'<table class="nh"><tbody>{body_p}</tbody></table></div>')
+
+    # ── Every LLM call: exact prompt + input + raw output (small font) ────────
+    llm_block = ""
+    if parse_trace:
+        def _prebox(text):
+            return (f'<pre style="white-space:pre-wrap;word-break:break-word;font:10px/1.35 monospace;'
+                    f'background:#0b1120;border:1px solid #1f2937;border-radius:6px;padding:8px;'
+                    f'max-height:200px;overflow:auto;margin:4px 0;color:#cbd5e1">{_h.escape(text or "")}</pre>')
+        import json as _jr
+        calls = []
+        # LLM #1 — NLP parser (always called)
+        _model_name = parse_trace.get("model_name", "?")
+        calls.append(
+            f'<div style="margin:8px 0 3px"><b style="color:#93c5fd">LLM #1 · NLP parser</b> '
+            f'<span style="color:#6b7280">({_h.escape(str(_model_name))}, temperature=0)</span></div>'
+            '<div style="color:#9ca3af;font-size:11px">▸ Prompt sent:</div>' + _prebox(parse_trace.get("nlp_prompt"))
+            + '<div style="color:#9ca3af;font-size:11px">▸ Raw output (pre-grounding):</div>'
+            + _prebox(_jr.dumps(parse_trace.get("llm_raw"), indent=1)))
+        # LLM #2 — Judge (only when it fired)
+        _jd = parse_trace.get("judge")
+        if _jd:
+            _jd_out = _jr.dumps(_jd.get("raw_output"), indent=1) if _jd.get("raw_output") is not None else (_jd.get("error") or "(no output)")
+            calls.append(
+                f'<div style="margin:12px 0 3px"><b style="color:#f59e0b">LLM #2 · Judge</b> '
+                f'<span style="color:#6b7280">(fires only when NHTSA can\'t validate)</span></div>'
+                '<div style="color:#9ca3af;font-size:11px">▸ Prompt sent:</div>' + _prebox(_jd.get("prompt"))
+                + '<div style="color:#9ca3af;font-size:11px">▸ Input:</div>' + _prebox(_jr.dumps(_jd.get("input"), indent=1))
+                + '<div style="color:#9ca3af;font-size:11px">▸ Raw output:</div>' + _prebox(_jd_out))
+        else:
+            calls.append('<div style="margin:12px 0 3px"><b style="color:#6b7280">LLM #2 · Judge — not called</b> '
+                         '<span style="color:#6b7280">(NHTSA validated or deterministic recovery handled it)</span></div>')
+        llm_block = ('<div class="params"><div class="plabel">LLM CALLS — EXACT PROMPTS & I/O '
+                     '<span style="color:#6b7280;font-weight:400;text-transform:none;letter-spacing:0">'
+                     '(every point the app calls an LLM)</span></div>' + "".join(calls) + '</div>')
 
     # ── Pipeline trace: how each data API was queried, per search cycle ───────
     # search_trace is a list of cycles (initial + any critic-driven revisions);
@@ -344,6 +388,7 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
 {params_block}
 {parse_block}
 {nhtsa_block}
+{llm_block}
 {api_block}
 <div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 </body></html>"""
@@ -383,10 +428,13 @@ def _log_search(raw_query, prefs, result, parse_trace) -> dict:
         by_source[src] = {"retrieved": raw, "usable": usable, "status": status}
         retrieved += raw
     recalled = len(((result or {}).get("listings")) or [])   # final, shown to user
-    final = (parse_trace or {}).get("final") or {}
+    pt = parse_trace or {}
+    final = pt.get("final") or {}
+    judge = pt.get("judge")
     entry = {
         "ts": _dt.datetime.now().isoformat(timespec="seconds"),
         "query": raw_query or "(structured form — no NL query)",
+        # --- what was searched ---
         "make": getattr(prefs, "make", ""),
         "model": getattr(prefs, "model", ""),
         "trim": getattr(prefs, "trim", "") or "",
@@ -394,12 +442,25 @@ def _log_search(raw_query, prefs, result, parse_trace) -> dict:
         "location": getattr(prefs, "location", ""),
         "radius_miles": getattr(prefs, "radius_miles", None),
         "resolved_model": final.get("model") or getattr(prefs, "model", ""),
+        "resolved_trim": final.get("trim") or getattr(prefs, "trim", "") or "",
+        # --- retrieved vs recalled ---
         "retrieved": retrieved,          # raw listings pulled from all sources
         "recalled": recalled,            # kept after dedup + filter + ranking (shown)
         "by_source": by_source,
+        # --- LLM parse troubleshooting (the "no quiet failures" data) ---
+        "model_name": pt.get("model_name"),
+        "llm_raw": pt.get("llm_raw"),                 # LLM #1 output, pre-grounding
+        "parse_steps": pt.get("steps"),               # grounding / recovery / guardrail trail
+        "judge_status": pt.get("judge_status"),       # not_needed | resolved_deterministically | fired_accepted | fired_rejected
+        "judge_fired": bool(judge),
+        "judge_rejected": pt.get("judge_status") == "fired_rejected",
+        "judge_io": ({"input": judge.get("input"), "raw_output": judge.get("raw_output"),
+                      "error": judge.get("error")} if judge else None),
+        # --- per-source API requests (full params, all search cycles) ---
         "cycles": [
             {"cycle": c.get("cycle"), "reason": c.get("reason"),
-             "radius_miles": c.get("radius_miles"), "listings_returned": c.get("listings_returned")}
+             "radius_miles": c.get("radius_miles"), "listings_returned": c.get("listings_returned"),
+             "requests": c.get("requests")}
             for c in ((result or {}).get("search_trace") or [])
         ],
     }
@@ -408,7 +469,8 @@ def _log_search(raw_query, prefs, result, parse_trace) -> dict:
             f.write(_json.dumps(entry) + "\n")
     except Exception:
         pass
-    return {"retrieved": retrieved, "recalled": recalled, "by_source": by_source}
+    return {"retrieved": retrieved, "recalled": recalled, "by_source": by_source,
+            "judge_status": pt.get("judge_status")}
 
 
 # ── Search history + bookmarks (browser localStorage) ───────────────────────

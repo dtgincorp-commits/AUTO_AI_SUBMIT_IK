@@ -294,14 +294,24 @@ def _debug_results_html(listings, make, model, condition, base_model, prefs=None
                     f'max-height:200px;overflow:auto;margin:4px 0;color:#cbd5e1">{_h.escape(text or "")}</pre>')
         import json as _jr
         calls = []
-        # LLM #1 — NLP parser (always called)
-        _model_name = parse_trace.get("model_name", "?")
-        calls.append(
-            f'<div style="margin:8px 0 3px"><b style="color:#93c5fd">LLM #1 · NLP parser</b> '
-            f'<span style="color:#6b7280">({_h.escape(str(_model_name))}, temperature=0)</span></div>'
-            '<div style="color:#9ca3af;font-size:11px">▸ Prompt sent:</div>' + _prebox(parse_trace.get("nlp_prompt"))
-            + '<div style="color:#9ca3af;font-size:11px">▸ Raw output (pre-grounding):</div>'
-            + _prebox(_jr.dumps(parse_trace.get("llm_raw"), indent=1)))
+        # LLM #1 — NLP parser (only runs when the user typed a natural-language
+        # query; a direct/form search or a re-run does NOT call it).
+        _nlp_prompt = parse_trace.get("nlp_prompt")
+        _model_name = parse_trace.get("model_name")
+        if _nlp_prompt:
+            calls.append(
+                f'<div style="margin:8px 0 3px"><b style="color:#93c5fd">LLM #1 · NLP parser</b> '
+                f'<span style="color:#6b7280">({_h.escape(str(_model_name or "?"))}, temperature=0)</span></div>'
+                '<div style="color:#9ca3af;font-size:11px">▸ Prompt sent:</div>' + _prebox(_nlp_prompt)
+                + '<div style="color:#9ca3af;font-size:11px">▸ Raw output (pre-grounding):</div>'
+                + _prebox(_jr.dumps(parse_trace.get("llm_raw"), indent=1)))
+        else:
+            calls.append(
+                '<div style="margin:8px 0 3px"><b style="color:#6b7280">LLM #1 · NLP parser — not called for this search</b></div>'
+                '<div style="color:#9ca3af;font-size:12px">No natural-language query was parsed, so no LLM #1 prompt '
+                'was sent. This happens for a <b>direct/form search</b> (you typed Make/Model into the form) or a '
+                '<b>re-run</b> from history — the fields came straight from the form, not from an LLM. '
+                '(If you did type a natural-language query and still see this, the trace predates the prompt-logging build — re-run the search.)</div>')
         # LLM #2 — Judge (only when it fired)
         _jd = parse_trace.get("judge")
         if _jd:
